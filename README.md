@@ -70,9 +70,6 @@ TOKEN_CONTRACT_ADDRESS=5xxx...
 ### Database Setup (Validator)
 
 ```bash
-# Generate migration
-alembic revision --autogenerate -m "initial"
-
 # Apply migrations
 alembic upgrade head
 ```
