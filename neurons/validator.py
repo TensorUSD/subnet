@@ -18,6 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 
+import logging
 import time
 
 # Bittensor
@@ -27,11 +28,12 @@ import bittensor as bt
 from tensorusd.base.validator import BaseValidatorNeuron
 
 # Bittensor Validator Template:
+from tensorusd.utils.subnet_info import get_dynamic_info
 from tensorusd.validator import forward
 
 # Auction tracking components
 from tensorusd.auction.contract import (
-    TensorUSDVaultContract,
+    TensorUSDAuctionContract,
     create_substrate_interface,
 )
 from tensorusd.validator.db import init_db
@@ -55,44 +57,46 @@ class Validator(BaseValidatorNeuron):
 
         # Initialize auction tracking system
         self._init_auction_system()
+        self.is_first_run = True
 
     def _init_auction_system(self):
         """Initialize auction tracking components."""
 
         # Initialize SQLite database
-        self.db_session_factory = init_db(db_path=self.config.db.path)
+        self.db_session_factory = init_db()
 
         # Initialize substrate interface ONCE and share with all components
-        self.auction_substrate = create_substrate_interface(
-            self.subtensor.chain_endpoint
-        )
+        self.tusd_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
 
-        # Initialize contract interface with shared substrate
-        self.contract = TensorUSDVaultContract(
-            substrate=self.auction_substrate,
-            contract_address=self.config.vault_contract.address,
-            metadata_path="tensorusd/abis/tusdt_vault.json",
+        # Initialize auction contract
+        self.auction_contract = TensorUSDAuctionContract(
+            substrate=self.tusd_substrate,
+            contract_address=self.config.auction_contract.address,
+            metadata_path="tensorusd/abis/tusdt_auction.json",
             wallet=self.wallet,
         )
 
         # Initialize event listener with shared substrate (stores events in DB)
         self.event_listener = ValidatorEventListener(
-            substrate=self.auction_substrate,
-            contract_address=self.config.vault_contract.address,
-            metadata_path="tensorusd/abis/tusdt_vault.json",
+            substrate=self.tusd_substrate,
+            contract_address=self.config.auction_contract.address,
+            metadata_path="tensorusd/abis/tusdt_auction.json",
             db_session_factory=self.db_session_factory,
+            auction_contract=self.auction_contract,
         )
 
-        # Track tempo blocks for reward calculation
-        self.last_tempo_block = self.block
-
         bt.logging.info(
-            f"Auction tracking enabled for contract {self.config.vault_contract.address}"
+            f"Auction tracking enabled for contract {self.config.auction_contract.address}"
         )
 
     def run(self):
         """Override run to start event listener alongside validator."""
         self.event_listener.run_in_background_thread()
+        dynamic_info = get_dynamic_info(self.subtensor, self.config.netuid)
+        self.event_listener.sync_historical_wins(
+            dynamic_info["last_step_block"], self.block
+        )
+        self.tempo = dynamic_info["tempo"]
         # Run normal validator operation
         super().run()
 

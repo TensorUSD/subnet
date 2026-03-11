@@ -53,12 +53,17 @@ class BaseMinerNeuron(BaseNeuron):
             bt.logging.warning(
                 "You are allowing non-registered entities to send requests to your miner. This is a security risk."
             )
-
+        self.unlock_wallet()
         # Instantiate runners
         self.should_exit: bool = False
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
+
+    def unlock_wallet(self):
+        self.wallet.coldkey_file.save_password_to_env(self.config.wallet.password)
+        self.wallet.unlock_coldkey()
+        bt.logging.info("Wallet unlocked successfully")
 
     def run(self):
         """

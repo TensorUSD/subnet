@@ -223,6 +223,7 @@ class MinerAuctionManager:
                 auction_id=auction_id,
                 bid_amount=bid_amount,
                 keypair=self.wallet.coldkey,
+                hotkey_ss58=self.wallet.hotkey.ss58_address,
             )
             return tx_hash
         except Exception as e:

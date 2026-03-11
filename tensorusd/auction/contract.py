@@ -21,6 +21,15 @@ class Vault:
 
 
 @dataclass
+class ContractParams:
+    collateral_ratio: int
+    liquidation_ratio: int
+    interest_rate: int
+    liquidation_fee: int
+    auction_duration_ms: int
+
+
+@dataclass
 class Auction:
     id: int
     vault_owner: str
@@ -100,6 +109,29 @@ class TensorUSDVaultContract:
         )
 
         bt.logging.info(f"TensorUSD vault contract initialized at {contract_address}")
+
+    def get_contract_params(self) -> dict:
+        """
+        Get contract parameters.
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_contract_params",
+            )
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok" and data[1]:
+                return ContractParams(
+                    collateral_ratio=data[1].value["collateral_ratio"],
+                    liquidation_ratio=data[1].value["liquidation_ratio"],
+                    interest_rate=data[1].value["interest_rate"],
+                    liquidation_fee=data[1].value["liquidation_fee"],
+                    auction_duration_ms=data[1].value["auction_duration_ms"],
+                )
+            return None
+        except Exception as e:
+            bt.logging.error(f"Error getting contract parameters: {e}")
+            return None
 
     def get_vault(self, owner: str, vault_id: int) -> Optional[Vault]:
         """
@@ -263,6 +295,7 @@ class TensorUSDAuctionContract:
         auction_id: int,
         bid_amount: int,
         keypair: Keypair,
+        hotkey_ss58: str,
     ) -> Optional[str]:
         """
         Place a bid on a liquidation auction.
@@ -276,7 +309,11 @@ class TensorUSDAuctionContract:
             Transaction hash if successful, None otherwise
         """
         try:
-            args = {"auction_id": auction_id, "bid_amount": bid_amount}
+            args = {
+                "auction_id": auction_id,
+                "bid_amount": bid_amount,
+                "metadata": {"hot_key": hotkey_ss58},
+            }
 
             gas_predict_result = self.contract.read(
                 keypair=keypair,
@@ -325,7 +362,6 @@ class TensorUSDAuctionContract:
             data = result.contract_result_data.value_object
             if data and data[0] == "Ok" and data[1]:
                 auction_data = data[1].value
-                print(auction_data)
                 return Auction(
                     id=auction_data["id"],
                     vault_owner=auction_data["vault_owner"],

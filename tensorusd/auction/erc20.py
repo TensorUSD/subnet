@@ -149,7 +149,7 @@ class TUSDTContract:
             )
 
             if receipt.is_success:
-                bt.logging.info(
+                bt.logging.success(
                     f"Approval successful: spender={spender}, value={value}, "
                     f"tx={receipt.extrinsic_hash}"
                 )

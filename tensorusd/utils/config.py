@@ -135,18 +135,11 @@ def add_args(cls, parser):
         default="",
     )
     parser.add_argument(
-        "--vault_contract.address",
+        "--auction_contract.address",
         type=str,
-        help="TensorUSD Vault contract address (SS58). Required for collateral price.",
-        default=os.getenv("VAULT_CONTRACT_ADDRESS", None),
-        required=os.getenv("VAULT_CONTRACT_ADDRESS") is None,
-    )
-    parser.add_argument(
-        "--wallet.password",
-        type=str,
-        help="wallet password",
-        default=os.getenv("WALLET_PASSWORD", None),
-        required=is_required_arg("WALLET_PASSWORD"),
+        help="TensorUSD Auction contract address (SS58). Required for auction bidding.",
+        default=os.getenv("AUCTION_CONTRACT_ADDRESS", None),
+        required=is_required_arg("AUCTION_CONTRACT_ADDRESS"),
     )
 
 
@@ -190,13 +183,12 @@ def add_miner_args(cls, parser):
 
     # Contract address arguments
     parser.add_argument(
-        "--auction_contract.address",
+        "--vault_contract.address",
         type=str,
-        help="TensorUSD Auction contract address (SS58). Required for auction bidding.",
-        default=os.getenv("AUCTION_CONTRACT_ADDRESS", None),
-        required=is_required_arg("AUCTION_CONTRACT_ADDRESS"),
+        help="TensorUSD Vault contract address (SS58). Required for collateral price.",
+        default=os.getenv("VAULT_CONTRACT_ADDRESS", None),
+        required=os.getenv("VAULT_CONTRACT_ADDRESS") is None,
     )
-
     # Bidding strategy arguments
     parser.add_argument(
         "--bid.initial_percentage",
@@ -247,6 +239,14 @@ def add_miner_args(cls, parser):
         type=int,
         help="Amount to approve for auction contract (0 = max uint64).",
         default=0,
+    )
+
+    parser.add_argument(
+        "--wallet.password",
+        type=str,
+        help="wallet password",
+        default=os.getenv("WALLET_PASSWORD", None),
+        required=is_required_arg("WALLET_PASSWORD"),
     )
 
 
@@ -324,13 +324,6 @@ def add_validator_args(cls, parser):
         type=str,
         help="The name of the project where you are sending the new run.",
         default="opentensor-dev",
-    )
-
-    parser.add_argument(
-        "--tempo.blocks",
-        type=int,
-        help="Number of blocks per tempo for reward calculation.",
-        default=360,
     )
 
 

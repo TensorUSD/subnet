@@ -92,7 +92,6 @@ class BaseNeuron(ABC):
         bt.logging.info(f"Subtensor: {self.subtensor}")
         bt.logging.info(f"Metagraph: {self.metagraph}")
 
-        self.unlock_wallet()
         # Check if the miner is registered on the Bittensor network before proceeding further.
         self.check_registered()
 
@@ -102,11 +101,6 @@ class BaseNeuron(ABC):
             f"Running neuron on subnet: {self.config.netuid} with uid {self.uid} using network: {self.subtensor.chain_endpoint}"
         )
         self.step = 0
-
-    def unlock_wallet(self):
-        self.wallet.coldkey_file.save_password_to_env(self.config.wallet.password)
-        self.wallet.unlock_coldkey()
-        bt.logging.info("Wallet unlocked successfully")
 
     @abstractmethod
     async def forward(self, synapse: bt.Synapse) -> bt.Synapse: ...

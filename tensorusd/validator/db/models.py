@@ -4,6 +4,9 @@ SQLAlchemy models for validator auction tracking.
 Stores auction events and tracks wins for reward calculation.
 """
 
+import logging
+from typing import Callable
+
 from sqlalchemy import (
     create_engine,
     Column,
@@ -13,10 +16,14 @@ from sqlalchemy import (
     Boolean,
     Index,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
+
+
+SessionFactory = Callable[[], Session]
 
 
 class AuctionEventModel(Base):
@@ -63,6 +70,7 @@ class AuctionWin(Base):
     auction_id = Column(BigInteger, nullable=False, unique=True)
     winner_hotkey = Column(String, nullable=False)
     winning_bid = Column(BigInteger, nullable=False)
+    debt_balance = Column(BigInteger, nullable=True)
     block_number = Column(BigInteger, nullable=False)
     # Which tempo this win was rewarded in (null if not yet processed)
     tempo_block = Column(BigInteger, nullable=True)
@@ -75,7 +83,7 @@ class AuctionWin(Base):
     )
 
 
-def init_db(db_path: str = "validator_auctions.db"):
+def init_db(db_path: str = "tensorusd.db") -> SessionFactory:
     """
     Initialize the SQLite database.
 
@@ -85,10 +93,15 @@ def init_db(db_path: str = "validator_auctions.db"):
         db_path: Path to SQLite database file
 
     Returns:
-        Session factory (sessionmaker) for creating database sessions
+        Session factory for creating database sessions
     """
+    # Suppress SQLAlchemy ORM mapper logs
+    logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.orm.mapper.Mapper").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.orm.engine.Engine").setLevel(logging.WARNING)
+
     engine = create_engine(
-        "sqlite:///tensorusd.db",
+        f"sqlite:///{db_path}",
         echo=False,
         connect_args={"check_same_thread": False},
     )
