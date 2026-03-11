@@ -242,11 +242,11 @@ def add_miner_args(cls, parser):
     )
 
     parser.add_argument(
-        "--wallet.password",
+        "--coldkey.password",
         type=str,
-        help="wallet password",
-        default=os.getenv("WALLET_PASSWORD", None),
-        required=is_required_arg("WALLET_PASSWORD"),
+        help="coldkey password",
+        default=os.getenv("COLDKEY_PASSWORD", None),
+        required=is_required_arg("COLDKEY_PASSWORD"),
     )
 
 

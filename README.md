@@ -58,7 +58,7 @@ Create a `.env` file:
 
 ```bash
 # Required
-WALLET_PASSWORD=your_wallet_password
+COLDKEY_PASSWORD=your_coldkey_password
 
 # Contract addresses (can also be passed as CLI args)
 AUCTION_CONTRACT_ADDRESS=5xxx...
@@ -88,7 +88,7 @@ uv run neurons/miner.py \
     --auction_contract.address <AUCTION_ADDRESS> \
     --vault_contract.address <VAULT_ADDRESS> \
     --tusdt.address <TUSDT_ADDRESS> \
-    --wallet.password <WALLET_PASSWORD>
+    --coldkey.password <COLDKEY_PASSWORD>
 
 # With custom bidding strategy
 uv run neurons/miner.py \
@@ -99,7 +99,7 @@ uv run neurons/miner.py \
     --auction_contract.address <AUCTION_ADDRESS> \
     --vault_contract.address <VAULT_ADDRESS> \
     --tusdt.address <TUSDT_ADDRESS> \
-    --wallet.password <WALLET_PASSWORD> \
+    --coldkey.password <COLDKEY_PASSWORD> \
     --bid.initial_percentage 0.001 \
     --bid.increment_rate 0.001 \
     --bid.max_percentage 0.90 \
