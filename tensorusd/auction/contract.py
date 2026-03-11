@@ -359,6 +359,22 @@ class TensorUSDAuctionContract:
         except Exception as e:
             bt.logging.error(f"Error getting active auctions count: {e}")
             return 0
+        
+    def _get_bid_count(self, auction_id: int) -> int:
+        """Get count of bids."""
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_all_auctions",
+                args={"auction_id": auction_id}
+            )
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok":
+                return data[1]['bid_count']
+            return 0
+        except Exception as e:
+            bt.logging.error(f"Error getting bid count: {e}")
+            return 0
 
     def get_current_block(self) -> int:
         return self.substrate.get_block_number(None)
@@ -376,6 +392,67 @@ class TensorUSDAuctionContract:
         except Exception as e:
             bt.logging.error(f"Error getting blockchain timestamp: {e}")
             return 0
+
+    def get_own_bids(self, auction_id: int) -> int:
+        """
+        Sum up bid amounts for bids placed by this wallet's coldkey.
+
+        Iterates paginated bids from the contract and accumulates
+        the total amount for bids where the bidder matches this wallet.
+
+        Returns:
+            Total bid amount placed by own coldkey, or 0 if none found
+        """
+        total_amount = 0
+        PAGE_SIZE = 10
+        my_address = self.wallet.coldkey.ss58_address
+
+        bt.logging.info("Fetching own bids from contract...")
+
+        try:
+            total_bids = self._get_bid_count(auction_id)
+
+            if total_bids == 0:
+                bt.logging.info("No bids found")
+                return 0
+
+            total_pages = (total_bids + PAGE_SIZE - 1) // PAGE_SIZE
+            bt.logging.info(
+                f"Found {total_bids} active auctions across {total_pages} pages"
+            )
+
+            for page in range(total_pages):
+                result = self.contract.read(
+                    keypair=self.wallet.hotkey,
+                    method="get_bids",
+                    args={
+                        "auction_id": auction_id,
+                        "page": page
+                        },
+                )
+
+                data = result.contract_result_data.value_object
+                if data and data[0] == "Ok" and data[1]:
+                    bid_list = data[1].value["Ok"]
+
+                    for bid_data in bid_list:
+                        bidder = bid_data["bidder"]
+
+                        if bidder == my_address:
+                            total_amount += bid_data["amount"]
+                            bt.logging.debug(
+                                f"Own bid found: bidder={bidder}, amount={bid_data['amount']}"
+                            )
+
+            bt.logging.info(
+                f"Fetched own bids total amount: {total_amount}"
+            )
+            return total_amount
+
+        except Exception as e:
+            bt.logging.error(f"Error fetching own bids: {e}")
+            return 0
+        
 
     def get_active_auctions(self) -> List[ActiveAuction]:
         """
