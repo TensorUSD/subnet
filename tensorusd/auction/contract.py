@@ -395,6 +395,22 @@ class TensorUSDAuctionContract:
         except Exception as e:
             bt.logging.error(f"Error getting active auctions count: {e}")
             return 0
+        
+    def _get_bid_count(self, auction_id: int) -> int:
+        """Get count of bids."""
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_all_auctions",
+                args={"auction_id": auction_id}
+            )
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok":
+                return data[1]['bid_count']
+            return 0
+        except Exception as e:
+            bt.logging.error(f"Error getting bid count: {e}")
+            return 0
 
     def get_current_block(self) -> int:
         return self.substrate.get_block_number(None)
@@ -412,6 +428,136 @@ class TensorUSDAuctionContract:
         except Exception as e:
             bt.logging.error(f"Error getting blockchain timestamp: {e}")
             return 0
+    
+    def withdraw_refund(
+        self,
+        auction_id: int,
+        bid_id: int,
+        keypair: Keypair
+    ) -> Optional[str]:
+        """
+        Withdraw a refund for a bid on a liquidation auction.
+
+        Args:
+            auction_id: Auction ID to withdraw refund from (u32)
+            bid_id: Bid ID to withdraw refund for (u32)
+            keypair: Keypair to sign the transaction
+
+        Returns:
+            Transaction hash if successful, None otherwise
+        """
+        try:
+            args = {
+                "auction_id": auction_id,
+                "bid_id": bid_id,
+            }
+
+            gas_predict_result = self.contract.read(
+                keypair=keypair,
+                method="withdraw_refund",
+                args=args,
+            )
+
+            receipt = self.contract.exec(
+                keypair=keypair,
+                method="withdraw_refund",
+                args=args,
+                gas_limit=gas_predict_result.gas_required,
+            )
+
+            if receipt.is_success:
+                bt.logging.info(
+                    f"Refund withdrawn: auction={auction_id}, bid_id={bid_id}, "
+                    f"tx={receipt.extrinsic_hash}"
+                )
+                return receipt.extrinsic_hash
+            else:
+                bt.logging.error(f"Refund withdrawal failed: {receipt.error_message}")
+                return None
+
+        except Exception as e:
+            bt.logging.error(f"Error withdrawing refund: {e}")
+            return None
+
+
+    def get_own_bids(self, auction_id: int) -> int:
+        """
+        Sum up bid amounts for bids placed by this wallet's coldkey.
+
+        Iterates paginated bids from the contract and accumulates
+        the total amount for bids where the bidder matches this wallet.
+
+        Returns:
+            Total bid amount placed by own coldkey, or 0 if none found
+        """
+        total_amount = 0
+        PAGE_SIZE = 10
+        my_address = self.wallet.coldkey.ss58_address
+
+        bt.logging.info("Fetching own bids from contract...")
+
+        try:
+            total_bids = self._get_bid_count(auction_id)
+
+            if total_bids == 0:
+                bt.logging.info("No bids found")
+                return 0
+
+            total_pages = (total_bids + PAGE_SIZE - 1) // PAGE_SIZE
+            bt.logging.info(
+                f"Found {total_bids} active auctions across {total_pages} pages"
+            )
+
+            for page in range(total_pages):
+                result = self.contract.read(
+                    keypair=self.wallet.hotkey,
+                    method="get_bids",
+                    args={
+                        "auction_id": auction_id,
+                        "page": page
+                        },
+                )
+
+                data = result.contract_result_data.value_object
+                if data and data[0] == "Ok" and data[1]:
+                    bid_list = data[1].value["Ok"]
+
+                    for bid_data in bid_list:
+                        bidder = bid_data["bidder"]
+                        bid_id = bid_data["bid_id"]
+                        amount = bid_data["amount"]
+                        
+
+                        if bidder == my_address:
+                            receipt = self.withdraw_refund(
+                                auction_id=auction_id,
+                                bid_id=bid_id,
+                                keypair=self.wallet.coldkey,
+                            )
+
+                            if receipt.is_success:
+                                total_amount += amount
+                        
+                            else:
+                                bt.logging.warning(
+                                    f"Failed to withdraw refund for auction={auction_id}, "
+                                    f"bid_id={bid_id}, skipping but continuing with other bids"
+                                )
+                                
+
+                                bt.logging.debug(
+                                    f"Own bid found: bidder={bidder}, amount={bid_data['amount']}"
+                                )
+
+            bt.logging.info(
+                f"Fetched own bids total amount: {total_amount}"
+            )
+            return total_amount
+
+        except Exception as e:
+            bt.logging.error(f"Error fetching own bids: {e}")
+            return 0
+        
 
     def get_active_auctions(self) -> List[ActiveAuction]:
         """
