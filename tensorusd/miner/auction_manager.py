@@ -182,28 +182,18 @@ class MinerAuctionManager:
         """
         auction_id = event.auction_id
         my_address = self.wallet.coldkey.ss58_address
-        amount_refunded= 0
 
         if event.winner == my_address:
             bt.logging.success(
                 f"Won auction {auction_id}! winning_bid={event.highest_bid}"
             )
-            amount_refunded = -event.highest_bid
-            
-
-        bt.logging.info(
-            f"Auction {auction_id} finalized. "
-            f"winner={event.winner}, "
-            f"winning_bid={event.highest_bid}"
-        )
-
-        amount_refunded += self.auction_contract.get_own_bids(auction_id)
-        
-        bt.logging.info(
-            f"Settlement amount: "
-            f"{amount_refunded:+d} TUSDT "
-            f"({'refund' if amount_refunded > 0 else 'payment'})"
-        )
+        else:
+            bt.logging.info(
+                f"Auction {auction_id} finalized. "
+                f"winner={event.winner}, "
+                f"winning_bid={event.highest_bid}"
+            )
+            self.auction_contract.get_auction_bid(auction_id)
 
     async def _submit_bid(self, auction_id: int, bid_amount: int) -> Optional[str]:
         """
