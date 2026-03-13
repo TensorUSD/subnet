@@ -48,8 +48,8 @@ cd subnet
 # Install dependencies with uv
 uv sync
 
-# Or with pip
-pip install -e .
+# install as a package
+uv pip install -e .
 ```
 
 ### Environment Variables
@@ -71,7 +71,7 @@ TOKEN_CONTRACT_ADDRESS=5xxx...
 
 ```bash
 # Apply migrations
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ## Running

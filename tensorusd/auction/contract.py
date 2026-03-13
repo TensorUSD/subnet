@@ -46,6 +46,14 @@ class Auction:
 
 
 @dataclass
+class Bid:
+    id: int
+    auction_id: int
+    bidder: str
+    amount: int
+
+
+@dataclass
 class ActiveAuction:
     auction_id: int
     vault_owner: str
@@ -379,6 +387,33 @@ class TensorUSDAuctionContract:
             return None
         except Exception as e:
             bt.logging.error(f"Error getting auction: {e}")
+            return None
+
+    def get_auction_bid(self, auction_id: int, bidder: str) -> Optional[Bid]:
+        """
+        Get auction bid by auction_id and bidder.
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_auction_bid",
+                args={"auction_id": auction_id, "bidder": bidder},
+            )
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok" and data[1]:
+                if data[1].value is None:
+                    return None
+                else:
+                    return Bid(
+                        id=data[1].value["id"],
+                        auction_id=data[1].value["auction_id"],
+                        bidder=data[1].value["bidder"],
+                        amount=data[1].value["amount"],
+                    )
+            return None
+
+        except Exception as e:
+            bt.logging.error(f"Error getting auction bid: {e}")
             return None
 
     def get_active_auctions_count(self) -> int:

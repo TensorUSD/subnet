@@ -28,7 +28,7 @@ import bittensor as bt
 from tensorusd.base.validator import BaseValidatorNeuron
 
 # Bittensor Validator Template:
-from tensorusd.utils.subnet_info import get_dynamic_info
+from tensorusd.utils.subnet import get_dynamic_info
 from tensorusd.validator import forward
 
 # Auction tracking components

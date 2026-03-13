@@ -37,6 +37,12 @@ class AuctionEvent:
 
 
 @dataclass
+class AuctionFinalizedEvent(AuctionEvent):
+    debt_balance: Optional[int] = None
+    highest_bid_metadata: Optional[dict] = None
+
+
+@dataclass
 class AuctionResult:
     """
     Final result of a liquidation auction.

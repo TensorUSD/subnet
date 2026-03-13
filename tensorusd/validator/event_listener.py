@@ -15,7 +15,11 @@ import bittensor as bt
 
 from tensorusd.auction.event_listener import AuctionEventListener
 from tensorusd.auction.contract import TensorUSDAuctionContract
-from tensorusd.auction.types import AuctionEvent, AuctionEventType
+from tensorusd.auction.types import (
+    AuctionEvent,
+    AuctionEventType,
+    AuctionFinalizedEvent,
+)
 from tensorusd.validator.db.models import AuctionWin, SessionFactory
 
 
@@ -72,9 +76,7 @@ class ValidatorEventListener:
         finally:
             session.close()
 
-    def _store_win(
-        self, session: Session, event: AuctionEvent, debt_balance: Optional[int] = None
-    ):
+    def _store_win(self, session: Session, event: AuctionFinalizedEvent):
         """Store auction win in database."""
         if not event.winner:
             return
@@ -85,23 +87,17 @@ class ValidatorEventListener:
             .first()
         )
         if not existing:
-            # Fetch debt_balance from auction contract if not provided
-            if debt_balance is None and self.auction_contract:
-                auction = self.auction_contract.get_auction(event.auction_id)
-                if auction:
-                    debt_balance = auction.debt_balance
-
             win = AuctionWin(
                 auction_id=event.auction_id,
-                winner_hotkey=event.winner,
+                winner_hotkey=event.highest_bid_metadata.get("hot_key"),
                 winning_bid=event.highest_bid,
-                debt_balance=debt_balance,
+                debt_balance=event.debt_balance,
                 block_number=event.block_number,
             )
             session.add(win)
             bt.logging.info(
                 f"Recorded auction win: auction_id={event.auction_id}, "
-                f"winner={event.winner}, bid={event.highest_bid}, debt={debt_balance}"
+                f"winner coldkey={event.winner}, winner hotkey={event.highest_bid_metadata.get('hot_key')}, winning bid={event.highest_bid}, debt={event.debt_balance}"
             )
 
     def sync_historical_wins(self, start_block: int, end_block: int):
@@ -207,6 +203,7 @@ class ValidatorEventListener:
             contract_event_obj.decode()
 
             value_object = contract_event_obj.value_object
+            print(value_object)
             event_name = value_object.get("name")
 
             # Only process AuctionFinalized events
@@ -216,12 +213,14 @@ class ValidatorEventListener:
             args = value_object.get("args", [])
             event_data = {arg["label"]: arg["value"] for arg in args}
 
-            return AuctionEvent(
+            return AuctionFinalizedEvent(
                 event_type=AuctionEventType.FINALIZED,
                 block_number=block_number,
                 auction_id=event_data.get("auction_id"),
                 winner=event_data.get("winner"),
                 highest_bid=event_data.get("highest_bid"),
+                debt_balance=event_data.get("debt_balance"),
+                highest_bid_metadata=event_data.get("highest_bid_metadata"),
             )
 
         except Exception as e:

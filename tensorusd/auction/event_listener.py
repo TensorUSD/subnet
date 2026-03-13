@@ -13,7 +13,11 @@ from substrateinterface.contracts import ContractEvent, ContractMetadata
 
 import bittensor as bt
 
-from tensorusd.auction.types import AuctionEvent, AuctionEventType
+from tensorusd.auction.types import (
+    AuctionEvent,
+    AuctionEventType,
+    AuctionFinalizedEvent,
+)
 
 
 class AuctionEventListener:
@@ -166,12 +170,14 @@ class AuctionEventListener:
             )
 
         elif event_name == "AuctionFinalized":
-            return AuctionEvent(
+            return AuctionFinalizedEvent(
                 event_type=AuctionEventType.FINALIZED,
                 block_number=block_number,
                 auction_id=event_data.get("auction_id"),
                 winner=event_data.get("winner"),
                 highest_bid=event_data.get("highest_bid"),
+                debt_balance=event_data.get("debt_balance"),
+                highest_bid_metadata=event_data.get("highest_bid_metadata"),
             )
 
         return None

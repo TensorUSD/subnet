@@ -86,7 +86,7 @@ def get_auction_rewards_from_db(
             .filter(
                 AuctionWin.block_number > tempo_start_block,
                 AuctionWin.block_number <= tempo_end_block,
-                # AuctionWin.tempo_block.is_(None),  # Not yet processed
+                AuctionWin.tempo_block.is_(None),  # Not yet processed
             )
             .all()
         )

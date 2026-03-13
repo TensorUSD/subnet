@@ -123,7 +123,7 @@ class MinerAuctionManager:
 
         # Ignore our own bids
         if event.bidder == my_address:
-            bt.logging.debug(f"Ignoring own bid on auction {auction_id}")
+            bt.logging.info(f"Ignoring own bid on auction {auction_id}")
             return
 
         # Fetch current auction state from chain
