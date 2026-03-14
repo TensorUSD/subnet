@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 from enum import Enum
+import typing
 
 
 class AuctionEventType(Enum):
@@ -12,9 +13,9 @@ class AuctionEventType(Enum):
 
 
 @dataclass
-class AuctionEvent:
+class BaseAuctionEvent:
     """
-    Represents a decoded auction event from the blockchain.
+    Base class for all auction events.
 
     Fields vary based on event_type:
     - CREATED: auction_id, vault_owner, vault_id, starts_at, ends_at
@@ -25,20 +26,36 @@ class AuctionEvent:
     event_type: AuctionEventType
     block_number: int
     auction_id: int
-    vault_owner: Optional[str] = None
-    vault_id: Optional[int] = None
-    bidder: Optional[str] = None
-    bid_id: Optional[int] = None
-    amount: Optional[int] = None
-    winner: Optional[str] = None
-    highest_bid: Optional[int] = None
-    starts_at: Optional[int] = None
-    ends_at: Optional[int] = None
 
 
 @dataclass
-class AuctionFinalizedEvent(AuctionEvent):
-    debt_balance: Optional[int] = None
+class AuctionCreatedEvent(BaseAuctionEvent):
+    """
+    Event for when a new auction is created.
+    """
+
+    vault_owner: str
+    vault_id: int
+    starts_at: int
+    ends_at: int
+
+
+@dataclass
+class BidPlacedEvent(BaseAuctionEvent):
+    """
+    Event for when a bid is placed on an auction.
+    """
+
+    bid_id: int
+    bidder: str
+    amount: int
+
+
+@dataclass
+class AuctionFinalizedEvent(BaseAuctionEvent):
+    winner: str
+    highest_bid: int
+    debt_balance: int
     highest_bid_metadata: Optional[dict] = None
 
 
@@ -55,3 +72,8 @@ class AuctionResult:
     vault_owner: str
     vault_id: int
     finalized_at_block: int
+
+
+AuctionUnionEvent = typing.Union[
+    AuctionCreatedEvent, BidPlacedEvent, AuctionFinalizedEvent
+]

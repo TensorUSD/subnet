@@ -8,7 +8,11 @@ from typing import Optional
 
 import bittensor as bt
 
-from tensorusd.auction.types import AuctionEvent
+from tensorusd.auction.types import (
+    AuctionCreatedEvent,
+    AuctionFinalizedEvent,
+    BidPlacedEvent,
+)
 from tensorusd.auction.contract import (
     TensorUSDAuctionContract,
     TensorUSDVaultContract,
@@ -58,7 +62,7 @@ class MinerAuctionManager:
     def _get_collateral_price(self) -> Optional[int]:
         return self.vault_contract.get_collateral_token_price()
 
-    async def handle_auction_created(self, event: AuctionEvent):
+    async def handle_auction_created(self, event: AuctionCreatedEvent):
         """
         Handle new liquidation auction event.
 
@@ -109,7 +113,7 @@ class MinerAuctionManager:
                 f"amount={bid_amount}, tx={tx_hash}"
             )
 
-    async def handle_bid_placed(self, event: AuctionEvent):
+    async def handle_bid_placed(self, event: BidPlacedEvent):
         """
         Handle bid placed event.
 
@@ -171,7 +175,7 @@ class MinerAuctionManager:
                 f"amount={new_bid}, tx={tx_hash}"
             )
 
-    async def handle_auction_finalized(self, event: AuctionEvent):
+    async def handle_auction_finalized(self, event: AuctionFinalizedEvent):
         """
         Handle auction finalized event.
 

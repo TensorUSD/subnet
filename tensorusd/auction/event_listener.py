@@ -13,11 +13,8 @@ from substrateinterface.contracts import ContractEvent, ContractMetadata
 
 import bittensor as bt
 
-from tensorusd.auction.types import (
-    AuctionEvent,
-    AuctionEventType,
-    AuctionFinalizedEvent,
-)
+from tensorusd.auction import AuctionCreatedEvent, AuctionFinalizedEvent, BidPlacedEvent
+from tensorusd.auction.types import AuctionEventType, AuctionUnionEvent
 
 
 class AuctionEventListener:
@@ -33,7 +30,7 @@ class AuctionEventListener:
         substrate: SubstrateInterface,
         contract_address: str,
         metadata_path: str,
-        callback: Callable[[AuctionEvent], None],
+        callback: Callable[[AuctionUnionEvent], None],
     ):
         """
         Initialize the event listener.
@@ -104,7 +101,7 @@ class AuctionEventListener:
 
     def _decode_contract_event(
         self, event, block_number: int
-    ) -> Optional[AuctionEvent]:
+    ) -> Optional[AuctionUnionEvent]:
         """Decode contract event data."""
         try:
             contract_data = event["event"][1][1]["data"].value_object
@@ -142,14 +139,14 @@ class AuctionEventListener:
 
     def _to_auction_event(
         self, contract_event, block_number: int
-    ) -> Optional[AuctionEvent]:
-        """Convert decoded contract event to AuctionEvent."""
+    ) -> Optional[AuctionUnionEvent]:
+        """Convert decoded contract event to AuctionUnionEvent."""
         value_object = contract_event.value_object
         event_name = value_object.get("name")
         event_data = self._parse_event_args(value_object)
 
         if event_name == "AuctionCreated":
-            return AuctionEvent(
+            return AuctionCreatedEvent(
                 event_type=AuctionEventType.CREATED,
                 block_number=block_number,
                 auction_id=event_data.get("auction_id"),
@@ -160,7 +157,7 @@ class AuctionEventListener:
             )
 
         elif event_name == "BidPlaced":
-            return AuctionEvent(
+            return BidPlacedEvent(
                 event_type=AuctionEventType.BID_PLACED,
                 block_number=block_number,
                 auction_id=event_data.get("auction_id"),

@@ -1,4 +1,11 @@
-from .types import AuctionEvent, AuctionResult, AuctionEventType
+from .types import (
+    AuctionResult,
+    AuctionEventType,
+    AuctionCreatedEvent,
+    AuctionFinalizedEvent,
+    BidPlacedEvent,
+    AuctionUnionEvent,
+)
 from .config import MinerBidConfig
 from .contract import (
     TensorUSDAuctionContract,
@@ -12,9 +19,12 @@ from .erc20 import TUSDTContract, MAX_APPROVAL
 from .event_listener import AuctionEventListener
 
 __all__ = [
-    "AuctionEvent",
     "AuctionResult",
     "AuctionEventType",
+    "AuctionCreatedEvent",
+    "AuctionUnionEvent",
+    "AuctionFinalizedEvent",
+    "BidPlacedEvent",
     "MinerBidConfig",
     "TensorUSDAuctionContract",
     "TensorUSDVaultContract",

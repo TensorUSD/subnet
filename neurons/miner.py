@@ -26,10 +26,10 @@ import bittensor as bt
 import tensorusd
 
 # import base miner class which takes care of most of the boilerplate
+from tensorusd.auction import AuctionUnionEvent, AuctionEventType
 from tensorusd.base.miner import BaseMinerNeuron
 
-# Auction bidding components
-from tensorusd.auction.types import AuctionEvent, AuctionEventType
+
 from tensorusd.auction.config import MinerBidConfig
 from tensorusd.auction.contract import (
     TensorUSDAuctionContract,
@@ -118,7 +118,7 @@ class Miner(BaseMinerNeuron):
             callback=self._handle_auction_event,
         )
 
-    def _handle_auction_event(self, event: AuctionEvent):
+    def _handle_auction_event(self, event: AuctionUnionEvent):
         """
         Callback from event listener - runs in listener thread.
 

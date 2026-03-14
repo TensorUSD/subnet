@@ -16,9 +16,9 @@ import bittensor as bt
 from tensorusd.auction.event_listener import AuctionEventListener
 from tensorusd.auction.contract import TensorUSDAuctionContract
 from tensorusd.auction.types import (
-    AuctionEvent,
     AuctionEventType,
     AuctionFinalizedEvent,
+    AuctionUnionEvent,
 )
 from tensorusd.validator.db.models import AuctionWin, SessionFactory
 
@@ -61,7 +61,7 @@ class ValidatorEventListener:
             callback=self._handle_event,
         )
 
-    def _handle_event(self, event: AuctionEvent):
+    def _handle_event(self, event: AuctionUnionEvent):
         """Store AuctionFinalized events in SQLite database."""
         if event.event_type != AuctionEventType.FINALIZED:
             return
@@ -179,7 +179,7 @@ class ValidatorEventListener:
 
     def _decode_finalized_event(
         self, event, block_number: int
-    ) -> Optional[AuctionEvent]:
+    ) -> Optional[AuctionUnionEvent]:
         """Decode contract event, returning only AuctionFinalized events."""
         try:
             contract_data = event["event"][1][1]["data"].value_object
