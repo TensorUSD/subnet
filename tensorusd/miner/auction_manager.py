@@ -197,6 +197,24 @@ class MinerAuctionManager:
                 f"winner={event.winner}, "
                 f"winning_bid={event.highest_bid}"
             )
+            miner_bid = self.auction_contract.get_auction_bid(auction_id, my_address)
+            if miner_bid is None:
+                bt.logging.warning(
+                    f"Could not fetch miner bid for auction {auction_id}, skipping"
+                )
+            else:
+                tx_hash = await self.auction_contract.withdraw_refund(
+                    auction_id, miner_bid.id
+                )
+                if tx_hash:
+                    bt.logging.success(
+                        f"Refund withdrawn for auction {auction_id}: "
+                        f"amount={miner_bid.amount}, tx={tx_hash}"
+                    )
+                else:
+                    bt.logging.error(
+                        f"Failed to withdraw refund for auction {auction_id}"
+                    )
 
     async def _submit_bid(self, auction_id: int, bid_amount: int) -> Optional[str]:
         """

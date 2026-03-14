@@ -350,6 +350,34 @@ class TensorUSDAuctionContract:
             bt.logging.error(f"Error placing bid: {e}")
             return None
 
+    def withdraw_refund(self, auction_id: int, bid_id: int) -> Optional[str]:
+        """
+        Withdraw refund for a losing bid after the auction is finalized.
+        """
+        try:
+            args = {
+                "auction_id": auction_id,
+                "bid_id": bid_id,
+            }
+            gas_predict_result = self.contract.read(
+                keypair=self.wallet.coldkey,
+                method="withdraw_refund",
+                args=args,
+            )
+            receipt = self.contract.exec(
+                keypair=self.wallet.coldkey,
+                method="withdraw_refund",
+                args=args,
+                gas_limit=gas_predict_result.gas_required,
+            )
+            if receipt.is_success:
+                return receipt.extrinsic_hash
+            else:
+                return None
+        except Exception as e:
+            bt.logging.error(f"Error withdrawing refund: {e}")
+            return None
+
     def get_auction(self, auction_id: int) -> Optional[Auction]:
         """
         Get auction details by ID.
