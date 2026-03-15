@@ -432,8 +432,7 @@ class TensorUSDAuctionContract:
     def withdraw_refund(
         self,
         auction_id: int,
-        bid_id: int,
-        keypair: Keypair
+        bid_id: int
     ) -> Optional[str]:
         """
         Withdraw a refund for a bid on a liquidation auction.
@@ -456,7 +455,7 @@ class TensorUSDAuctionContract:
             }
 
             gas_predict_result = self.contract.read(
-                keypair=keypair,
+                keypair=self.wallet.coldkey,
                 method="withdraw_refund",
                 args=args,
             )
@@ -465,7 +464,7 @@ class TensorUSDAuctionContract:
                 f"Submitting withdraw_refund tx: auction_id={auction_id}, bid_id={bid_id}"
             )
             receipt = self.contract.exec(
-                keypair=keypair,
+                keypair=self.wallet.coldkey,
                 method="withdraw_refund",
                 args=args,
                 gas_limit=gas_predict_result.gas_required,
@@ -501,7 +500,6 @@ class TensorUSDAuctionContract:
             Transaction hash if successful, None otherwise
         """
         my_address = self.wallet.coldkey.ss58_address
-        keypair = self.wallet.hotkey
         bt.logging.info(
             f"Fetching bid info from contract: auction_id={auction_id}, bidder={my_address}"
         )
@@ -513,7 +511,7 @@ class TensorUSDAuctionContract:
             }
 
             result = self.contract.read(
-                keypair=keypair,
+                keypair=self.wallet.hotkey,
                 method="get_auction_bid",
                 args=args,
             )
@@ -535,7 +533,7 @@ class TensorUSDAuctionContract:
                         f"Bid not yet refunded — initiating withdrawal: "
                         f"auction_id={auction_id}, bid_id={bid_id}"
                     )
-                    self.withdraw_refund(auction_id, bid_id, keypair)
+                    self.withdraw_refund(auction_id, bid_id)
                 else:
                     bt.logging.info(
                         f"Bid already withdrawn: auction_id={auction_id}, "
