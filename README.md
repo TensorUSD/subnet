@@ -144,6 +144,8 @@ uv run neurons/validator.py \
 
 ### Miner Flow
 
+See [Miner Guide](docs/miner.md) for details on miner behavior, incentives, and runtime options.
+
 1. **Event Listener** subscribes to auction contract events
 2. On `AuctionCreated`:
    - Fetch auction data from chain
@@ -159,6 +161,8 @@ uv run neurons/validator.py \
    - Log win/loss result
 
 ### Validator Flow
+
+See [Validator Guide](docs/validator.md) for details on reward calculation, weight setting, and validator runtime flow.
 
 1. **Event Listener** subscribes to auction contract events
 2. Store all events in SQLite database
