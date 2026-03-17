@@ -12,25 +12,6 @@ The subnet interacts with three ink! smart contracts on Substrate:
 - **Auction Contract** - Handles liquidation auctions (create, bid, finalize)
 - **TUSDT Contract** - ERC20 token used for bidding
 
-### Components
-
-```
-tensorusd/
-├── auction/           # Shared auction components
-│   ├── contract.py    # Vault & Auction contract interfaces
-│   ├── erc20.py       # TUSDT token interface
-│   ├── event_listener.py  # Reusable event listener
-│   └── types.py       # Event types & dataclasses
-├── miner/             # Miner-specific logic
-│   ├── auction_manager.py  # Handles bidding logic
-│   └── bidding.py     # Bidding strategy
-├── validator/         # Validator-specific logic
-│   ├── db/            # SQLite models for tracking
-│   ├── event_listener.py  # DB-storing event listener
-│   └── reward.py      # Reward calculation
-└── base/              # Base neuron classes
-```
-
 ## Development Setup
 
 ### Prerequisites
@@ -42,7 +23,7 @@ tensorusd/
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/TensorUSD/subnet
 cd subnet
 
 # Install dependencies with uv
@@ -57,13 +38,12 @@ uv pip install -e .
 Create a `.env` file:
 
 ```bash
-# Required
-COLDKEY_PASSWORD=your_coldkey_password
+# can also be passed as CLI args
 
-# Contract addresses (can also be passed as CLI args)
-AUCTION_CONTRACT_ADDRESS=5xxx...
-VAULT_CONTRACT_ADDRESS=5xxx...
-TOKEN_CONTRACT_ADDRESS=5xxx...
+COLDKEY_PASSWORD=your_coldkey_password # Required For Miner Only
+AUCTION_CONTRACT_ADDRESS=5xxx... # Required For Both
+VAULT_CONTRACT_ADDRESS=5xxx... # Required For Miner Only
+TOKEN_CONTRACT_ADDRESS=5xxx... # Required For Miner Only
 
 ```
 
@@ -133,16 +113,15 @@ uv run neurons/validator.py \
 
 #### Validator CLI Options
 
-| Option                     | Default               | Description                  |
-| -------------------------- | --------------------- | ---------------------------- |
-| `--vault_contract.address` | env                   | Vault contract SS58 address  |
-| `--db.path`                | validator_auctions.db | SQLite database path         |
-| `--tempo.blocks`           | 360                   | Blocks per tempo for rewards |
-| `--neuron.sample_size`     | 50                    | Miners to query per step     |
+| Option                       | Default | Description                 |
+| ---------------------------- | ------- | --------------------------- |
+| `--auction_contract.address` | env     | Vault contract SS58 address |
 
 ## How It Works
 
 ### Miner Flow
+
+See [Miner Guide](docs/miner.md) for details on miner behavior, incentives, and runtime options.
 
 1. **Event Listener** subscribes to auction contract events
 2. On `AuctionCreated`:
@@ -159,6 +138,8 @@ uv run neurons/validator.py \
    - Log win/loss result
 
 ### Validator Flow
+
+See [Validator Guide](docs/validator.md) for details on reward calculation, weight setting, and validator runtime flow.
 
 1. **Event Listener** subscribes to auction contract events
 2. Store all events in SQLite database
