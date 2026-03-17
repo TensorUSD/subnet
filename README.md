@@ -2,8 +2,6 @@
 
 Bittensor subnet for TensorUSD liquidation auctions. Miners compete to win liquidation auctions by placing bids, and validators track auction outcomes to reward winning miners.
 
-## Architecture
-
 ### Contracts
 
 The subnet interacts with three ink! smart contracts on Substrate:
