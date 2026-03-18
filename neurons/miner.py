@@ -21,6 +21,8 @@ import time
 import typing
 import asyncio
 import bittensor as bt
+import logging
+logging.getLogger("bittensor").propagate = False
 
 # Bittensor Miner tensorusd:
 import tensorusd

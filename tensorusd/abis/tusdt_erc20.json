@@ -1,6 +1,6 @@
 {
   "source": {
-    "hash": "0xb1052e79867a05402777202989487461fbf05bd2ee5661727ca97ecd84fce37b",
+    "hash": "0xeead26f978b237d2ce4d3c7fa1016417651e247c87de79358080c426fe97a17a",
     "language": "ink! 5.1.1",
     "compiler": "rustc 1.93.0",
     "build_info": {
@@ -36,7 +36,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          "Initializes the token contract with the specified owner account."
+        ],
         "label": "new",
         "payable": false,
         "returnType": {
@@ -185,7 +187,9 @@
       {
         "args": [],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Returns the owner account ID."
+        ],
         "label": "owner",
         "mutates": false,
         "payable": false,
@@ -201,7 +205,9 @@
       {
         "args": [],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Returns the total supply of tokens in circulation."
+        ],
         "label": "total_supply",
         "mutates": false,
         "payable": false,
@@ -227,7 +233,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Returns the token balance of an account."
+        ],
         "label": "balance_of",
         "mutates": false,
         "payable": false,
@@ -262,7 +270,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Returns the amount of tokens that a spender is allowed to transfer from an owner's account."
+        ],
         "label": "allowance",
         "mutates": false,
         "payable": false,
@@ -297,7 +307,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Transfers tokens from the caller to a recipient account."
+        ],
         "label": "transfer",
         "mutates": true,
         "payable": false,
@@ -332,7 +344,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Mints new tokens and adds them to an account's balance; only callable by owner."
+        ],
         "label": "mint",
         "mutates": true,
         "payable": false,
@@ -367,7 +381,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Burns tokens from an account, reducing the total supply; only callable by owner."
+        ],
         "label": "burn",
         "mutates": true,
         "payable": false,
@@ -402,7 +418,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Approves a spender to transfer up to a specified amount of tokens on behalf of the caller."
+        ],
         "label": "approve",
         "mutates": true,
         "payable": false,
@@ -446,7 +464,9 @@
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Transfers tokens on behalf of an owner account to a recipient, using the caller's allowance."
+        ],
         "label": "transfer_from",
         "mutates": true,
         "payable": false,
