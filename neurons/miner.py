@@ -42,7 +42,6 @@ from tensorusd.auction.erc20 import TUSDTContract, MAX_APPROVAL
 from tensorusd.auction.event_listener import AuctionEventListener
 from tensorusd.miner.bidding import BiddingStrategy
 from tensorusd.miner.auction_manager import MinerAuctionManager
-from tensorusd.utils.subnet import get_dynamic_info
 
 
 class Miner(BaseMinerNeuron):
@@ -142,29 +141,6 @@ class Miner(BaseMinerNeuron):
 
     def run(self):
         """Override run to start event listener alongside axon."""
-        if self.config.miner.refund_sync:
-            dynamic_info = get_dynamic_info(self.subtensor, self.config.netuid)
-            start_block = dynamic_info["last_step_block"]
-            end_block = self.auction_contract.get_current_block()
-
-            bt.logging.info(
-                "Catching up on historical finalized auctions for refunds "
-                f"from block {start_block} to {end_block}..."
-            )
-            asyncio.run(
-                self.auction_manager.sync_historical_finalized_refunds(
-                    event_listener=self.event_listener,
-                    start_block=start_block,
-                    end_block=end_block,
-                )
-            )
-        else:
-            bt.logging.info(
-                "Historical refund catch-up disabled "
-                "(--miner.refund_sync not set); "
-                "starting in live-only mode."
-            )
-
         bt.logging.info("Catching up on active auctions...")
         asyncio.run(self.auction_manager.sync_active_auctions())
 

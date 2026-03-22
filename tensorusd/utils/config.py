@@ -147,16 +147,6 @@ def add_miner_args(cls, parser):
     """Add miner specific arguments to the parser."""
 
     parser.add_argument(
-        "--miner.refund_sync",
-        action="store_true",
-        help=(
-            "Enable bounded historical scan for finalized auctions at startup "
-            "to auto-claim pending refunds. Disabled by default (live-only mode)."
-        ),
-        default=False,
-    )
-
-    parser.add_argument(
         "--neuron.name",
         type=str,
         help="Trials for this neuron go in neuron.root / (wallet_cold - wallet_hot) / neuron.name. ",
