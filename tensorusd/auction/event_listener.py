@@ -5,7 +5,7 @@ Can be used by both miners and validators with custom callbacks.
 """
 
 import threading
-from typing import Callable, Optional
+from typing import Callable, Optional, Set
 
 from scalecodec.base import ScaleBytes
 from substrateinterface import SubstrateInterface
@@ -51,13 +51,17 @@ class AuctionEventListener:
 
         self.contract_metadata: Optional[ContractMetadata] = None
 
+    def _ensure_metadata_loaded(self):
+        """Load contract metadata once for decoding events."""
+        if self.contract_metadata is None:
+            self.contract_metadata = ContractMetadata.create_from_file(
+                metadata_file=self.metadata_path,
+                substrate=self.substrate,
+            )
+
     def run(self):
         """Main loop - subscribe to events (runs in background thread)."""
-        # Load contract metadata
-        self.contract_metadata = ContractMetadata.create_from_file(
-            metadata_file=self.metadata_path,
-            substrate=self.substrate,
-        )
+        self._ensure_metadata_loaded()
 
         bt.logging.info(
             f"Event listener started for Auction contract {self.contract_address}"
@@ -67,6 +71,65 @@ class AuctionEventListener:
             self.substrate.subscribe_block_headers(self._subscription_handler)
         except Exception as e:
             bt.logging.error(f"Event listener error: {e}")
+
+    def sync_historical_events(
+        self,
+        start_block: int,
+        end_block: int,
+        event_types: Optional[Set[AuctionEventType]] = None,
+        progress_log_interval: int = 200,
+    ) -> int:
+        """
+        Process historical auction events in a bounded block range.
+
+        Args:
+            start_block: Inclusive start block.
+            end_block: Inclusive end block.
+            event_types: Optional filter for specific auction event types.
+            progress_log_interval: How often to log progress while scanning.
+
+        Returns:
+            Number of decoded events passed to callback.
+        """
+        if end_block < start_block:
+            return 0
+
+        self._ensure_metadata_loaded()
+        decoded_count = 0
+
+        for block_number in range(start_block, end_block + 1):
+            try:
+                block_hash = self.substrate.get_block_hash(block_number)
+                events = self.substrate.get_events(block_hash)
+            except Exception as e:
+                bt.logging.warning(
+                    f"Skipping block {block_number} during historical sync: {e}"
+                )
+                continue
+
+            for event in events:
+                if not self._is_contract_event(event):
+                    continue
+
+                decoded_event = self._decode_contract_event(event, block_number)
+                if decoded_event is None:
+                    continue
+                if event_types and decoded_event.event_type not in event_types:
+                    continue
+
+                decoded_count += 1
+                try:
+                    self.callback(decoded_event)
+                except Exception as e:
+                    bt.logging.error(f"Error in historical event callback: {e}")
+
+            if progress_log_interval > 0 and block_number % progress_log_interval == 0:
+                bt.logging.info(
+                    f"Historical auction scan progress: block={block_number}, "
+                    f"decoded_events={decoded_count}"
+                )
+
+        return decoded_count
 
     def _subscription_handler(self, obj, update_nr, subscription_id):
         """Handle new blocks."""

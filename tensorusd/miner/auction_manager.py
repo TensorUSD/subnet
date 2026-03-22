@@ -4,11 +4,12 @@ Auction manager for miners.
 Handles auction events and coordinates bidding.
 """
 
-from typing import Optional
+from typing import Optional, Set
 
 import bittensor as bt
 
-from tensorusd.auction.types import AuctionEvent
+from tensorusd.auction.types import AuctionEvent, AuctionEventType
+from tensorusd.auction.event_listener import AuctionEventListener
 from tensorusd.auction.contract import (
     TensorUSDAuctionContract,
     TensorUSDVaultContract,
@@ -180,20 +181,93 @@ class MinerAuctionManager:
         Args:
             event: AuctionFinalized event
         """
+        self._handle_finalized_result(event, source="live")
+
+    def _handle_finalized_result(self, event: AuctionEvent, source: str):
+        """Handle finalized outcome and attempt refund claim for lost auctions."""
         auction_id = event.auction_id
+        if auction_id is None:
+            bt.logging.warning(
+                f"[{source}] Skipping finalized event with missing auction_id"
+            )
+            return
+
         my_address = self.wallet.coldkey.ss58_address
 
         if event.winner == my_address:
             bt.logging.success(
-                f"Won auction {auction_id}! winning_bid={event.highest_bid}"
+                f"[{source}] Won auction {auction_id}! winning_bid={event.highest_bid}"
             )
-        else:
+            return
+
+        bt.logging.info(
+            f"[{source}] Auction {auction_id} finalized. "
+            f"winner={event.winner}, "
+            f"winning_bid={event.highest_bid}"
+        )
+        self.auction_contract.get_auction_bid(auction_id)
+
+    async def sync_historical_finalized_refunds(
+        self,
+        event_listener: AuctionEventListener,
+        start_block: int,
+        end_block: int,
+    ):
+        """
+        Catch up historical finalized auctions and withdraw pending refunds.
+
+        Scans only the provided bounded block range and processes auction
+        finalized events from the auction contract.
+        """
+        if end_block < start_block:
             bt.logging.info(
-                f"Auction {auction_id} finalized. "
-                f"winner={event.winner}, "
-                f"winning_bid={event.highest_bid}"
+                f"Skipping historical refund sync: invalid range {start_block}-{end_block}"
             )
-            self.auction_contract.get_auction_bid(auction_id)
+            return
+
+        bt.logging.info(
+            f"Syncing historical finalized auctions for refunds: "
+            f"start_block={start_block}, end_block={end_block}"
+        )
+
+        seen_auction_ids: Set[int] = set()
+        finalized_events_seen = 0
+        lost_auctions_checked = 0
+
+        def _historical_callback(event: AuctionEvent):
+            nonlocal finalized_events_seen, lost_auctions_checked
+            if event.event_type != AuctionEventType.FINALIZED:
+                return
+            if event.auction_id is None:
+                return
+
+            finalized_events_seen += 1
+            if event.auction_id in seen_auction_ids:
+                return
+            seen_auction_ids.add(event.auction_id)
+
+            if event.winner != self.wallet.coldkey.ss58_address:
+                lost_auctions_checked += 1
+            self._handle_finalized_result(event, source="historical")
+
+        original_callback = event_listener.callback
+        try:
+            event_listener.callback = _historical_callback
+            processed = event_listener.sync_historical_events(
+                start_block=start_block,
+                end_block=end_block,
+                event_types={AuctionEventType.FINALIZED},
+            )
+        finally:
+            event_listener.callback = original_callback
+
+        bt.logging.info(
+            f"Historical refund sync complete: "
+            f"finalized_events={finalized_events_seen}, "
+            f"unique_auctions={len(seen_auction_ids)}, "
+            f"lost_checked={lost_auctions_checked}, "
+            f"decoded_processed={processed}"
+        )
 
     async def _submit_bid(self, auction_id: int, bid_amount: int) -> Optional[str]:
         """
