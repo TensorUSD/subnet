@@ -4,12 +4,13 @@ Auction manager for miners.
 Handles auction events and coordinates bidding.
 """
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import bittensor as bt
 
 from tensorusd.auction.types import (
     AuctionCreatedEvent,
+    AuctionEventType,
     AuctionFinalizedEvent,
     BidPlacedEvent,
 )
@@ -19,6 +20,9 @@ from tensorusd.auction.contract import (
 )
 from tensorusd.auction.erc20 import TUSDTContract
 from tensorusd.miner.bidding import BiddingStrategy
+
+if TYPE_CHECKING:
+    from tensorusd.auction.event_listener import AuctionEventListener
 
 
 class MinerAuctionManager:
@@ -35,8 +39,8 @@ class MinerAuctionManager:
     def __init__(
         self,
         auction_contract: TensorUSDAuctionContract,
-        vault_contract: TensorUSDVaultContract,
-        strategy: BiddingStrategy,
+        vault_contract: Optional[TensorUSDVaultContract],
+        strategy: Optional[BiddingStrategy],
         wallet: bt.Wallet,
         tusdt_contract: Optional[TUSDTContract] = None,
         approval_amount: Optional[int] = None,
@@ -60,6 +64,8 @@ class MinerAuctionManager:
         self.approval_amount = approval_amount
 
     def _get_collateral_price(self) -> Optional[int]:
+        if self.vault_contract is None:
+            return None
         return self.vault_contract.get_collateral_token_price()
 
     async def handle_auction_created(self, event: AuctionCreatedEvent):
@@ -75,6 +81,12 @@ class MinerAuctionManager:
             f"New auction created: auction_id={event.auction_id}, "
             f"vault_owner={event.vault_owner}, vault_id={event.vault_id}"
         )
+
+        if self.strategy is None:
+            bt.logging.warning(
+                "Bidding strategy is not configured, skipping AuctionCreated handling"
+            )
+            return
 
         # Fetch auction details from chain
         auction = self.auction_contract.get_auction(event.auction_id)
@@ -124,6 +136,12 @@ class MinerAuctionManager:
         """
         auction_id = event.auction_id
         my_address = self.wallet.coldkey.ss58_address
+
+        if self.strategy is None:
+            bt.logging.warning(
+                "Bidding strategy is not configured, skipping BidPlaced handling"
+            )
+            return
 
         # Ignore our own bids
         if event.bidder == my_address:
@@ -216,6 +234,59 @@ class MinerAuctionManager:
                         f"Failed to withdraw refund for auction {auction_id}"
                     )
 
+    async def sync_historical_finalized_refunds(
+        self,
+        event_listener: "AuctionEventListener",
+        start_block: int,
+        end_block: int,
+    ):
+        """
+        Scan finalized auction events in a block range and withdraw miner refunds.
+
+        Args:
+            event_listener: Auction event listener used for decoding historical events.
+            start_block: Inclusive start block.
+            end_block: Inclusive end block.
+        """
+        bt.logging.info(
+            f"Syncing historical finalized refunds in range {start_block}..{end_block}"
+        )
+
+        if end_block < start_block:
+            bt.logging.warning(
+                f"Invalid historical range: start_block={start_block}, end_block={end_block}"
+            )
+            return
+
+        finalized_events: list[AuctionFinalizedEvent] = []
+        original_callback = event_listener.callback
+
+        def collect_finalized(event):
+            if isinstance(event, AuctionFinalizedEvent):
+                finalized_events.append(event)
+
+        event_listener.callback = collect_finalized
+        try:
+            decoded_count = event_listener.sync_historical_events(
+                start_block=start_block,
+                end_block=end_block,
+                event_types={AuctionEventType.FINALIZED},
+            )
+        finally:
+            event_listener.callback = original_callback
+
+        bt.logging.info(
+            f"Historical finalized scan complete: decoded_events={decoded_count}, "
+            f"finalized_events={len(finalized_events)}"
+        )
+
+        if not finalized_events:
+            bt.logging.info("No finalized auction events found in historical range")
+            return
+
+        for event in finalized_events:
+            await self.handle_auction_finalized(event)
+
     async def _submit_bid(self, auction_id: int, bid_amount: int) -> Optional[str]:
         """
         Submit bid transaction to blockchain.
@@ -259,6 +330,10 @@ class MinerAuctionManager:
         Fetches active auctions from contract and bids on any profitable ones.
         """
         bt.logging.info("Syncing active auctions...")
+
+        if self.strategy is None:
+            bt.logging.warning("Bidding strategy is not configured, skipping active sync")
+            return
 
         active_auctions = self.auction_contract.get_active_auctions()
 
