@@ -65,6 +65,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")
         self.scores = np.zeros(self.metagraph.n, dtype=np.float32)
+        self.scores_mech1 = np.zeros(self.metagraph.n, dtype=np.float32)
 
         # Init sync with the network. Updates the metagraph.
         self.sync()
@@ -209,7 +210,7 @@ class BaseValidatorNeuron(BaseNeuron):
             self.is_running = False
             bt.logging.debug("Stopped")
 
-    def set_weights(self):
+    def set_weights(self, mechid: int = 0):
         """
         Sets the validator weights to the metagraph hotkeys based on the scores it has received from the miners. The weights determine the trust and incentive level the validator assigns to miner nodes on the network.
         """
@@ -267,6 +268,7 @@ class BaseValidatorNeuron(BaseNeuron):
             wait_for_finalization=False,
             wait_for_inclusion=False,
             version_key=self.spec_version,
+            mechid=mechid,
         )
         if result is True:
             bt.logging.info("set_weights on chain successfully!")
@@ -306,7 +308,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
-    def update_scores(self, rewards: np.ndarray, uids: List[int]):
+    def update_scores(self, rewards: np.ndarray, uids: List[int], mechid: int = 0):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
 
         # Check if rewards contains NaN values.
@@ -343,13 +345,20 @@ class BaseValidatorNeuron(BaseNeuron):
         # shape: [ metagraph.n ]
         scattered_rewards: np.ndarray = np.zeros_like(self.scores)
         scattered_rewards[uids_array] = rewards
-        bt.logging.debug(f"Scattered rewards: {rewards}")
+        bt.logging.debug(f"Scattered rewards for mechid {mechid}: {rewards}")
 
         # Update scores with rewards produced by this step.
         # shape: [ metagraph.n ]
         alpha: float = self.config.neuron.moving_average_alpha
-        self.scores: np.ndarray = alpha * scattered_rewards + (1 - alpha) * self.scores
-        bt.logging.debug(f"Updated moving avg scores: {self.scores}")
+        scores = self.scores if mechid == 0 else self.scores_mech1
+        updated_scores: np.ndarray = alpha * scattered_rewards + (1 - alpha) * scores
+        if mechid == 0:
+            self.scores = updated_scores
+        else:
+            self.scores_mech1 = updated_scores
+        bt.logging.debug(
+            f"Updated moving avg scores for mechid {mechid}: {updated_scores}"
+        )
 
     def save_state(self):
         """Saves the state of the validator to a file."""
@@ -360,6 +369,7 @@ class BaseValidatorNeuron(BaseNeuron):
             self.config.neuron.full_path + "/state.npz",
             step=self.step,
             scores=self.scores,
+            scores_mech1=self.scores_mech1,
             hotkeys=self.hotkeys,
         )
 
@@ -371,4 +381,5 @@ class BaseValidatorNeuron(BaseNeuron):
         state = np.load(self.config.neuron.full_path + "/state.npz")
         self.step = state["step"]
         self.scores = state["scores"]
+        self.scores_mech1 = state["scores_mech1"]
         self.hotkeys = state["hotkeys"]

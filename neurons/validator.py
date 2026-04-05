@@ -115,6 +115,9 @@ class Validator(BaseValidatorNeuron):
         # TODO(developer): Rewrite this function based on your protocol definition.
         return await forward(self)
 
+    async def forward_mech1(self):
+        return await self.forward_mech1(self, mechid=1)
+
 
 # The main function parses the configuration and runs the validator.
 if __name__ == "__main__":
