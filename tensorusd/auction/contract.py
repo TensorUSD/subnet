@@ -65,6 +65,23 @@ class ActiveAuction:
     ends_at: int
 
 
+@dataclass
+class RoundSummary:
+    round_id: int
+    reporter_count: int
+    median_price: Optional[int]
+
+
+@dataclass
+class PriceData:
+    round_id: int
+    price: int
+    median_price: int
+    reporter_count: int
+    committed_at: int
+    was_overridden: bool
+
+
 def create_substrate_interface(rpc_endpoint: str) -> SubstrateInterface:
     return SubstrateInterface(
         url=rpc_endpoint,
@@ -88,6 +105,7 @@ class TensorUSDVaultContract:
         contract_address: str,
         metadata_path: str,
         wallet: bt.Wallet,
+        gas_estimate_enabled: bool = True,
     ):
         """
         Initialize vault contract interface.
@@ -102,7 +120,6 @@ class TensorUSDVaultContract:
         self.contract_address = contract_address
         self.metadata_path = metadata_path
         self.wallet = wallet
-
         # Load contract metadata
         self.metadata = ContractMetadata.create_from_file(
             metadata_file=metadata_path,
@@ -552,3 +569,139 @@ class TensorUSDAuctionContract:
         except Exception as e:
             bt.logging.error(f"Error fetching active auctions: {e}")
             return []
+
+
+class TensorUSDPriceOracle:
+    """
+    Interface for interacting with the TensorUSD price oracle contract.
+
+    Provides methods for:
+    - Submitting price data to the oracle
+    - Reading round summaries and price commitments
+    """
+
+    def __init__(
+        self,
+        substrate: SubstrateInterface,
+        contract_address: str,
+        metadata_path: str,
+        wallet: bt.Wallet,
+    ):
+        """
+        Initialize price oracle contract interface.
+
+        Args:
+            substrate: Shared SubstrateInterface instance
+            contract_address: SS58 address of the oracle contract
+            metadata_path: Path to tusdt_oracle.json metadata file
+            wallet: Wallet for signing transactions and querying
+            gas_estimate_enabled: Whether to estimate gas before transactions
+        """
+        self.substrate = substrate
+        self.contract_address = contract_address
+        self.metadata_path = metadata_path
+        self.wallet = wallet
+
+        # Load contract metadata
+        self.metadata = ContractMetadata.create_from_file(
+            metadata_file=metadata_path,
+            substrate=self.substrate,
+        )
+
+        # Create contract instance for calls
+        self.contract = ContractInstance(
+            contract_address=contract_address,
+            metadata=self.metadata,
+            substrate=self.substrate,
+        )
+
+        bt.logging.info(f"TensorUSD oracle contract initialized at {contract_address}")
+
+    def submit_price(
+        self, price: int, keypair: Optional[Keypair] = None
+    ) -> Optional[str]:
+        """
+        Submit a price to the oracle for the current round.
+
+        Args:
+            price: Price value as Ratio (u128)
+            keypair: Optional keypair to sign the transaction (defaults to wallet.hotkey)
+
+        Returns:
+            Transaction hash if successful, None otherwise
+        """
+        try:
+            if keypair is None:
+                keypair = self.wallet.hotkey
+
+            # Ratio is a struct containing a single u128 value
+            args = {"price": price}
+
+            gas_predict_result = self.contract.read(
+                keypair=keypair,
+                method="submit_price",
+                args=args,
+            )
+
+            receipt = self.contract.exec(
+                keypair=keypair,
+                method="submit_price",
+                args=args,
+                gas_limit=(
+                    gas_predict_result.gas_required if gas_predict_result else None
+                ),
+            )
+
+            if receipt.is_success:
+                bt.logging.info(
+                    f"Price submitted: price={price}, tx={receipt.extrinsic_hash}"
+                )
+                return receipt.extrinsic_hash
+            else:
+                bt.logging.error(f"Price submission failed: {receipt.error_message}")
+                return None
+
+        except Exception as e:
+            bt.logging.error(f"Error submitting price: {e}")
+            return None
+
+    def get_current_round_summary(self) -> Optional[RoundSummary]:
+        """
+        Get the current round summary including round ID, reporter count, and median price.
+
+        Returns:
+            RoundSummary dataclass or None if error
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_current_round_summary",
+            )
+
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok" and data[1]:
+                summary_data = data[1].value
+
+                # median_price is Option<Ratio>, extract the value or None
+                median_price = None
+                if summary_data.get("median_price"):
+                    # Ratio is a tuple/struct with single u128 value
+                    median_price_data = summary_data["median_price"]
+                    if (
+                        isinstance(median_price_data, dict)
+                        and "value" in median_price_data
+                    ):
+                        median_price = median_price_data["value"]
+                    elif isinstance(median_price_data, (int, float)):
+                        median_price = median_price_data
+
+                return RoundSummary(
+                    round_id=summary_data["round_id"],
+                    reporter_count=summary_data["reporter_count"],
+                    median_price=median_price,
+                )
+            return None
+
+        except Exception as e:
+            bt.logging.error(f"Error getting current round summary: {e}")
+            return None

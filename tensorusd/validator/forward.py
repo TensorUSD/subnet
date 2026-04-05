@@ -20,11 +20,12 @@
 import time
 import bittensor as bt
 
+from neurons.validator import Validator
 from tensorusd.utils.subnet import get_dynamic_info, get_synchroized_sleep_time
 from tensorusd.validator.reward import get_auction_rewards_from_db
 
 
-async def forward(self):
+async def forward(self: Validator):
     dynamic_info = get_dynamic_info(self.subtensor, self.config.netuid)
     if self.is_first_run:
         self.is_first_run = False

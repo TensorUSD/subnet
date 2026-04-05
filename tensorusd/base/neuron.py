@@ -16,6 +16,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 import copy
+import logging
 import typing
 
 import bittensor as bt
@@ -60,6 +61,7 @@ class BaseNeuron(ABC):
         return ttl_get_block(self)
 
     def __init__(self, config=None):
+        logging.getLogger("bittensor").propagate = False
         base_config = copy.deepcopy(config or BaseNeuron.config())
         self.config = self.config()
         self.config.merge(base_config)
@@ -119,7 +121,8 @@ class BaseNeuron(ABC):
             self.resync_metagraph()
 
         if self.should_set_weights():
-            self.set_weights()
+            self.set_weights(mechid=0)  # or 1 for mech1
+            self.set_weights(mechid=1)  # or 1 for mech1
 
         # Always save state.
         self.save_state()
@@ -155,10 +158,8 @@ class BaseNeuron(ABC):
 
         # Define appropriate logic for when set weights.
         return (
-            (self.block - self.metagraph.last_update[self.uid])
-            > self.config.neuron.epoch_length
-            and self.neuron_type != "MinerNeuron"
-        )  # don't set weights if you're a miner
+            self.block - self.metagraph.last_update[self.uid]
+        ) > self.config.neuron.epoch_length and self.neuron_type != "MinerNeuron"  # don't set weights if you're a miner
 
     def save_state(self):
         bt.logging.trace(
