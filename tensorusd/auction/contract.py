@@ -66,10 +66,15 @@ class ActiveAuction:
 
 
 @dataclass
-class RoundSummary:
-    round_id: int
-    reporter_count: int
-    median_price: Optional[int]
+class PriceSubmissionMetadata:
+    hot_key: str
+
+
+@dataclass
+class PriceSubmission:
+    reporter: str
+    price: int
+    metadata: Optional[PriceSubmissionMetadata]
 
 
 @dataclass
@@ -665,43 +670,112 @@ class TensorUSDPriceOracle:
             bt.logging.error(f"Error submitting price: {e}")
             return None
 
-    def get_current_round_summary(self) -> Optional[RoundSummary]:
+    def get_current_round_id(self) -> Optional[int]:
         """
-        Get the current round summary including round ID, reporter count, and median price.
+        Get the current round ID from the oracle.
 
         Returns:
-            RoundSummary dataclass or None if error
+            Current round ID (u32) or None if error
         """
         try:
             result = self.contract.read(
                 keypair=self.wallet.hotkey,
-                method="get_current_round_summary",
+                method="current_round_id",
+            )
+
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok":
+                return data[1].value
+            return None
+        except Exception as e:
+            bt.logging.error(f"Error getting current round ID: {e}")
+            return None
+
+    def get_round_submissions(self, round_id: int) -> List[PriceSubmission]:
+        """
+        Get all price submissions for a specific round.
+
+        Args:
+            round_id: Round ID (u32)
+
+        Returns:
+            List of PriceSubmission objects
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_round_submissions",
+                args={"round_id": round_id},
             )
 
             data = result.contract_result_data.value_object
             if data and data[0] == "Ok" and data[1]:
-                summary_data = data[1].value
+                submissions_list = data[1].value
+                submissions = []
 
-                # median_price is Option<Ratio>, extract the value or None
-                median_price = None
-                if summary_data.get("median_price"):
-                    # Ratio is a tuple/struct with single u128 value
-                    median_price_data = summary_data["median_price"]
-                    if (
-                        isinstance(median_price_data, dict)
-                        and "value" in median_price_data
-                    ):
-                        median_price = median_price_data["value"]
-                    elif isinstance(median_price_data, (int, float)):
-                        median_price = median_price_data
+                for submission_data in submissions_list:
+                    # Parse price (Ratio type - u128 wrapped in composite)
+                    price_data = submission_data["price"]
+                    if isinstance(price_data, (int, float)):
+                        price = int(price_data)
+                    elif isinstance(price_data, (list, tuple)) and len(price_data) > 0:
+                        price = int(price_data[0])
+                    elif isinstance(price_data, dict):
+                        if "0" in price_data:
+                            price = int(price_data["0"])
+                        else:
+                            price = int(next(iter(price_data.values())))
+                    else:
+                        price = 0
 
-                return RoundSummary(
-                    round_id=summary_data["round_id"],
-                    reporter_count=summary_data["reporter_count"],
-                    median_price=median_price,
-                )
-            return None
+                    # Parse metadata (Option<PriceSubmissionMetadata>)
+                    metadata = None
+                    if submission_data.get("metadata") is not None:
+                        metadata_data = submission_data["metadata"]
+                        if (
+                            isinstance(metadata_data, dict)
+                            and "hot_key" in metadata_data
+                        ):
+                            metadata = PriceSubmissionMetadata(
+                                hot_key=metadata_data["hot_key"]
+                            )
+
+                    submissions.append(
+                        PriceSubmission(
+                            reporter=submission_data["reporter"],
+                            price=price,
+                            metadata=metadata,
+                        )
+                    )
+
+                return submissions
+            return []
 
         except Exception as e:
-            bt.logging.error(f"Error getting current round summary: {e}")
+            bt.logging.error(f"Error getting round submissions: {e}")
+            return []
+
+    def get_round_price(self, round_id: int) -> Optional[int]:
+        """
+        Get the final price for a specific round.
+
+        Args:
+            round_id: Round ID (u32)
+        Returns:
+            Final price (u128) or None if error
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_round_price",
+                args={"round_id": round_id},
+            )
+
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok":
+                price_data = data[1].value
+                return price_data["price"]
+            return None
+        except Exception as e:
+            bt.logging.error(f"Error getting round price: {e}")
             return None

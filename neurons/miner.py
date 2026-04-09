@@ -56,9 +56,7 @@ class Miner(BaseMinerNeuron):
 
     def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
-        self.auction_substrate = create_substrate_interface(
-            self.subtensor.chain_endpoint
-        )
+        self.tusd_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
         self.mechs = [int(id.strip()) for id in self.config.mech.ids.split(",")]  # type: ignore
         if not self.mechs:
             self.mechs = [0]
@@ -75,7 +73,7 @@ class Miner(BaseMinerNeuron):
 
         # Initialize auction contract interface
         self.auction_contract = TensorUSDAuctionContract(
-            substrate=self.auction_substrate,
+            substrate=self.tusd_substrate,
             contract_address=self.config.auction_contract.address,
             metadata_path="tensorusd/abis/tusdt_auction.json",
             wallet=self.wallet,
@@ -83,14 +81,14 @@ class Miner(BaseMinerNeuron):
 
         # Initialize vault contract interface (for collateral price)
         self.vault_contract = TensorUSDVaultContract(
-            substrate=self.auction_substrate,
+            substrate=self.tusd_substrate,
             contract_address=self.config.vault_contract.address,
             metadata_path="tensorusd/abis/tusdt_vault.json",
             wallet=self.wallet,
         )
 
         self.tusdt_contract = TUSDTContract(
-            substrate=self.auction_substrate,
+            substrate=self.tusd_substrate,
             contract_address=self.config.tusdt.address,
             metadata_path="tensorusd/abis/tusdt_erc20.json",
             wallet=self.wallet,
@@ -116,7 +114,7 @@ class Miner(BaseMinerNeuron):
 
         # Initialize event listener with shared substrate
         self.event_listener = AuctionEventListener(
-            substrate=self.auction_substrate,
+            substrate=self.tusd_substrate,
             contract_address=self.config.auction_contract.address,
             metadata_path="tensorusd/abis/tusdt_auction.json",
             callback=self._handle_auction_event,
@@ -157,7 +155,7 @@ class Miner(BaseMinerNeuron):
         if 1 in self.mechs:
             bt.logging.warning("Mining in mech 1")
             self.oracle_contract = TensorUSDPriceOracle(
-                substrate=self.auction_substrate,
+                substrate=self.tusd_substrate,
                 contract_address=self.config.oracle_contract.address,
                 metadata_path="tensorusd/abis/tusdt_oracle.json",
                 wallet=self.wallet,
@@ -236,10 +234,10 @@ class Miner(BaseMinerNeuron):
             return True, "Missing dendrite or hotkey"
 
         # TODO(developer): Define how miners should blacklist requests.
-        uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)
+        uid = self.metagraph_0.hotkeys.index(synapse.dendrite.hotkey)
         if (
             not self.config.blacklist.allow_non_registered
-            and synapse.dendrite.hotkey not in self.metagraph.hotkeys
+            and synapse.dendrite.hotkey not in self.metagraph_0.hotkeys
         ):
             # Ignore requests from un-registered entities.
             bt.logging.trace(
@@ -249,7 +247,7 @@ class Miner(BaseMinerNeuron):
 
         if self.config.blacklist.force_validator_permit:
             # If the config is set to force validator permit, then we should only allow requests from validators.
-            if not self.metagraph.validator_permit[uid]:
+            if not self.metagraph_0.validator_permit[uid]:
                 bt.logging.warning(
                     f"Blacklisting a request from non-validator hotkey {synapse.dendrite.hotkey}"
                 )
@@ -285,11 +283,11 @@ class Miner(BaseMinerNeuron):
             return 0.0
 
         # TODO(developer): Define how miners should prioritize requests.
-        caller_uid = self.metagraph.hotkeys.index(
+        caller_uid = self.metagraph_0.hotkeys.index(
             synapse.dendrite.hotkey
         )  # Get the caller index.
         priority = float(
-            self.metagraph.S[caller_uid]
+            self.metagraph_0.S[caller_uid]
         )  # Return the stake as the priority.
         bt.logging.trace(
             f"Prioritizing {synapse.dendrite.hotkey} with value: {priority}"

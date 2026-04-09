@@ -1,6 +1,6 @@
 {
   "source": {
-    "hash": "0xeead26f978b237d2ce4d3c7fa1016417651e247c87de79358080c426fe97a17a",
+    "hash": "0xbbd18c8de6728ba96bc28bd1e37dbbbb67bc0ebab836ccf0b30831f901b17478",
     "language": "ink! 5.1.1",
     "compiler": "rustc 1.93.0",
     "build_info": {
@@ -26,7 +26,7 @@
       {
         "args": [
           {
-            "label": "owner",
+            "label": "controller",
             "type": {
               "displayName": [
                 "AccountId"
@@ -37,7 +37,7 @@
         ],
         "default": false,
         "docs": [
-          "Initializes the token contract with the specified owner account."
+          "Initializes the token contract with the specified controller account."
         ],
         "label": "new",
         "payable": false,
@@ -188,9 +188,9 @@
         "args": [],
         "default": false,
         "docs": [
-          " Returns the owner account ID."
+          " Returns the controller account ID."
         ],
-        "label": "owner",
+        "label": "controller",
         "mutates": false,
         "payable": false,
         "returnType": {
@@ -200,7 +200,7 @@
           ],
           "type": 16
         },
-        "selector": "0xfeaea4fa"
+        "selector": "0x7b3bfba9"
       },
       {
         "args": [],
@@ -345,7 +345,7 @@
         ],
         "default": false,
         "docs": [
-          " Mints new tokens and adds them to an account's balance; only callable by owner."
+          " Mints new tokens and adds them to an account's balance; only callable by controller."
         ],
         "label": "mint",
         "mutates": true,
@@ -382,7 +382,7 @@
         ],
         "default": false,
         "docs": [
-          " Burns tokens from an account, reducing the total supply; only callable by owner."
+          " Burns tokens from an account, reducing the total supply; only callable by controller."
         ],
         "label": "burn",
         "mutates": true,
@@ -493,7 +493,7 @@
                   "ty": 0
                 }
               },
-              "name": "owner"
+              "name": "controller"
             },
             {
               "layout": {
@@ -769,9 +769,9 @@
           "composite": {
             "fields": [
               {
-                "name": "owner",
+                "name": "controller",
                 "type": 0,
-                "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<1228302978u32, ()>,>>::Type"
+                "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<3589911795u32, ()>,>>::Type"
               },
               {
                 "name": "total_supply",
@@ -1043,7 +1043,7 @@
               },
               {
                 "index": 2,
-                "name": "NotOwner"
+                "name": "NotController"
               }
             ]
           }
