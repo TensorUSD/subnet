@@ -20,6 +20,7 @@
 import asyncio
 import bittensor as bt
 
+from neurons.validator import Validator
 from tensorusd.utils.subnet import get_dynamic_info, get_synchroized_sleep_time
 from tensorusd.validator.reward import get_auction_rewards_from_db
 
