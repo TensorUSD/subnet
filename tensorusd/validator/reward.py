@@ -20,6 +20,7 @@ import numpy as np
 from typing import List, Dict, Tuple, Optional
 import bittensor as bt
 
+from tensorusd.auction.contract import PriceSubmission
 from tensorusd.validator.db import SessionFactory
 from tensorusd.validator.db.models import AuctionWin
 
@@ -155,7 +156,59 @@ def get_auction_rewards_from_db(
     except Exception as e:
         bt.logging.error(f"Error calculating auction rewards: {e}")
         session.rollback()
-        return [1.0], [burn_uid]
+        return [1.0], [burn_uid if burn_uid is not None else 0]
 
     finally:
         session.close()
+
+
+def calculate_rewards_for_mech1(
+    metagraph: bt.Metagraph,
+    submissions: List[PriceSubmission],
+    actual_price: int,
+    burn_uid: Optional[int] = None,
+    burn_weight_percent: float = 0.0,
+):
+    try:
+        rewards = []
+        uids = []
+        accepted_diff = 0.05
+        for submission in submissions:
+            diff = abs(submission.price - actual_price)
+            diff_percent = diff / actual_price
+            if diff_percent <= accepted_diff:
+                reward = 2.0 - diff_percent / accepted_diff
+                uid = metagraph.hotkeys.index(submission.metadata.hot_key)
+                if uid:
+                    uids.append(uid)
+                    rewards.append(reward)
+
+        total_reward = sum(rewards)
+        if burn_uid is not None and 0 < burn_weight_percent < 1.0:
+            if total_reward > 0:
+                burn_weight = (
+                    total_reward / (1 - burn_weight_percent)
+                ) * burn_weight_percent
+                rewards.append(burn_weight)
+                uids.append(burn_uid)
+                bt.logging.info(
+                    f"Burning {burn_weight_percent * 100:.1f}% of total reward to UID {burn_uid}"
+                )
+            else:
+                bt.logging.info(f"No auction wins - giving UID {burn_uid} weight of 1")
+                rewards = [1.0]
+                uids = [burn_uid]
+        elif burn_weight_percent == 1:
+            uids = [burn_uid]
+            rewards = [1]
+
+        if sum(rewards) == 0:
+            bt.logging.info(f"No auction wins - giving UID {burn_uid} weight of 1")
+            rewards = [1.0]
+            uids = [burn_uid]
+
+        return np.array(rewards), uids
+
+    except Exception as e:
+        bt.logging.error(f"Error calculating mech1 rewards: {e}")
+        return [1.0], [burn_uid if burn_uid is not None else 0]

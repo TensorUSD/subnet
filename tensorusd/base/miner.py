@@ -167,7 +167,7 @@ class BaseMinerNeuron(BaseNeuron):
         """
         self.stop_run_thread()
 
-    def resync_metagraph(self):
+    def resync_metchagraph(self, mechid: int = 0):
         """Resyncs the metagraph and updates the hotkeys and moving averages based on the new metagraph."""
         # Sync the metagraph.
         self.metagraph.sync(subtensor=self.subtensor)

@@ -65,6 +65,28 @@ class ActiveAuction:
     ends_at: int
 
 
+@dataclass
+class PriceSubmissionMetadata:
+    hot_key: str
+
+
+@dataclass
+class PriceSubmission:
+    reporter: str
+    price: int
+    metadata: Optional[PriceSubmissionMetadata]
+
+
+@dataclass
+class PriceData:
+    round_id: int
+    price: int
+    median_price: int
+    reporter_count: int
+    committed_at: int
+    was_overridden: bool
+
+
 def create_substrate_interface(rpc_endpoint: str) -> SubstrateInterface:
     return SubstrateInterface(
         url=rpc_endpoint,
@@ -88,6 +110,7 @@ class TensorUSDVaultContract:
         contract_address: str,
         metadata_path: str,
         wallet: bt.Wallet,
+        gas_estimate_enabled: bool = True,
     ):
         """
         Initialize vault contract interface.
@@ -102,7 +125,6 @@ class TensorUSDVaultContract:
         self.contract_address = contract_address
         self.metadata_path = metadata_path
         self.wallet = wallet
-
         # Load contract metadata
         self.metadata = ContractMetadata.create_from_file(
             metadata_file=metadata_path,
@@ -552,3 +574,208 @@ class TensorUSDAuctionContract:
         except Exception as e:
             bt.logging.error(f"Error fetching active auctions: {e}")
             return []
+
+
+class TensorUSDPriceOracle:
+    """
+    Interface for interacting with the TensorUSD price oracle contract.
+
+    Provides methods for:
+    - Submitting price data to the oracle
+    - Reading round summaries and price commitments
+    """
+
+    def __init__(
+        self,
+        substrate: SubstrateInterface,
+        contract_address: str,
+        metadata_path: str,
+        wallet: bt.Wallet,
+    ):
+        """
+        Initialize price oracle contract interface.
+
+        Args:
+            substrate: Shared SubstrateInterface instance
+            contract_address: SS58 address of the oracle contract
+            metadata_path: Path to tusdt_oracle.json metadata file
+            wallet: Wallet for signing transactions and querying
+            gas_estimate_enabled: Whether to estimate gas before transactions
+        """
+        self.substrate = substrate
+        self.contract_address = contract_address
+        self.metadata_path = metadata_path
+        self.wallet = wallet
+
+        # Load contract metadata
+        self.metadata = ContractMetadata.create_from_file(
+            metadata_file=metadata_path,
+            substrate=self.substrate,
+        )
+
+        # Create contract instance for calls
+        self.contract = ContractInstance(
+            contract_address=contract_address,
+            metadata=self.metadata,
+            substrate=self.substrate,
+        )
+
+        bt.logging.info(f"TensorUSD oracle contract initialized at {contract_address}")
+
+    def submit_price(
+        self, price: int, keypair: Optional[Keypair] = None
+    ) -> Optional[str]:
+        """
+        Submit a price to the oracle for the current round.
+
+        Args:
+            price: Price value as Ratio (u128)
+            keypair: Optional keypair to sign the transaction (defaults to wallet.hotkey)
+
+        Returns:
+            Transaction hash if successful, None otherwise
+        """
+        try:
+            if keypair is None:
+                keypair = self.wallet.hotkey
+
+            # Ratio is a struct containing a single u128 value
+            args = {"price": price}
+
+            gas_predict_result = self.contract.read(
+                keypair=keypair,
+                method="submit_price",
+                args=args,
+            )
+
+            receipt = self.contract.exec(
+                keypair=keypair,
+                method="submit_price",
+                args=args,
+                gas_limit=(
+                    gas_predict_result.gas_required if gas_predict_result else None
+                ),
+            )
+
+            if receipt.is_success:
+                bt.logging.info(
+                    f"Price submitted: price={price}, tx={receipt.extrinsic_hash}"
+                )
+                return receipt.extrinsic_hash
+            else:
+                bt.logging.error(f"Price submission failed: {receipt.error_message}")
+                return None
+
+        except Exception as e:
+            bt.logging.error(f"Error submitting price: {e}")
+            return None
+
+    def get_current_round_id(self) -> Optional[int]:
+        """
+        Get the current round ID from the oracle.
+
+        Returns:
+            Current round ID (u32) or None if error
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="current_round_id",
+            )
+
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok":
+                return data[1].value
+            return None
+        except Exception as e:
+            bt.logging.error(f"Error getting current round ID: {e}")
+            return None
+
+    def get_round_submissions(self, round_id: int) -> List[PriceSubmission]:
+        """
+        Get all price submissions for a specific round.
+
+        Args:
+            round_id: Round ID (u32)
+
+        Returns:
+            List of PriceSubmission objects
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_round_submissions",
+                args={"round_id": round_id},
+            )
+
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok" and data[1]:
+                submissions_list = data[1].value
+                submissions = []
+
+                for submission_data in submissions_list:
+                    # Parse price (Ratio type - u128 wrapped in composite)
+                    price_data = submission_data["price"]
+                    if isinstance(price_data, (int, float)):
+                        price = int(price_data)
+                    elif isinstance(price_data, (list, tuple)) and len(price_data) > 0:
+                        price = int(price_data[0])
+                    elif isinstance(price_data, dict):
+                        if "0" in price_data:
+                            price = int(price_data["0"])
+                        else:
+                            price = int(next(iter(price_data.values())))
+                    else:
+                        price = 0
+
+                    # Parse metadata (Option<PriceSubmissionMetadata>)
+                    metadata = None
+                    if submission_data.get("metadata") is not None:
+                        metadata_data = submission_data["metadata"]
+                        if (
+                            isinstance(metadata_data, dict)
+                            and "hot_key" in metadata_data
+                        ):
+                            metadata = PriceSubmissionMetadata(
+                                hot_key=metadata_data["hot_key"]
+                            )
+
+                    submissions.append(
+                        PriceSubmission(
+                            reporter=submission_data["reporter"],
+                            price=price,
+                            metadata=metadata,
+                        )
+                    )
+
+                return submissions
+            return []
+
+        except Exception as e:
+            bt.logging.error(f"Error getting round submissions: {e}")
+            return []
+
+    def get_round_price(self, round_id: int) -> Optional[int]:
+        """
+        Get the final price for a specific round.
+
+        Args:
+            round_id: Round ID (u32)
+        Returns:
+            Final price (u128) or None if error
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_round_price",
+                args={"round_id": round_id},
+            )
+
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok":
+                price_data = data[1].value
+                return price_data["price"]
+            return None
+        except Exception as e:
+            bt.logging.error(f"Error getting round price: {e}")
+            return None

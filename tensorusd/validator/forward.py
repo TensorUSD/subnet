@@ -17,15 +17,21 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import time
+import asyncio
 import bittensor as bt
 
 from neurons.validator import Validator
 from tensorusd.utils.subnet import get_dynamic_info, get_synchroized_sleep_time
 from tensorusd.validator.reward import get_auction_rewards_from_db
 
+from typing import TYPE_CHECKING
 
-async def forward(self: Validator):
+
+if TYPE_CHECKING:
+    from neurons.validator import Validator
+
+
+async def forward(self: "Validator"):
     dynamic_info = get_dynamic_info(self.subtensor, self.config.netuid)
     if self.is_first_run:
         self.is_first_run = False
@@ -36,13 +42,13 @@ async def forward(self: Validator):
         sleep_time = (self.tempo // 2) * 12
     rewards, uids = get_auction_rewards_from_db(
         db_session_factory=self.db_session_factory,
-        metagraph=self.metagraph,
+        metagraph=self.metagraph_0,
         tempo_start_block=dynamic_info["last_step_block"],
         tempo_end_block=self.block,
         burn_uid=0,
         # TODO: get this from api
         burn_weight_percent=0,
     )
-    bt.logging.info(f"Rewards: {rewards}, Uids: {uids}")
-    self.update_scores(rewards, uids)
-    time.sleep(sleep_time)
+    bt.logging.info(f"Rewards: {rewards}, Uids: {uids}, Mechid: 0")
+    self.update_scores(rewards, uids, 0)
+    await asyncio.sleep(sleep_time)

@@ -1,6 +1,6 @@
 {
   "source": {
-    "hash": "0x1fc0856fb4bdf701e67c80582d75d440bc6aa99336809c79382865f70f24fc9f",
+    "hash": "0xfcaf905ebc4825950ef306a6ade29d659342cc451f98d8b9c53972c5ef625a62",
     "language": "ink! 5.1.1",
     "compiler": "rustc 1.93.0",
     "build_info": {
@@ -26,7 +26,7 @@
       {
         "args": [
           {
-            "label": "owner",
+            "label": "controller",
             "type": {
               "displayName": [
                 "AccountId"
@@ -35,7 +35,7 @@
             }
           },
           {
-            "label": "admin",
+            "label": "governance",
             "type": {
               "displayName": [
                 "AccountId"
@@ -55,7 +55,7 @@
         ],
         "default": false,
         "docs": [
-          "Initializes the auction contract with owner, admin, and token contract reference."
+          "Initializes the auction contract with controller, governance, and token contract reference."
         ],
         "label": "new",
         "payable": false,
@@ -93,13 +93,13 @@
         "displayName": [
           "ChainExtension"
         ],
-        "type": 60
+        "type": 61
       },
       "hash": {
         "displayName": [
           "Hash"
         ],
-        "type": 59
+        "type": 60
       },
       "maxEventTopics": 4,
       "staticBufferSize": 16384,
@@ -111,6 +111,36 @@
       }
     },
     "events": [
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "previous_governance",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "new_governance",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          }
+        ],
+        "docs": [],
+        "label": "AuctionGovernanceUpdated",
+        "module_path": "tusdt_auction::auction",
+        "signature_topic": "0x650e7dc10cf216636c442ddc7c09760c72b7152d8c3e9e56f48fd38c4ed0e637"
+      },
       {
         "args": [
           {
@@ -162,6 +192,25 @@
         "label": "BidPlaced",
         "module_path": "tusdt_auction::auction",
         "signature_topic": "0x53773ad8dd764d7c2e273caf090006fa7ba6b468938259aa3d27ecd3b9b95f1b"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "admin",
+            "type": {
+              "displayName": [
+                "Option"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "label": "AdminUpdated",
+        "module_path": "tusdt_auction::auction",
+        "signature_topic": "0xd04478a9ddad3ba01e57d8112d890c26a28aca5c43c35dfb522ed2f0107cf985"
       },
       {
         "args": [
@@ -473,6 +522,58 @@
           "type": 41
         },
         "selector": "0xd6cd59d7"
+      },
+      {
+        "args": [
+          {
+            "label": "admin",
+            "type": {
+              "displayName": [
+                "Option"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "set_admin",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
+        },
+        "selector": "0x798dcad5"
+      },
+      {
+        "args": [
+          {
+            "label": "new_governance",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "update_governance",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
+        },
+        "selector": "0xc33c8b6a"
       },
       {
         "args": [
@@ -857,9 +958,9 @@
         "args": [],
         "default": false,
         "docs": [
-          " Returns the owner account ID."
+          " Returns the controller account ID."
         ],
-        "label": "owner",
+        "label": "controller",
         "mutates": false,
         "payable": false,
         "returnType": {
@@ -869,7 +970,25 @@
           ],
           "type": 58
         },
-        "selector": "0xfeaea4fa"
+        "selector": "0x7b3bfba9"
+      },
+      {
+        "args": [],
+        "default": false,
+        "docs": [
+          " Returns the governance account ID."
+        ],
+        "label": "governance",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 58
+        },
+        "selector": "0x9f90cf17"
       },
       {
         "args": [],
@@ -885,7 +1004,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 58
+          "type": 59
         },
         "selector": "0x1aa66b39"
       }
@@ -903,13 +1022,42 @@
                   "ty": 0
                 }
               },
-              "name": "owner"
+              "name": "controller"
             },
             {
               "layout": {
                 "leaf": {
                   "key": "0x00000000",
                   "ty": 0
+                }
+              },
+              "name": "governance"
+            },
+            {
+              "layout": {
+                "enum": {
+                  "dispatchKey": "0x00000000",
+                  "name": "Option",
+                  "variants": {
+                    "0": {
+                      "fields": [],
+                      "name": "None"
+                    },
+                    "1": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0x00000000",
+                              "ty": 0
+                            }
+                          },
+                          "name": "0"
+                        }
+                      ],
+                      "name": "Some"
+                    }
+                  }
                 }
               },
               "name": "admin"
@@ -2080,14 +2228,19 @@
           "composite": {
             "fields": [
               {
-                "name": "owner",
+                "name": "controller",
                 "type": 0,
-                "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<401197403u32, ()>,>>::Type"
+                "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<1832586615u32, ()>,>>::Type"
+              },
+              {
+                "name": "governance",
+                "type": 0,
+                "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<2603982200u32, ()>,>>::Type"
               },
               {
                 "name": "admin",
-                "type": 0,
-                "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<2591091493u32, ()>,>>::Type"
+                "type": 8,
+                "typeName": "<Option<AccountId> as::ink::storage::traits::AutoStorableHint<::\nink::storage::traits::ManualKey<2591091493u32, ()>,>>::Type"
               },
               {
                 "name": "token",
@@ -2372,70 +2525,74 @@
             "variants": [
               {
                 "index": 0,
-                "name": "NotOwner"
+                "name": "NotController"
               },
               {
                 "index": 1,
-                "name": "NotAdmin"
+                "name": "NotGovernance"
               },
               {
                 "index": 2,
-                "name": "AuctionNotFound"
+                "name": "NotAdmin"
               },
               {
                 "index": 3,
-                "name": "BidNotFound"
+                "name": "AuctionNotFound"
               },
               {
                 "index": 4,
-                "name": "NotBidder"
+                "name": "BidNotFound"
               },
               {
                 "index": 5,
-                "name": "AuctionAlreadyExistsForVault"
+                "name": "NotBidder"
               },
               {
                 "index": 6,
-                "name": "BidBelowDebtBalance"
+                "name": "AuctionAlreadyExistsForVault"
               },
               {
                 "index": 7,
-                "name": "AuctionEnded"
+                "name": "BidBelowDebtBalance"
               },
               {
                 "index": 8,
-                "name": "AuctionNotEnded"
+                "name": "AuctionEnded"
               },
               {
                 "index": 9,
-                "name": "AuctionFinalized"
+                "name": "AuctionNotEnded"
               },
               {
                 "index": 10,
-                "name": "AuctionHasNoBids"
+                "name": "AuctionFinalized"
               },
               {
                 "index": 11,
-                "name": "WinningBidLocked"
+                "name": "AuctionHasNoBids"
               },
               {
                 "index": 12,
-                "name": "InvalidDuration"
+                "name": "WinningBidLocked"
               },
               {
                 "index": 13,
-                "name": "TransferFailed"
+                "name": "InvalidDuration"
               },
               {
                 "index": 14,
-                "name": "NoRefundAvailable"
+                "name": "TransferFailed"
               },
               {
                 "index": 15,
-                "name": "BidAmountNotIncreased"
+                "name": "NoRefundAvailable"
               },
               {
                 "index": 16,
+                "name": "BidAmountNotIncreased"
+              },
+              {
+                "index": 17,
                 "name": "ArithmeticError"
               }
             ]
@@ -3000,6 +3157,48 @@
       "id": 59,
       "type": {
         "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 8
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 39
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 8
+          },
+          {
+            "name": "E",
+            "type": 39
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 60,
+      "type": {
+        "def": {
           "composite": {
             "fields": [
               {
@@ -3017,7 +3216,7 @@
       }
     },
     {
-      "id": 60,
+      "id": 61,
       "type": {
         "def": {
           "variant": {}

@@ -28,11 +28,12 @@ from tensorusd.base.validator import BaseValidatorNeuron
 
 # Bittensor Validator Template:
 from tensorusd.utils.subnet import get_dynamic_info
-from tensorusd.validator import forward
+from tensorusd.validator import forward, forward_mech1
 
 # Auction tracking components
 from tensorusd.auction.contract import (
     TensorUSDAuctionContract,
+    TensorUSDPriceOracle,
     create_substrate_interface,
 )
 from tensorusd.validator.db import init_db
@@ -55,10 +56,10 @@ class Validator(BaseValidatorNeuron):
         self.load_state()
 
         # Initialize auction tracking system
-        self._init_auction_system()
+        self.setup()
         self.is_first_run = True
 
-    def _init_auction_system(self):
+    def setup(self):
         """Initialize auction tracking components."""
 
         # Initialize SQLite database
@@ -82,6 +83,13 @@ class Validator(BaseValidatorNeuron):
             metadata_path="tensorusd/abis/tusdt_auction.json",
             db_session_factory=self.db_session_factory,
             auction_contract=self.auction_contract,
+        )
+
+        self.oracle_contract = TensorUSDPriceOracle(
+            substrate=self.tusd_substrate,
+            contract_address=self.config.oracle_contract.address,
+            metadata_path="tensorusd/abis/tusdt_oracle.json",
+            wallet=self.wallet,
         )
 
         bt.logging.info(
@@ -114,6 +122,9 @@ class Validator(BaseValidatorNeuron):
         """
         # TODO(developer): Rewrite this function based on your protocol definition.
         return await forward(self)
+
+    async def forward_mech1(self):
+        return await forward_mech1(self)
 
 
 # The main function parses the configuration and runs the validator.

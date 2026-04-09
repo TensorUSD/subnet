@@ -141,6 +141,27 @@ def add_args(cls, parser):
         default=os.getenv("AUCTION_CONTRACT_ADDRESS", None),
         required=is_required_arg("AUCTION_CONTRACT_ADDRESS"),
     )
+    parser.add_argument(
+        "--oracle_contract.address",
+        type=str,
+        help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
+        default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS"),
+    )
+    parser.add_argument(
+        "--cmc.api_key",
+        type=str,
+        help="API key for CoinMarketCap. Required for fetching price data for the oracle.",
+        default=os.getenv("CMC_API_KEY", None),
+        required=is_required_arg("CMC_API_KEY"),
+    )
+    parser.add_argument(
+        "--price.submission_interval_seconds",
+        type=int,
+        help="Interval in seconds between price submissions to the oracle.",
+        default=os.getenv("PRICE_SUBMISSION_INTERVAL", None),
+        required=is_required_arg("PRICE_SUBMISSION_INTERVAL"),
+    )
 
 
 def add_miner_args(cls, parser):
@@ -247,6 +268,12 @@ def add_miner_args(cls, parser):
         help="coldkey password",
         default=os.getenv("COLDKEY_PASSWORD", None),
         required=is_required_arg("COLDKEY_PASSWORD"),
+    )
+    parser.add_argument(
+        "--mech.ids",
+        type=str,
+        help="Comma separated list of mechanism ids to run the miner with. E.g. '0' or '0,1'.",
+        default=os.getenv("MECH_IDS", "0,1"),
     )
 
 

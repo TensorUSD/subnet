@@ -16,7 +16,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 import copy
-import typing
+import logging
 
 import bittensor as bt
 
@@ -52,7 +52,8 @@ class BaseNeuron(ABC):
 
     subtensor: "bt.Subtensor"
     wallet: "bt.Wallet"
-    metagraph: "bt.Metagraph"
+    metagraph_0: "bt.Metagraph"
+    metagraph_1: "bt.Metagraph"
     spec_version: int = spec_version
 
     @property
@@ -60,6 +61,7 @@ class BaseNeuron(ABC):
         return ttl_get_block(self)
 
     def __init__(self, config=None):
+        logging.getLogger("bittensor").propagate = False
         base_config = copy.deepcopy(config or BaseNeuron.config())
         self.config = self.config()
         self.config.merge(base_config)
@@ -82,21 +84,28 @@ class BaseNeuron(ABC):
         if self.config.mock:
             self.wallet = bt.MockWallet(config=self.config)
             self.subtensor = MockSubtensor(self.config.netuid, wallet=self.wallet)
-            self.metagraph = MockMetagraph(self.config.netuid, subtensor=self.subtensor)
+            self.metagraph_0 = MockMetagraph(
+                self.config.netuid, subtensor=self.subtensor
+            )
+            self.metagraph_1 = MockMetagraph(
+                self.config.netuid, subtensor=self.subtensor
+            )
         else:
             self.wallet = bt.Wallet(config=self.config)
             self.subtensor = bt.Subtensor(config=self.config)
-            self.metagraph = self.subtensor.metagraph(self.config.netuid)
+            self.metagraph_0 = self.subtensor.metagraph(self.config.netuid, mechid=0)
+            self.metagraph_1 = self.subtensor.metagraph(self.config.netuid, mechid=1)
 
         bt.logging.info(f"Wallet: {self.wallet}")
         bt.logging.info(f"Subtensor: {self.subtensor}")
-        bt.logging.info(f"Metagraph: {self.metagraph}")
+        bt.logging.info(f"Mechagraph 0: {self.metagraph_0}")
+        bt.logging.info(f"Mechagraph 1: {self.metagraph_1}")
 
         # Check if the miner is registered on the Bittensor network before proceeding further.
         self.check_registered()
 
         # Each miner gets a unique identity (UID) in the network for differentiation.
-        self.uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
+        self.uid = self.metagraph_0.hotkeys.index(self.wallet.hotkey.ss58_address)
         bt.logging.info(
             f"Running neuron on subnet: {self.config.netuid} with uid {self.uid} using network: {self.subtensor.chain_endpoint}"
         )
@@ -106,20 +115,23 @@ class BaseNeuron(ABC):
     async def forward(self, synapse: bt.Synapse) -> bt.Synapse: ...
 
     @abstractmethod
+    async def forward_mech1(self, synapse: bt.Synapse) -> bt.Synapse: ...
+
+    @abstractmethod
     def run(self): ...
 
-    def sync(self):
+    def sync(self, mechid: int = 0):
         """
         Wrapper for synchronizing the state of the network for the given miner or validator.
         """
         # Ensure miner or validator hotkey is still registered on the network.
         self.check_registered()
 
-        if self.should_sync_metagraph():
-            self.resync_metagraph()
+        if self.should_sync_mechagraph(mechid):
+            self.resync_mechagraph(mechid)
 
-        if self.should_set_weights():
-            self.set_weights()
+        if self.should_set_weights(mechid):
+            self.set_weights(mechid)  # or 1 for mech1
 
         # Always save state.
         self.save_state()
@@ -136,15 +148,21 @@ class BaseNeuron(ABC):
             )
             exit()
 
-    def should_sync_metagraph(self):
+    def should_sync_mechagraph(self, mechid: int = 0) -> bool:
         """
         Check if enough epoch blocks have elapsed since the last checkpoint to sync.
         """
-        return (
-            self.block - self.metagraph.last_update[self.uid]
-        ) > self.config.neuron.epoch_length
+        if mechid == 0:
+            return (
+                self.block - self.metagraph_0.last_update[self.uid]
+            ) > self.config.neuron.epoch_length
+        elif mechid == 1:
+            return (
+                self.block - self.metagraph_1.last_update[self.uid]
+            ) > self.config.neuron.epoch_length
+        return False
 
-    def should_set_weights(self) -> bool:
+    def should_set_weights(self, mechid: int = 0) -> bool:
         # Don't set weights on initialization.
         if self.step == 0:
             return False
@@ -154,11 +172,20 @@ class BaseNeuron(ABC):
             return False
 
         # Define appropriate logic for when set weights.
-        return (
-            (self.block - self.metagraph.last_update[self.uid])
-            > self.config.neuron.epoch_length
-            and self.neuron_type != "MinerNeuron"
-        )  # don't set weights if you're a miner
+        if mechid == 0:
+            return (
+                (self.block - self.metagraph_0.last_update[self.uid])
+                > self.config.neuron.epoch_length
+                and self.neuron_type != "MinerNeuron"
+            )  # don't set weights if you're a miner
+
+        elif mechid == 1:
+            return (
+                (self.block - self.metagraph_1.last_update[self.uid])
+                > self.config.neuron.epoch_length
+                and self.neuron_type != "MinerNeuron"
+            )  # don't set weights if you're a miner
+        return False
 
     def save_state(self):
         bt.logging.trace(
