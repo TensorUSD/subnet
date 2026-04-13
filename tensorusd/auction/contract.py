@@ -110,7 +110,6 @@ class TensorUSDVaultContract:
         contract_address: str,
         metadata_path: str,
         wallet: bt.Wallet,
-        gas_estimate_enabled: bool = True,
     ):
         """
         Initialize vault contract interface.
@@ -262,7 +261,7 @@ class TensorUSDVaultContract:
         try:
             result = self.contract.read(
                 keypair=self.wallet.hotkey,
-                method="get_collateral_token_price_for_testing",
+                method="get_latest_price",
             )
 
             data = result.contract_result_data.value_object
@@ -600,7 +599,6 @@ class TensorUSDPriceOracle:
             contract_address: SS58 address of the oracle contract
             metadata_path: Path to tusdt_oracle.json metadata file
             wallet: Wallet for signing transactions and querying
-            gas_estimate_enabled: Whether to estimate gas before transactions
         """
         self.substrate = substrate
         self.contract_address = contract_address
