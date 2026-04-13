@@ -52,8 +52,6 @@ class BaseNeuron(ABC):
 
     subtensor: "bt.Subtensor"
     wallet: "bt.Wallet"
-    metagraph_0: "bt.Metagraph"
-    metagraph_1: "bt.Metagraph"
     spec_version: int = spec_version
 
     @property
@@ -110,12 +108,6 @@ class BaseNeuron(ABC):
             f"Running neuron on subnet: {self.config.netuid} with uid {self.uid} using network: {self.subtensor.chain_endpoint}"
         )
         self.step = 0
-
-    @abstractmethod
-    async def forward(self, synapse: bt.Synapse) -> bt.Synapse: ...
-
-    @abstractmethod
-    async def forward_mech1(self, synapse: bt.Synapse) -> bt.Synapse: ...
 
     @abstractmethod
     def run(self): ...

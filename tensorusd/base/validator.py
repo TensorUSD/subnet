@@ -18,6 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 
+from abc import abstractmethod
 import copy
 import numpy as np
 import asyncio
@@ -124,7 +125,13 @@ class BaseValidatorNeuron(BaseNeuron):
             asyncio.create_task(forward_with_sync(mechid=0)),
             asyncio.create_task(forward_with_sync(mechid=1)),
         ]
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+    @abstractmethod
+    async def forward(self, synapse: bt.Synapse) -> bt.Synapse: ...
+
+    @abstractmethod
+    async def forward_mech1(self, synapse: bt.Synapse) -> bt.Synapse: ...
 
     def run(self):
         """
@@ -321,8 +328,10 @@ class BaseValidatorNeuron(BaseNeuron):
         previous_metagraph = copy.deepcopy(self.metagraph_0)
 
         # Sync the metagraph.
-        self.metagraph_0.sync(subtensor=self.subtensor)
-        self.metagraph_1.sync(subtensor=self.subtensor)
+        if mechid == 0:
+            self.metagraph_0.sync(subtensor=self.subtensor)
+        else:
+            self.metagraph_1.sync(subtensor=self.subtensor)
 
         # Check if the metagraph axon info has changed.
         if previous_metagraph.axons == self.metagraph_0.axons:
@@ -395,7 +404,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Update scores with rewards produced by this step.
         # shape: [ metagraph.n ]
-        alpha: float = self.config.neuron.moving_average_alpha
+        # alpha: float = self.config.neuron.moving_average_alpha
+        alpha: float = 1
         scores = self.scores if mechid == 0 else self.scores_mech1
         updated_scores: np.ndarray = alpha * scattered_rewards + (1 - alpha) * scores
         if mechid == 0:

@@ -59,6 +59,9 @@ class BaseMinerNeuron(BaseNeuron):
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
+        self.mechs = [int(id.strip()) for id in self.config.mech.ids.split(",")]  # type: ignore
+        if not self.mechs:
+            self.mechs = [0]
 
     def unlock_wallet(self):
         self.wallet.coldkey_file.save_password_to_env(self.config.coldkey.password)
@@ -89,25 +92,20 @@ class BaseMinerNeuron(BaseNeuron):
         """
 
         # Check that miner is registered on the network.
-        self.sync()
+        if 0 in self.mechs:
+            self.sync(0)
+        if 1 in self.mechs:
+            self.sync(1)
         bt.logging.info(f"Miner starting at block: {self.block}")
 
         # This loop maintains the miner's operations until intentionally stopped.
         try:
             while not self.should_exit:
-                while (
-                    self.block - self.metagraph.last_update[self.uid]
-                    < self.config.neuron.epoch_length
-                ):
-                    # Wait before checking again.
-                    time.sleep(1)
-
-                    # Check if we should exit.
-                    if self.should_exit:
-                        break
-
                 # Sync metagraph and potentially set weights.
-                self.sync()
+                if 0 in self.mechs:
+                    self.sync(0)
+                if 1 in self.mechs:
+                    self.sync(1)
                 self.step += 1
 
         # If someone intentionally stops the miner, it'll safely terminate operations.
@@ -167,7 +165,10 @@ class BaseMinerNeuron(BaseNeuron):
         """
         self.stop_run_thread()
 
-    def resync_metchagraph(self, mechid: int = 0):
+    def resync_mechagraph(self, mechid: int = 0):
         """Resyncs the metagraph and updates the hotkeys and moving averages based on the new metagraph."""
         # Sync the metagraph.
-        self.metagraph.sync(subtensor=self.subtensor)
+        if mechid == 0:
+            self.metagraph_0.sync(subtensor=self.subtensor)
+        else:
+            self.metagraph_1.sync(subtensor=self.subtensor)

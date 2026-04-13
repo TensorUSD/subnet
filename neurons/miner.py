@@ -57,9 +57,6 @@ class Miner(BaseMinerNeuron):
     def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
         self.tusd_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
-        self.mechs = [int(id.strip()) for id in self.config.mech.ids.split(",")]  # type: ignore
-        if not self.mechs:
-            self.mechs = [0]
 
     def _init_auction_system(self):
         # Initialize bid config from CLI args
@@ -142,7 +139,7 @@ class Miner(BaseMinerNeuron):
     def run(self):
         """Override run to start event listener alongside axon."""
         if 0 in self.mechs:
-            bt.logging.warning("Mining in mech 0")
+            bt.logging.info("Mining in mech 0")
             self._init_auction_system()
             bt.logging.info("Catching up on active auctions...")
             threading.Thread(
@@ -153,7 +150,7 @@ class Miner(BaseMinerNeuron):
             self.event_listener.run_in_background_thread()
 
         if 1 in self.mechs:
-            bt.logging.warning("Mining in mech 1")
+            bt.logging.info("Mining in mech 1")
             self.oracle_contract = TensorUSDPriceOracle(
                 substrate=self.tusd_substrate,
                 contract_address=self.config.oracle_contract.address,
@@ -175,26 +172,6 @@ class Miner(BaseMinerNeuron):
             self.price_oracle_miner.stop_run_thread()
 
         super().__exit__(exc_type, exc_value, traceback)
-
-    async def forward(
-        self, synapse: tensorusd.protocol.Dummy
-    ) -> tensorusd.protocol.Dummy:
-        """
-        Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
-        This method should be replaced with actual logic relevant to the miner's purpose.
-
-        Args:
-            synapse (tensorusd.protocol.Dummy): The synapse object containing the 'dummy_input' data.
-
-        Returns:
-            tensorusd.protocol.Dummy: The synapse object with the 'dummy_output' field set to twice the 'dummy_input' value.
-
-        The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
-        the miner's intended operation. This method demonstrates a basic transformation of input data.
-        """
-        # TODO(developer): Replace with actual implementation logic.
-        synapse.dummy_output = synapse.dummy_input * 2
-        return synapse
 
     async def blacklist(
         self, synapse: tensorusd.protocol.Dummy

@@ -640,7 +640,10 @@ class TensorUSDPriceOracle:
                 keypair = self.wallet.hotkey
 
             # Ratio is a struct containing a single u128 value
-            args = {"price": price}
+            args = {
+                "price": price,
+                "metadata": {"hot_key": self.wallet.hotkey.ss58_address},
+            }
 
             gas_predict_result = self.contract.read(
                 keypair=keypair,
