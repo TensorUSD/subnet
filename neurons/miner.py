@@ -34,7 +34,7 @@ from tensorusd.base.miner import BaseMinerNeuron
 from tensorusd.auction.config import MinerBidConfig
 from tensorusd.auction.contract import (
     TensorUSDAuctionContract,
-    TensorUSDPriceOracle,
+    TensorUSDPriceOracleContract,
     TensorUSDVaultContract,
     create_substrate_interface,
 )
@@ -57,6 +57,12 @@ class Miner(BaseMinerNeuron):
     def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
         self.tusd_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
+        self.oracle_contract = TensorUSDPriceOracleContract(
+            substrate=self.tusd_substrate,
+            contract_address=self.config.oracle_contract.address,
+            metadata_path="tensorusd/abis/tusdt_oracle.json",
+            wallet=self.wallet,
+        )
 
     def _init_auction_system(self):
         # Initialize bid config from CLI args
@@ -94,8 +100,6 @@ class Miner(BaseMinerNeuron):
         approval_amount = self.config.tusdt.approval_amount
         if approval_amount == 0:
             approval_amount = MAX_APPROVAL
-        bt.logging.info(f"TUSDT contract configured at {self.config.tusdt.address}")
-
         # Initialize bidding strategy
         self.strategy = BiddingStrategy(self.bid_config)
 
@@ -103,6 +107,7 @@ class Miner(BaseMinerNeuron):
         self.auction_manager = MinerAuctionManager(
             auction_contract=self.auction_contract,
             vault_contract=self.vault_contract,
+            oracle_contract=self.oracle_contract,
             strategy=self.strategy,
             wallet=self.wallet,
             tusdt_contract=self.tusdt_contract,
@@ -151,12 +156,6 @@ class Miner(BaseMinerNeuron):
 
         if 1 in self.mechs:
             bt.logging.info("Mining in mech 1")
-            self.oracle_contract = TensorUSDPriceOracle(
-                substrate=self.tusd_substrate,
-                contract_address=self.config.oracle_contract.address,
-                metadata_path="tensorusd/abis/tusdt_oracle.json",
-                wallet=self.wallet,
-            )
             self.price_oracle_miner = PriceOracleMiner(self)
             self.price_oracle_miner.run_in_background_thread()
 

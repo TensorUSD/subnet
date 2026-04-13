@@ -2,8 +2,8 @@
 Bidding strategy for TensorUSD liquidation auctions.
 
 Profit calculation:
-- collateral_value = collateral_amount * collateral_price (in USDT)
-- debt is already in USDT (stable coin)
+- collateral_value = collateral_amount * collateral_price (in TUSDT)
+- debt is already in TUSDT (stable coin)
 - profit = collateral_value - bid_amount - debt
 """
 
@@ -38,16 +38,16 @@ class BiddingStrategy:
         collateral_price: int,
     ) -> int:
         """
-        Calculate collateral value in USDT terms.
+        Calculate collateral value in TUSDT terms.
 
         Args:
             collateral: Collateral amount in token units
             collateral_price: Price per collateral token (scaled by PRICE_DECIMALS)
 
         Returns:
-            Collateral value in USDT
+            Collateral value in TUSDT
         """
-        return collateral * collateral_price
+        return collateral * collateral_price / 10**9
 
     def calculate_bid(
         self,
@@ -57,18 +57,18 @@ class BiddingStrategy:
         collateral_price: int,
     ) -> int:
         """
-        Calculate optimal bid amount in USDT.
+        Calculate optimal bid amount in TUSDT.
 
         Args:
             collateral: Total collateral in vault (token units)
-            debt: Total debt in vault (USDT)
-            current_bid: Current highest bid in USDT (0 if first bid)
+            debt: Total debt in vault (TUSDT)
+            current_bid: Current highest bid in TUSDT (0 if first bid)
             collateral_price: Price per collateral token (scaled by PRICE_DECIMALS)
 
         Returns:
-            Calculated bid amount in USDT, or 0 if should not bid
+            Calculated bid amount in TUSDT, or 0 if should not bid
         """
-        # Calculate collateral value in USDT
+        # Calculate collateral value in TUSDT
         collateral_value = self.calculate_collateral_value(collateral, collateral_price)
 
         # Calculate potential profit (what we'd get if we win with debt payment)
@@ -130,8 +130,8 @@ class BiddingStrategy:
 
         Args:
             collateral: Total collateral in vault (token units)
-            debt: Total debt in vault (USDT)
-            current_bid: Current highest bid (USDT)
+            debt: Total debt in vault (TUSDT)
+            current_bid: Current highest bid (TUSDT)
             collateral_price: Price per collateral token
             auction_end_time: Timestamp when auction ends (ms)
             current_time: Current timestamp (ms)

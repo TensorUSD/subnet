@@ -33,7 +33,7 @@ from tensorusd.validator import forward, forward_mech1
 # Auction tracking components
 from tensorusd.auction.contract import (
     TensorUSDAuctionContract,
-    TensorUSDPriceOracle,
+    TensorUSDPriceOracleContract,
     create_substrate_interface,
 )
 from tensorusd.validator.db import init_db
@@ -85,7 +85,7 @@ class Validator(BaseValidatorNeuron):
             auction_contract=self.auction_contract,
         )
 
-        self.oracle_contract = TensorUSDPriceOracle(
+        self.oracle_contract = TensorUSDPriceOracleContract(
             substrate=self.tusd_substrate,
             contract_address=self.config.oracle_contract.address,
             metadata_path="tensorusd/abis/tusdt_oracle.json",

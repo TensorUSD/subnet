@@ -16,6 +16,7 @@ from tensorusd.auction.types import (
 )
 from tensorusd.auction.contract import (
     TensorUSDAuctionContract,
+    TensorUSDPriceOracleContract,
     TensorUSDVaultContract,
 )
 from tensorusd.auction.erc20 import TUSDTContract
@@ -40,6 +41,7 @@ class MinerAuctionManager:
         self,
         auction_contract: TensorUSDAuctionContract,
         vault_contract: Optional[TensorUSDVaultContract],
+        oracle_contract: Optional[TensorUSDPriceOracleContract],
         strategy: Optional[BiddingStrategy],
         wallet: bt.Wallet,
         tusdt_contract: Optional[TUSDTContract] = None,
@@ -58,15 +60,11 @@ class MinerAuctionManager:
         """
         self.auction_contract = auction_contract
         self.vault_contract = vault_contract
+        self.oracle_contract = oracle_contract
         self.strategy = strategy
         self.wallet = wallet
         self.tusdt_contract = tusdt_contract
         self.approval_amount = approval_amount
-
-    def _get_collateral_price(self) -> Optional[int]:
-        if self.vault_contract is None:
-            return None
-        return self.vault_contract.get_collateral_token_price()
 
     async def handle_auction_created(self, event: AuctionCreatedEvent):
         """
@@ -97,7 +95,7 @@ class MinerAuctionManager:
             return
 
         # Get collateral price for profit calculation
-        collateral_price = self._get_collateral_price()
+        collateral_price = self.oracle_contract.get_latest_price()
         if collateral_price is None:
             bt.logging.warning(
                 f"Could not fetch collateral price for auction {event.auction_id}"
@@ -295,7 +293,7 @@ class MinerAuctionManager:
 
         Args:
             auction_id: Auction to bid on
-            bid_amount: Bid amount in USDT
+            bid_amount: Bid amount in TUSDT
 
         Returns:
             Transaction hash if successful, None otherwise
@@ -332,7 +330,9 @@ class MinerAuctionManager:
         bt.logging.info("Syncing active auctions...")
 
         if self.strategy is None:
-            bt.logging.warning("Bidding strategy is not configured, skipping active sync")
+            bt.logging.warning(
+                "Bidding strategy is not configured, skipping active sync"
+            )
             return
 
         active_auctions = self.auction_contract.get_active_auctions()

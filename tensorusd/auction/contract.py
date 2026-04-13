@@ -248,30 +248,6 @@ class TensorUSDVaultContract:
             bt.logging.error(f"Error getting liquidation auction ID: {e}")
             return None
 
-    def get_collateral_token_price(self) -> Optional[int]:
-        """
-        Get the current collateral token price in USDT terms.
-
-        The price is used to calculate the USD value of collateral:
-        collateral_value_usdt = collateral_amount * price / PRICE_DECIMALS
-
-        Returns:
-            Price (Balance/u64) or None if error
-        """
-        try:
-            result = self.contract.read(
-                keypair=self.wallet.hotkey,
-                method="get_latest_price",
-            )
-
-            data = result.contract_result_data.value_object
-            if data and data[0] == "Ok":
-                return data[1].value
-            return None
-        except Exception as e:
-            bt.logging.error(f"Error getting collateral token price: {e}")
-            return None
-
 
 class TensorUSDAuctionContract:
     """
@@ -575,7 +551,7 @@ class TensorUSDAuctionContract:
             return []
 
 
-class TensorUSDPriceOracle:
+class TensorUSDPriceOracleContract:
     """
     Interface for interacting with the TensorUSD price oracle contract.
 
@@ -779,4 +755,26 @@ class TensorUSDPriceOracle:
             return None
         except Exception as e:
             bt.logging.error(f"Error getting round price: {e}")
+            return None
+
+    def get_latest_price(self) -> Optional[int]:
+        """
+        Get the current collateral token price in TUSDT terms.
+
+        Returns:
+            Price (Balance/u64) or None if error
+        """
+        try:
+            result = self.contract.read(
+                keypair=self.wallet.hotkey,
+                method="get_latest_price",
+            )
+
+            data = result.contract_result_data.value_object
+            if data and data[0] == "Ok":
+                price_data = data[1].value
+                return price_data["price"]
+            return None
+        except Exception as e:
+            bt.logging.error(f"Error getting collateral token price: {e}")
             return None
