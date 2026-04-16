@@ -163,7 +163,7 @@ class MinerAuctionManager:
             return
 
         # Get collateral price for bid calculation
-        collateral_price = self._get_collateral_price()
+        collateral_price = self.oracle_contract.get_latest_price()
         if collateral_price is None:
             bt.logging.warning(
                 f"Could not fetch collateral price for auction {auction_id}"
@@ -344,7 +344,7 @@ class MinerAuctionManager:
         bt.logging.info(f"Found {len(active_auctions)} active auctions")
 
         # Get collateral price once for all auctions
-        collateral_price = self._get_collateral_price()
+        collateral_price = self.oracle_contract.get_latest_price()
         if collateral_price is None:
             bt.logging.error("Could not fetch collateral price, skipping sync")
             return

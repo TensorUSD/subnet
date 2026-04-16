@@ -325,6 +325,10 @@ class TensorUSDAuctionContract:
                 method="place_bid",
                 args=args,
             )
+            dry_run_result = gas_predict_result.contract_result_data
+            if dry_run_result[0] != "Ok" or dry_run_result[1][0] == "Err":
+                bt.logging.error(f"Dry run error for place_bid: {dry_run_result[1][1]}")
+                return None
 
             receipt = self.contract.exec(
                 keypair=keypair,
