@@ -4,7 +4,9 @@ Reusable event listener for TensorUSD liquidation auctions.
 Can be used by both miners and validators with custom callbacks.
 """
 
+import sys
 import threading
+import time
 from typing import Callable, Optional, Set
 
 from scalecodec.base import ScaleBytes
@@ -31,6 +33,8 @@ class AuctionEventListener:
         contract_address: str,
         metadata_path: str,
         callback: Callable[[AuctionUnionEvent], None],
+        max_reconnect_attempts: int = 10,
+        retry_delay: float = 1.0,
     ):
         """
         Initialize the event listener.
@@ -40,6 +44,9 @@ class AuctionEventListener:
             contract_address: SS58 address of the auction contract
             metadata_path: Path to tusdt_auction.json metadata file
             callback: Function to call when auction event is detected
+            max_reconnect_attempts: Max reconnection attempts (0 = infinite)
+            initial_retry_delay: Initial delay between retries in seconds
+            max_retry_delay: Maximum delay between retries in seconds
         """
         self.substrate = substrate
         self.contract_address = contract_address
@@ -52,6 +59,10 @@ class AuctionEventListener:
 
         self.contract_metadata: Optional[ContractMetadata] = None
 
+        # Reconnection settings
+        self.max_reconnect_attempts = max_reconnect_attempts
+        self.retry_delay = retry_delay
+
     def _ensure_metadata_loaded(self):
         """Load contract metadata once for decoding events."""
         if self.contract_metadata is None:
@@ -61,17 +72,30 @@ class AuctionEventListener:
             )
 
     def run(self):
-        """Main loop - subscribe to events (runs in background thread)."""
+        """Main loop - subscribe to events with automatic reconnection (runs in background thread)."""
         self._ensure_metadata_loaded()
 
         bt.logging.info(
             f"Event listener started for Auction contract {self.contract_address}"
         )
 
-        try:
-            self.substrate.subscribe_block_headers(self._subscription_handler)
-        except Exception as e:
-            bt.logging.error(f"Event listener error: {e}")
+        retry_count = 0
+        while not self.should_exit:
+            try:
+                bt.logging.info("Subscribing to block headers...")
+                self.substrate.subscribe_block_headers(self._subscription_handler)
+
+            except Exception as e:
+                if self.should_exit:
+                    bt.logging.info("Event listener stopped during reconnection.")
+                    break
+                if retry_count > self.max_reconnect_attempts:
+                    bt.logging.error(
+                        f"Max reconnection attempts reached ({self.max_reconnect_attempts}). Stopping event listener."
+                    )
+                    sys.exit(1)
+                retry_count += 1
+                time.sleep(self.retry_delay)
 
     def sync_historical_events(
         self,
