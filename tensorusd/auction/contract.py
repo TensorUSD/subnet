@@ -639,9 +639,6 @@ class TensorUSDPriceOracleContract:
             )
 
             if receipt.is_success:
-                bt.logging.info(
-                    f"Price submitted: price={price}, tx={receipt.extrinsic_hash}"
-                )
                 return receipt.extrinsic_hash
             else:
                 bt.logging.error(f"Price submission failed: {receipt.error_message}")

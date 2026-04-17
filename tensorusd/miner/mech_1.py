@@ -68,10 +68,8 @@ class PriceOracleMiner:
 
     def run(self):
         bt.logging.info("Starting price oracle miner...")
-        submission_count = 0
         while True:
             try:
-                bt.logging.info(f"\n--- Price Submission #{submission_count + 1} ---")
                 price_usd = fetch_tao_price_usd(self.miner.config.cmc.api_key)  # type: ignore
                 if price_usd is None:
                     bt.logging.error("Failed to fetch price, skipping submission")
@@ -89,16 +87,15 @@ class PriceOracleMiner:
                         bt.logging.success(
                             f"Price submitted successfully! Tx hash: {tx_hash}"
                         )
-                        return True
                     else:
                         bt.logging.error(
                             "Price submission failed - no transaction hash returned"
                         )
-                        return False
 
                 except Exception as e:
                     bt.logging.error(f"Error submitting price to oracle: {e}")
 
+                bt.logging.info(f"Waiting {self.miner.config.price.submission_interval_seconds} seconds before next submission...")  # type: ignore
                 time.sleep(self.miner.config.price.submission_interval_seconds)  # type: ignore
 
             except KeyboardInterrupt:
