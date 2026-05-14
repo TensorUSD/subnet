@@ -1,10 +1,10 @@
 {
   "source": {
-    "hash": "0x7b4c6536fe03c9ad4771822af1eea66a2727b577d13b80afcc9f858805c32cdf",
+    "hash": "0xea813e5443485494e4952aead36abaaee306e3cfd719a041870a608a3f989bff",
     "language": "ink! 5.1.1",
-    "compiler": "rustc 1.93.0",
+    "compiler": "rustc 1.91.1",
     "build_info": {
-      "build_mode": "Debug",
+      "build_mode": "Release",
       "cargo_contract_version": "5.0.3",
       "rust_toolchain": "stable-x86_64-unknown-linux-gnu",
       "wasm_opt_settings": {
@@ -31,7 +31,7 @@
               "displayName": [
                 "Hash"
               ],
-              "type": 37
+              "type": 40
             }
           },
           {
@@ -40,7 +40,7 @@
               "displayName": [
                 "Hash"
               ],
-              "type": 37
+              "type": 40
             }
           },
           {
@@ -49,7 +49,7 @@
               "displayName": [
                 "Hash"
               ],
-              "type": 37
+              "type": 40
             }
           }
         ],
@@ -64,7 +64,7 @@
             "ink_primitives",
             "ConstructorResult"
           ],
-          "type": 38
+          "type": 41
         },
         "selector": "0x9bae9d5e"
       }
@@ -93,13 +93,13 @@
         "displayName": [
           "ChainExtension"
         ],
-        "type": 67
+        "type": 70
       },
       "hash": {
         "displayName": [
           "Hash"
         ],
-        "type": 37
+        "type": 40
       },
       "maxEventTopics": 4,
       "staticBufferSize": 16384,
@@ -111,6 +111,47 @@
       }
     },
     "events": [
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "auction_id",
+            "type": {
+              "displayName": [
+                "u32"
+              ],
+              "type": 6
+            }
+          },
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "recipient",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "docs": [],
+        "label": "WinningBidTransferred",
+        "module_path": "tusdt_auction::auction",
+        "signature_topic": "0x2453946cbe1f6032b08342168446e55733a50984aaed83e6915336a88b93032e"
+      },
       {
         "args": [
           {
@@ -203,7 +244,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 62
+              "type": 65
             }
           }
         ],
@@ -359,7 +400,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 63
+              "type": 66
             }
           }
         ],
@@ -419,7 +460,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 62
+              "type": 65
             }
           },
           {
@@ -430,7 +471,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 62
+              "type": 65
             }
           },
           {
@@ -484,6 +525,25 @@
         "args": [
           {
             "docs": [],
+            "indexed": false,
+            "label": "max_price_deviation",
+            "type": {
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 36
+            }
+          }
+        ],
+        "docs": [],
+        "label": "MaxPriceDeviationUpdated",
+        "module_path": "tusdt_oracle::oracle",
+        "signature_topic": "0xdf92cfe8304a7dfe48998ca021158b2d606b3dd9d86bab86d14c4c2b0d2a2259"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
             "indexed": true,
             "label": "round_id",
             "type": {
@@ -523,7 +583,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 65
+              "type": 68
             }
           },
           {
@@ -646,7 +706,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 62
+              "type": 65
             }
           }
         ],
@@ -727,6 +787,55 @@
         "signature_topic": "0xd53246a10f6e9922a439d9e370fa637a14f48553f3c65c5e4fdb5f821511aeb3"
       },
       {
+        "args": [
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "params",
+            "type": {
+              "displayName": [
+                "VaultContractParamsConfig"
+              ],
+              "type": 39
+            }
+          }
+        ],
+        "docs": [],
+        "label": "ContractParamsUpdateCancelled",
+        "module_path": "tusdt_vault::vault",
+        "signature_topic": "0xff81451134857c985287b517981bcb3a24bcc4a522c3477732ed64e0824087b2"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "params",
+            "type": {
+              "displayName": [
+                "VaultContractParamsConfig"
+              ],
+              "type": 39
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "execute_after",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "docs": [],
+        "label": "ContractParamsUpdateScheduled",
+        "module_path": "tusdt_vault::vault",
+        "signature_topic": "0x1ca0bcc027e10356f024ee99a38703be52b339d03b38a2597a93665992cc7507"
+      },
+      {
         "args": [],
         "docs": [],
         "label": "Paused",
@@ -774,12 +883,23 @@
               ],
               "type": 4
             }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "transaction_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
           }
         ],
         "docs": [],
         "label": "TokensRepaid",
         "module_path": "tusdt_vault::vault",
-        "signature_topic": "0xa22358280da53ef96c37f9cb59b4d27b8a530b444e954a3816229235cf85a87f"
+        "signature_topic": "0xe11c88de1af2c4787d5ce47b80816c6ec7b7780637ea93c5d178e116d4a8192f"
       },
       {
         "args": [
@@ -856,12 +976,23 @@
               ],
               "type": 4
             }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "transaction_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
           }
         ],
         "docs": [],
         "label": "TokensBorrowed",
         "module_path": "tusdt_vault::vault",
-        "signature_topic": "0xef408f7426ce09f14f19c91265cc2ee4df89c6ac79710581f4fa4f3d957ba479"
+        "signature_topic": "0xd775a1237b32075dc9df9854ae98ebab6cdcd965c2f0ce6ec26b0050345c2956"
       },
       {
         "args": [
@@ -931,7 +1062,7 @@
           {
             "docs": [],
             "indexed": false,
-            "label": "previous_borrowed_balance",
+            "label": "previous_debt_balance",
             "type": {
               "displayName": [
                 "Balance"
@@ -942,7 +1073,7 @@
           {
             "docs": [],
             "indexed": false,
-            "label": "borrowed_balance",
+            "label": "debt_balance",
             "type": {
               "displayName": [
                 "Balance"
@@ -1010,7 +1141,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 62
+              "type": 65
             }
           },
           {
@@ -1038,6 +1169,17 @@
           {
             "docs": [],
             "indexed": false,
+            "label": "transaction_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
             "label": "debt_cleared",
             "type": {
               "displayName": [
@@ -1050,7 +1192,37 @@
         "docs": [],
         "label": "VaultLiquidated",
         "module_path": "tusdt_vault::vault",
-        "signature_topic": "0xd52517f8ee9efe39dba45c5b5c2b5886cfae3f29bac9804ac58366b71d877578"
+        "signature_topic": "0x0f04fc35605f02b23135e50b8a19aa13f9ce70003ec278b3986a4972bdc4b37e"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "recipient",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "docs": [],
+        "label": "EmergencyDrained",
+        "module_path": "tusdt_vault::vault",
+        "signature_topic": "0xb63738f4f1451acb16c1d42dec153e32c710e41096abb81dba611434ec9532cb"
       },
       {
         "args": [
@@ -1097,13 +1269,73 @@
         "args": [
           {
             "docs": [],
+            "indexed": true,
+            "label": "recipient",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "docs": [],
+        "label": "SurplusTusdtClaimed",
+        "module_path": "tusdt_vault::vault",
+        "signature_topic": "0xd968cc90a991bfdee52bb15a281eca58a07b94210cdc1679eb32dd6e2cae9f05"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "previous_platform",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "new_platform",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          }
+        ],
+        "docs": [],
+        "label": "VaultPlatformUpdated",
+        "module_path": "tusdt_vault::vault",
+        "signature_topic": "0x968c8e8d6f99c403be206758aadc258fd0abf2dc43f439545cb6ab8508461735"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
             "indexed": false,
             "label": "params",
             "type": {
               "displayName": [
                 "VaultContractParamsConfig"
               ],
-              "type": 40
+              "type": 39
             }
           }
         ],
@@ -1118,7 +1350,7 @@
         "ink",
         "LangError"
       ],
-      "type": 39
+      "type": 42
     },
     "messages": [
       {
@@ -1129,13 +1361,13 @@
               "displayName": [
                 "VaultContractParamsConfig"
               ],
-              "type": 40
+              "type": 39
             }
           }
         ],
         "default": false,
         "docs": [
-          " Updates contract parameters (collateral ratio, liquidation ratio, interest rate, etc.) with validation; only callable by governance."
+          " Schedules a contract parameter update with a fixed timelock; only callable by governance."
         ],
         "label": "set_contract_params",
         "mutates": true,
@@ -1145,9 +1377,45 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0x283617a8"
+      },
+      {
+        "args": [],
+        "default": false,
+        "docs": [
+          " Executes the currently scheduled contract parameter update once its timelock has elapsed."
+        ],
+        "label": "execute_contract_params_update",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 43
+        },
+        "selector": "0xec8897e2"
+      },
+      {
+        "args": [],
+        "default": false,
+        "docs": [
+          " Cancels the currently scheduled contract parameter update; only callable by governance."
+        ],
+        "label": "cancel_contract_params_update",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 43
+        },
+        "selector": "0xcb1c0e93"
       },
       {
         "args": [
@@ -1171,9 +1439,35 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0xc33c8b6a"
+      },
+      {
+        "args": [
+          {
+            "label": "new_platform",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "update_platform",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 43
+        },
+        "selector": "0xa59697ab"
       },
       {
         "args": [],
@@ -1187,7 +1481,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0x81e0c604"
       },
@@ -1203,9 +1497,70 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0x67616649"
+      },
+      {
+        "args": [
+          {
+            "label": "amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " Transfers surplus TUSDT held by the vault contract to governance."
+        ],
+        "label": "claim_surplus_tusdt",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 43
+        },
+        "selector": "0x3b645db8"
+      },
+      {
+        "args": [
+          {
+            "label": "recipient",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " **TESTNET ONLY** — Drains the entire native balance of the contract to `recipient`.",
+          "",
+          " Use this before migrating to a new contract deployment when storage layout has",
+          " changed and you need to recover all collateral funds locked in this instance.",
+          " `total_collateral_balance` is zeroed so internal accounting stays consistent.",
+          " Only callable by governance."
+        ],
+        "label": "emergency_drain",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 46
+        },
+        "selector": "0x78a5f8d5"
       },
       {
         "args": [],
@@ -1221,7 +1576,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 44
+          "type": 48
         },
         "selector": "0x17ff6720"
       },
@@ -1249,7 +1604,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0xe3d1fc1b"
       },
@@ -1276,7 +1631,9 @@
         ],
         "default": false,
         "docs": [
-          " Borrows tokens against the vault's collateral, validating collateral ratio and accruing interest."
+          " Borrows tokens against the vault's collateral, validating collateral ratio,",
+          " accruing interest, minting the fee portion to the platform, and sending",
+          " the net borrowed tokens to the caller."
         ],
         "label": "borrow_token",
         "mutates": true,
@@ -1286,7 +1643,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0x0976540b"
       },
@@ -1313,7 +1670,8 @@
         ],
         "default": false,
         "docs": [
-          " Repays borrowed tokens from a vault, accruing interest and burning the repaid tokens."
+          " Repays borrowed tokens from a vault, charging the transaction fee in TUSDT,",
+          " routing accrued interest and the fee to the platform, and burning only principal net supply."
         ],
         "label": "repay_token",
         "mutates": true,
@@ -1323,7 +1681,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0xddbf65cb"
       },
@@ -1397,7 +1755,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0x9ca723e0"
       },
@@ -1434,7 +1792,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 44
+          "type": 48
         },
         "selector": "0xec6bd9f2"
       },
@@ -1461,7 +1819,11 @@
         ],
         "default": false,
         "docs": [
-          " Settles a finalized liquidation auction, transferring collateral to the winner and clearing vault debt."
+          " Settles a finalized liquidation auction, transferring collateral to the winner,",
+          " routing accrued interest to the platform, and burning only principal.",
+          "",
+          " This remains callable while paused so governance can freeze new mutations without",
+          " trapping already-finalized auction proceeds in the auction contract."
         ],
         "label": "settle_liquidation_auction",
         "mutates": true,
@@ -1471,7 +1833,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 41
+          "type": 43
         },
         "selector": "0x18f62fe6"
       },
@@ -1508,7 +1870,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 48
+          "type": 50
         },
         "selector": "0x4f96cf6c"
       },
@@ -1526,7 +1888,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 50
+          "type": 52
         },
         "selector": "0xc004fc23"
       },
@@ -1544,7 +1906,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 50
+          "type": 52
         },
         "selector": "0x3518b48d"
       },
@@ -1562,7 +1924,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 50
+          "type": 52
         },
         "selector": "0xdc4c0ffe"
       },
@@ -1580,9 +1942,27 @@
             "ink",
             "MessageResult"
           ],
-          "type": 50
+          "type": 52
         },
         "selector": "0x9f90cf17"
+      },
+      {
+        "args": [],
+        "default": false,
+        "docs": [
+          " Returns the current platform account."
+        ],
+        "label": "platform",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 52
+        },
+        "selector": "0x2b86e96a"
       },
       {
         "args": [],
@@ -1598,7 +1978,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 51
+          "type": 53
         },
         "selector": "0xd8fea916"
       },
@@ -1616,9 +1996,27 @@
             "ink",
             "MessageResult"
           ],
-          "type": 52
+          "type": 54
         },
         "selector": "0xb89cc086"
+      },
+      {
+        "args": [],
+        "default": false,
+        "docs": [
+          " Returns the currently scheduled parameter update, if any."
+        ],
+        "label": "get_pending_contract_params_update",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 55
+        },
+        "selector": "0xacf1f313"
       },
       {
         "args": [
@@ -1653,7 +2051,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 53
+          "type": 56
         },
         "selector": "0x69aef621"
       },
@@ -1671,7 +2069,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 55
+          "type": 58
         },
         "selector": "0x3452f0c5"
       },
@@ -1699,7 +2097,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 55
+          "type": 58
         },
         "selector": "0x5a81c550"
       },
@@ -1810,7 +2208,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 56
+          "type": 59
         },
         "selector": "0x6109b5e5"
       },
@@ -1828,7 +2226,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 58
+          "type": 61
         },
         "selector": "0xf5da31f6"
       },
@@ -1856,7 +2254,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 58
+          "type": 61
         },
         "selector": "0x825fc5ea"
       },
@@ -1893,7 +2291,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 59
+          "type": 62
         },
         "selector": "0xfe77349c"
       },
@@ -1921,7 +2319,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 59
+          "type": 62
         },
         "selector": "0x64ed974f"
       }
@@ -1940,6 +2338,15 @@
                 }
               },
               "name": "governance"
+            },
+            {
+              "layout": {
+                "leaf": {
+                  "key": "0x00000000",
+                  "ty": 0
+                }
+              },
+              "name": "platform"
             },
             {
               "layout": {
@@ -2137,6 +2544,25 @@
                     },
                     {
                       "layout": {
+                        "struct": {
+                          "fields": [
+                            {
+                              "layout": {
+                                "leaf": {
+                                  "key": "0x00000000",
+                                  "ty": 5
+                                }
+                              },
+                              "name": "0"
+                            }
+                          ],
+                          "name": "Ratio"
+                        }
+                      },
+                      "name": "transaction_fee"
+                    },
+                    {
+                      "layout": {
                         "leaf": {
                           "key": "0x00000000",
                           "ty": 4
@@ -2158,6 +2584,127 @@
                 }
               },
               "name": "params"
+            },
+            {
+              "layout": {
+                "enum": {
+                  "dispatchKey": "0x00000000",
+                  "name": "Option",
+                  "variants": {
+                    "0": {
+                      "fields": [],
+                      "name": "None"
+                    },
+                    "1": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "struct": {
+                                      "fields": [
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 6
+                                            }
+                                          },
+                                          "name": "collateral_ratio"
+                                        },
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 6
+                                            }
+                                          },
+                                          "name": "liquidation_ratio"
+                                        },
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 6
+                                            }
+                                          },
+                                          "name": "interest_rate"
+                                        },
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 6
+                                            }
+                                          },
+                                          "name": "liquidation_fee"
+                                        },
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 4
+                                            }
+                                          },
+                                          "name": "borrow_cap"
+                                        },
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 6
+                                            }
+                                          },
+                                          "name": "transaction_fee"
+                                        },
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 4
+                                            }
+                                          },
+                                          "name": "auction_duration_ms"
+                                        },
+                                        {
+                                          "layout": {
+                                            "leaf": {
+                                              "key": "0x00000000",
+                                              "ty": 4
+                                            }
+                                          },
+                                          "name": "max_oracle_age_ms"
+                                        }
+                                      ],
+                                      "name": "VaultContractParamsConfig"
+                                    }
+                                  },
+                                  "name": "params"
+                                },
+                                {
+                                  "layout": {
+                                    "leaf": {
+                                      "key": "0x00000000",
+                                      "ty": 4
+                                    }
+                                  },
+                                  "name": "execute_after"
+                                }
+                              ],
+                              "name": "PendingContractParamsUpdate"
+                            }
+                          },
+                          "name": "0"
+                        }
+                      ],
+                      "name": "Some"
+                    }
+                  }
+                }
+              },
+              "name": "pending_contract_params_update"
             },
             {
               "layout": {
@@ -2200,6 +2747,15 @@
                             }
                           },
                           "name": "borrowed_token_balance"
+                        },
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0x8d337809",
+                              "ty": 4
+                            }
+                          },
+                          "name": "debt_balance"
                         },
                         {
                           "layout": {
@@ -2459,6 +3015,11 @@
               },
               {
                 "name": "borrowed_token_balance",
+                "type": 4,
+                "typeName": "Balance"
+              },
+              {
+                "name": "debt_balance",
                 "type": 4,
                 "typeName": "Balance"
               },
@@ -2902,6 +3463,11 @@
                 "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<2977074604u32, ()>,>>::Type"
               },
               {
+                "name": "platform",
+                "type": 0,
+                "typeName": "<AccountId as::ink::storage::traits::AutoStorableHint<::ink::\nstorage::traits::ManualKey<3492713953u32, ()>,>>::Type"
+              },
+              {
                 "name": "paused",
                 "type": 3,
                 "typeName": "<bool as::ink::storage::traits::AutoStorableHint<::ink::storage\n::traits::ManualKey<307479557u32, ()>,>>::Type"
@@ -2930,6 +3496,11 @@
                 "name": "params",
                 "type": 35,
                 "typeName": "<VaultContractParams as::ink::storage::traits::AutoStorableHint<::\nink::storage::traits::ManualKey<1171094371u32, ()>,>>::Type"
+              },
+              {
+                "name": "pending_contract_params_update",
+                "type": 37,
+                "typeName": "<Option<PendingContractParamsUpdate> as::ink::storage::traits::\nAutoStorableHint<::ink::storage::traits::ManualKey<1461587648u32,\n()>,>>::Type"
               },
               {
                 "name": "vaults",
@@ -3124,6 +3695,11 @@
                 "typeName": "Balance"
               },
               {
+                "name": "transaction_fee",
+                "type": 36,
+                "typeName": "Ratio"
+              },
+              {
                 "name": "auction_duration_ms",
                 "type": 4,
                 "typeName": "u64"
@@ -3166,45 +3742,20 @@
       "id": 37,
       "type": {
         "def": {
-          "composite": {
-            "fields": [
-              {
-                "type": 1,
-                "typeName": "[u8; 32]"
-              }
-            ]
-          }
-        },
-        "path": [
-          "ink_primitives",
-          "types",
-          "Hash"
-        ]
-      }
-    },
-    {
-      "id": 38,
-      "type": {
-        "def": {
           "variant": {
             "variants": [
               {
-                "fields": [
-                  {
-                    "type": 13
-                  }
-                ],
                 "index": 0,
-                "name": "Ok"
+                "name": "None"
               },
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 38
                   }
                 ],
                 "index": 1,
-                "name": "Err"
+                "name": "Some"
               }
             ]
           }
@@ -3212,39 +3763,42 @@
         "params": [
           {
             "name": "T",
-            "type": 13
-          },
-          {
-            "name": "E",
-            "type": 39
+            "type": 38
           }
         ],
         "path": [
-          "Result"
+          "Option"
         ]
       }
     },
     {
-      "id": 39,
+      "id": 38,
       "type": {
         "def": {
-          "variant": {
-            "variants": [
+          "composite": {
+            "fields": [
               {
-                "index": 1,
-                "name": "CouldNotReadInput"
+                "name": "params",
+                "type": 39,
+                "typeName": "VaultContractParamsConfig"
+              },
+              {
+                "name": "execute_after",
+                "type": 4,
+                "typeName": "u64"
               }
             ]
           }
         },
         "path": [
-          "ink_primitives",
-          "LangError"
+          "tusdt_vault",
+          "vault",
+          "PendingContractParamsUpdate"
         ]
       }
     },
     {
-      "id": 40,
+      "id": 39,
       "type": {
         "def": {
           "composite": {
@@ -3275,6 +3829,11 @@
                 "typeName": "Balance"
               },
               {
+                "name": "transaction_fee",
+                "type": 6,
+                "typeName": "u32"
+              },
+              {
                 "name": "auction_duration_ms",
                 "type": 4,
                 "typeName": "u64"
@@ -3295,49 +3854,27 @@
       }
     },
     {
-      "id": 41,
+      "id": 40,
       "type": {
         "def": {
-          "variant": {
-            "variants": [
+          "composite": {
+            "fields": [
               {
-                "fields": [
-                  {
-                    "type": 42
-                  }
-                ],
-                "index": 0,
-                "name": "Ok"
-              },
-              {
-                "fields": [
-                  {
-                    "type": 39
-                  }
-                ],
-                "index": 1,
-                "name": "Err"
+                "type": 1,
+                "typeName": "[u8; 32]"
               }
             ]
           }
         },
-        "params": [
-          {
-            "name": "T",
-            "type": 42
-          },
-          {
-            "name": "E",
-            "type": 39
-          }
-        ],
         "path": [
-          "Result"
+          "ink_primitives",
+          "types",
+          "Hash"
         ]
       }
     },
     {
-      "id": 42,
+      "id": 41,
       "type": {
         "def": {
           "variant": {
@@ -3354,7 +3891,7 @@
               {
                 "fields": [
                   {
-                    "type": 43
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -3370,7 +3907,7 @@
           },
           {
             "name": "E",
-            "type": 43
+            "type": 42
           }
         ],
         "path": [
@@ -3379,7 +3916,110 @@
       }
     },
     {
+      "id": 42,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "index": 1,
+                "name": "CouldNotReadInput"
+              }
+            ]
+          }
+        },
+        "path": [
+          "ink_primitives",
+          "LangError"
+        ]
+      }
+    },
+    {
       "id": 43,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 44
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 42
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 44
+          },
+          {
+            "name": "E",
+            "type": 42
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 44,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 13
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 45
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 13
+          },
+          {
+            "name": "E",
+            "type": 45
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 45,
       "type": {
         "def": {
           "variant": {
@@ -3402,83 +4042,103 @@
               },
               {
                 "index": 4,
-                "name": "TokenBorrowedNotZero"
+                "name": "InsufficientTokenBalance"
               },
               {
                 "index": 5,
-                "name": "InvalidRatio"
+                "name": "InvalidTransactionFee"
               },
               {
                 "index": 6,
-                "name": "InvalidAuctionDuration"
+                "name": "TokenBorrowedNotZero"
               },
               {
                 "index": 7,
-                "name": "CollateralRatioExceeded"
+                "name": "InvalidRatio"
               },
               {
                 "index": 8,
-                "name": "LiquidationRatioExceeded"
+                "name": "InvalidAuctionDuration"
               },
               {
                 "index": 9,
-                "name": "BorrowCapExceeded"
+                "name": "CollateralRatioExceeded"
               },
               {
                 "index": 10,
-                "name": "RepayAmountTooHigh"
+                "name": "LiquidationRatioExceeded"
               },
               {
                 "index": 11,
-                "name": "VaultInLiquidation"
+                "name": "BorrowCapExceeded"
               },
               {
                 "index": 12,
-                "name": "NotLiquidatable"
+                "name": "RepayAmountTooHigh"
               },
               {
                 "index": 13,
-                "name": "LiquidationAuctionExists"
+                "name": "VaultInLiquidation"
               },
               {
                 "index": 14,
-                "name": "AuctionContractCallFailed"
+                "name": "NotLiquidatable"
               },
               {
                 "index": 15,
-                "name": "AuctionNotFound"
+                "name": "LiquidationAuctionExists"
               },
               {
                 "index": 16,
-                "name": "AuctionNotFinalized"
+                "name": "AuctionContractCallFailed"
               },
               {
                 "index": 17,
-                "name": "ArithmeticError"
+                "name": "AuctionNotFound"
               },
               {
                 "index": 18,
-                "name": "NotGovernance"
+                "name": "AuctionNotFinalized"
               },
               {
                 "index": 19,
-                "name": "ContractPaused"
+                "name": "ArithmeticError"
               },
               {
                 "index": 20,
-                "name": "OracleCallFailed"
+                "name": "NotGovernance"
               },
               {
                 "index": 21,
-                "name": "OraclePriceUnavailable"
+                "name": "NotGovernanceOrPlatform"
               },
               {
                 "index": 22,
-                "name": "OraclePriceStale"
+                "name": "ContractPaused"
               },
               {
                 "index": 23,
+                "name": "OracleCallFailed"
+              },
+              {
+                "index": 24,
+                "name": "OraclePriceUnavailable"
+              },
+              {
+                "index": 25,
+                "name": "OraclePriceStale"
+              },
+              {
+                "index": 26,
                 "name": "InvalidOracleMaxAge"
+              },
+              {
+                "index": 27,
+                "name": "NoPendingContractParamsUpdate"
+              },
+              {
+                "index": 28,
+                "name": "ContractParamsUpdateTimelockActive"
               }
             ]
           }
@@ -3487,90 +4147,6 @@
           "tusdt_vault",
           "vault",
           "Error"
-        ]
-      }
-    },
-    {
-      "id": 44,
-      "type": {
-        "def": {
-          "variant": {
-            "variants": [
-              {
-                "fields": [
-                  {
-                    "type": 45
-                  }
-                ],
-                "index": 0,
-                "name": "Ok"
-              },
-              {
-                "fields": [
-                  {
-                    "type": 39
-                  }
-                ],
-                "index": 1,
-                "name": "Err"
-              }
-            ]
-          }
-        },
-        "params": [
-          {
-            "name": "T",
-            "type": 45
-          },
-          {
-            "name": "E",
-            "type": 39
-          }
-        ],
-        "path": [
-          "Result"
-        ]
-      }
-    },
-    {
-      "id": 45,
-      "type": {
-        "def": {
-          "variant": {
-            "variants": [
-              {
-                "fields": [
-                  {
-                    "type": 6
-                  }
-                ],
-                "index": 0,
-                "name": "Ok"
-              },
-              {
-                "fields": [
-                  {
-                    "type": 43
-                  }
-                ],
-                "index": 1,
-                "name": "Err"
-              }
-            ]
-          }
-        },
-        "params": [
-          {
-            "name": "T",
-            "type": 6
-          },
-          {
-            "name": "E",
-            "type": 43
-          }
-        ],
-        "path": [
-          "Result"
         ]
       }
     },
@@ -3592,7 +4168,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -3608,7 +4184,7 @@
           },
           {
             "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -3634,7 +4210,7 @@
               {
                 "fields": [
                   {
-                    "type": 43
+                    "type": 45
                   }
                 ],
                 "index": 1,
@@ -3650,7 +4226,7 @@
           },
           {
             "name": "E",
-            "type": 43
+            "type": 45
           }
         ],
         "path": [
@@ -3676,7 +4252,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -3692,7 +4268,7 @@
           },
           {
             "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -3702,6 +4278,90 @@
     },
     {
       "id": 49,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 6
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 45
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 6
+          },
+          {
+            "name": "E",
+            "type": 45
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 50,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 51
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 42
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 51
+          },
+          {
+            "name": "E",
+            "type": 42
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 51,
       "type": {
         "def": {
           "variant": {
@@ -3734,7 +4394,7 @@
       }
     },
     {
-      "id": 50,
+      "id": 52,
       "type": {
         "def": {
           "variant": {
@@ -3751,7 +4411,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -3767,91 +4427,7 @@
           },
           {
             "name": "E",
-            "type": 39
-          }
-        ],
-        "path": [
-          "Result"
-        ]
-      }
-    },
-    {
-      "id": 51,
-      "type": {
-        "def": {
-          "variant": {
-            "variants": [
-              {
-                "fields": [
-                  {
-                    "type": 3
-                  }
-                ],
-                "index": 0,
-                "name": "Ok"
-              },
-              {
-                "fields": [
-                  {
-                    "type": 39
-                  }
-                ],
-                "index": 1,
-                "name": "Err"
-              }
-            ]
-          }
-        },
-        "params": [
-          {
-            "name": "T",
-            "type": 3
-          },
-          {
-            "name": "E",
-            "type": 39
-          }
-        ],
-        "path": [
-          "Result"
-        ]
-      }
-    },
-    {
-      "id": 52,
-      "type": {
-        "def": {
-          "variant": {
-            "variants": [
-              {
-                "fields": [
-                  {
-                    "type": 40
-                  }
-                ],
-                "index": 0,
-                "name": "Ok"
-              },
-              {
-                "fields": [
-                  {
-                    "type": 39
-                  }
-                ],
-                "index": 1,
-                "name": "Err"
-              }
-            ]
-          }
-        },
-        "params": [
-          {
-            "name": "T",
-            "type": 40
-          },
-          {
-            "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -3868,7 +4444,7 @@
               {
                 "fields": [
                   {
-                    "type": 54
+                    "type": 3
                   }
                 ],
                 "index": 0,
@@ -3877,7 +4453,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -3889,11 +4465,11 @@
         "params": [
           {
             "name": "T",
-            "type": 54
+            "type": 3
           },
           {
             "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -3908,17 +4484,22 @@
           "variant": {
             "variants": [
               {
+                "fields": [
+                  {
+                    "type": 39
+                  }
+                ],
                 "index": 0,
-                "name": "None"
+                "name": "Ok"
               },
               {
                 "fields": [
                   {
-                    "type": 4
+                    "type": 42
                   }
                 ],
                 "index": 1,
-                "name": "Some"
+                "name": "Err"
               }
             ]
           }
@@ -3926,11 +4507,15 @@
         "params": [
           {
             "name": "T",
-            "type": 4
+            "type": 39
+          },
+          {
+            "name": "E",
+            "type": 42
           }
         ],
         "path": [
-          "Option"
+          "Result"
         ]
       }
     },
@@ -3943,7 +4528,7 @@
               {
                 "fields": [
                   {
-                    "type": 4
+                    "type": 37
                   }
                 ],
                 "index": 0,
@@ -3952,7 +4537,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -3964,11 +4549,11 @@
         "params": [
           {
             "name": "T",
-            "type": 4
+            "type": 37
           },
           {
             "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -3994,7 +4579,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -4010,7 +4595,7 @@
           },
           {
             "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -4020,6 +4605,123 @@
     },
     {
       "id": 57,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "index": 0,
+                "name": "None"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 4
+                  }
+                ],
+                "index": 1,
+                "name": "Some"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 4
+          }
+        ],
+        "path": [
+          "Option"
+        ]
+      }
+    },
+    {
+      "id": 58,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 4
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 42
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 4
+          },
+          {
+            "name": "E",
+            "type": 42
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 59,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 60
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 42
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 60
+          },
+          {
+            "name": "E",
+            "type": 42
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 60,
       "type": {
         "def": {
           "variant": {
@@ -4052,7 +4754,7 @@
       }
     },
     {
-      "id": 58,
+      "id": 61,
       "type": {
         "def": {
           "variant": {
@@ -4069,7 +4771,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -4085,7 +4787,7 @@
           },
           {
             "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -4094,7 +4796,7 @@
       }
     },
     {
-      "id": 59,
+      "id": 62,
       "type": {
         "def": {
           "variant": {
@@ -4102,7 +4804,7 @@
               {
                 "fields": [
                   {
-                    "type": 60
+                    "type": 63
                   }
                 ],
                 "index": 0,
@@ -4111,7 +4813,7 @@
               {
                 "fields": [
                   {
-                    "type": 39
+                    "type": 42
                   }
                 ],
                 "index": 1,
@@ -4123,11 +4825,11 @@
         "params": [
           {
             "name": "T",
-            "type": 60
+            "type": 63
           },
           {
             "name": "E",
-            "type": 39
+            "type": 42
           }
         ],
         "path": [
@@ -4136,7 +4838,7 @@
       }
     },
     {
-      "id": 60,
+      "id": 63,
       "type": {
         "def": {
           "variant": {
@@ -4144,7 +4846,7 @@
               {
                 "fields": [
                   {
-                    "type": 61
+                    "type": 64
                   }
                 ],
                 "index": 0,
@@ -4153,7 +4855,7 @@
               {
                 "fields": [
                   {
-                    "type": 43
+                    "type": 45
                   }
                 ],
                 "index": 1,
@@ -4165,11 +4867,11 @@
         "params": [
           {
             "name": "T",
-            "type": 61
+            "type": 64
           },
           {
             "name": "E",
-            "type": 43
+            "type": 45
           }
         ],
         "path": [
@@ -4178,7 +4880,7 @@
       }
     },
     {
-      "id": 61,
+      "id": 64,
       "type": {
         "def": {
           "sequence": {
@@ -4188,7 +4890,7 @@
       }
     },
     {
-      "id": 62,
+      "id": 65,
       "type": {
         "def": {
           "variant": {
@@ -4221,7 +4923,7 @@
       }
     },
     {
-      "id": 63,
+      "id": 66,
       "type": {
         "def": {
           "variant": {
@@ -4233,7 +4935,7 @@
               {
                 "fields": [
                   {
-                    "type": 64
+                    "type": 67
                   }
                 ],
                 "index": 1,
@@ -4245,7 +4947,7 @@
         "params": [
           {
             "name": "T",
-            "type": 64
+            "type": 67
           }
         ],
         "path": [
@@ -4254,7 +4956,7 @@
       }
     },
     {
-      "id": 64,
+      "id": 67,
       "type": {
         "def": {
           "composite": {
@@ -4275,7 +4977,7 @@
       }
     },
     {
-      "id": 65,
+      "id": 68,
       "type": {
         "def": {
           "variant": {
@@ -4287,7 +4989,7 @@
               {
                 "fields": [
                   {
-                    "type": 66
+                    "type": 69
                   }
                 ],
                 "index": 1,
@@ -4299,7 +5001,7 @@
         "params": [
           {
             "name": "T",
-            "type": 66
+            "type": 69
           }
         ],
         "path": [
@@ -4308,7 +5010,7 @@
       }
     },
     {
-      "id": 66,
+      "id": 69,
       "type": {
         "def": {
           "composite": {
@@ -4329,7 +5031,7 @@
       }
     },
     {
-      "id": 67,
+      "id": 70,
       "type": {
         "def": {
           "variant": {}

@@ -1,10 +1,10 @@
 {
   "source": {
-    "hash": "0x1f6a310f8590911e7d82d567b5c2e16f3be705f08990d5878ce17fa8c8099d4e",
+    "hash": "0xb3736035adc0b339ee3260a2cdf66a0783e9f81dcd07b3134c5bb0ebb84255e6",
     "language": "ink! 5.1.1",
-    "compiler": "rustc 1.93.0",
+    "compiler": "rustc 1.91.1",
     "build_info": {
-      "build_mode": "Debug",
+      "build_mode": "Release",
       "cargo_contract_version": "5.0.3",
       "rust_toolchain": "stable-x86_64-unknown-linux-gnu",
       "wasm_opt_settings": {
@@ -84,13 +84,13 @@
         "displayName": [
           "ChainExtension"
         ],
-        "type": 54
+        "type": 55
       },
       "hash": {
         "displayName": [
           "Hash"
         ],
-        "type": 53
+        "type": 54
       },
       "maxEventTopics": 4,
       "staticBufferSize": 16384,
@@ -131,6 +131,25 @@
         "label": "OracleGovernanceUpdated",
         "module_path": "tusdt_oracle::oracle",
         "signature_topic": "0x8076edb2c7ad187c70699e83a771437602b58b5145ad1c777bb879abe3f990c8"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "max_price_deviation",
+            "type": {
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 14
+            }
+          }
+        ],
+        "docs": [],
+        "label": "MaxPriceDeviationUpdated",
+        "module_path": "tusdt_oracle::oracle",
+        "signature_topic": "0xdf92cfe8304a7dfe48998ca021158b2d606b3dd9d86bab86d14c4c2b0d2a2259"
       },
       {
         "args": [
@@ -384,6 +403,34 @@
       {
         "args": [
           {
+            "label": "price",
+            "type": {
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 14
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " Commits the current round with a governance-supplied price, bypassing quorum and deviation checks."
+        ],
+        "label": "commit_round_governance",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 40
+        },
+        "selector": "0x1eea4419"
+      },
+      {
+        "args": [
+          {
             "label": "reporter",
             "type": {
               "displayName": [
@@ -445,6 +492,34 @@
           "type": 36
         },
         "selector": "0x297766e9"
+      },
+      {
+        "args": [
+          {
+            "label": "max_price_deviation",
+            "type": {
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 14
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " Updates the maximum allowed deviation between consecutive committed prices."
+        ],
+        "label": "set_max_price_deviation",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 36
+        },
+        "selector": "0x77326285"
       },
       {
         "args": [
@@ -729,6 +804,24 @@
           "type": 43
         },
         "selector": "0x10e732de"
+      },
+      {
+        "args": [],
+        "default": false,
+        "docs": [
+          " Returns the maximum allowed deviation between consecutive committed prices."
+        ],
+        "label": "max_price_deviation",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 53
+        },
+        "selector": "0xbcef3638"
       }
     ]
   },
@@ -1114,6 +1207,25 @@
                 }
               },
               "name": "latest_price"
+            },
+            {
+              "layout": {
+                "struct": {
+                  "fields": [
+                    {
+                      "layout": {
+                        "leaf": {
+                          "key": "0x00000000",
+                          "ty": 10
+                        }
+                      },
+                      "name": "0"
+                    }
+                  ],
+                  "name": "Ratio"
+                }
+              },
+              "name": "max_price_deviation"
             }
           ],
           "name": "TusdtOracle"
@@ -1793,6 +1905,11 @@
                 "name": "latest_price",
                 "type": 33,
                 "typeName": "<Option<PriceData> as::ink::storage::traits::AutoStorableHint<::\nink::storage::traits::ManualKey<3590213702u32, ()>,>>::Type"
+              },
+              {
+                "name": "max_price_deviation",
+                "type": 14,
+                "typeName": "<Ratio as::ink::storage::traits::AutoStorableHint<::ink::storage\n::traits::ManualKey<523548116u32, ()>,>>::Type"
               }
             ]
           }
@@ -2055,6 +2172,10 @@
               },
               {
                 "index": 8,
+                "name": "PriceDeviationExceeded"
+              },
+              {
+                "index": 9,
                 "name": "ArithmeticError"
               }
             ]
@@ -2575,6 +2696,48 @@
       "id": 53,
       "type": {
         "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 14
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 35
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 14
+          },
+          {
+            "name": "E",
+            "type": 35
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 54,
+      "type": {
+        "def": {
           "composite": {
             "fields": [
               {
@@ -2592,7 +2755,7 @@
       }
     },
     {
-      "id": 54,
+      "id": 55,
       "type": {
         "def": {
           "variant": {}

@@ -56,7 +56,9 @@ class Miner(BaseMinerNeuron):
 
     def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
-        self.tusd_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
+        self.tusd_substrate = create_substrate_interface(
+            self.config.subtensor.chain_endpoint
+        )
         self.oracle_contract = TensorUSDPriceOracleContract(
             substrate=self.tusd_substrate,
             contract_address=self.config.oracle_contract.address,

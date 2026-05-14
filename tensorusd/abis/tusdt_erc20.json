@@ -1,10 +1,10 @@
 {
   "source": {
-    "hash": "0xbbd18c8de6728ba96bc28bd1e37dbbbb67bc0ebab836ccf0b30831f901b17478",
+    "hash": "0xc1c7c68bf9610bd286cc5d7770b56c191a5b0f8765710882e806362f3eacb9b3",
     "language": "ink! 5.1.1",
-    "compiler": "rustc 1.93.0",
+    "compiler": "rustc 1.91.1",
     "build_info": {
-      "build_mode": "Debug",
+      "build_mode": "Release",
       "cargo_contract_version": "5.0.3",
       "rust_toolchain": "stable-x86_64-unknown-linux-gnu",
       "wasm_opt_settings": {
@@ -432,6 +432,80 @@
           "type": 18
         },
         "selector": "0x681266a0"
+      },
+      {
+        "args": [
+          {
+            "label": "spender",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "label": "delta_value",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " Increases a spender's allowance by a specified amount."
+        ],
+        "label": "increase_allowance",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 18
+        },
+        "selector": "0xf551d422"
+      },
+      {
+        "args": [
+          {
+            "label": "spender",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "label": "delta_value",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " Decreases a spender's allowance by a specified amount."
+        ],
+        "label": "decrease_allowance",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 18
+        },
+        "selector": "0xf998ebd9"
       },
       {
         "args": [
@@ -1044,6 +1118,10 @@
               {
                 "index": 2,
                 "name": "NotController"
+              },
+              {
+                "index": 3,
+                "name": "ArithmeticError"
               }
             ]
           }
