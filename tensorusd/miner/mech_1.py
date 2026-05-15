@@ -73,7 +73,7 @@ class PriceOracleMiner:
                 price_usd = fetch_tao_price_usd(self.miner.config.cmc.api_key)  # type: ignore
                 if price_usd is None:
                     bt.logging.error("Failed to fetch price, skipping submission")
-                    time.sleep(self.miner.config.price.ubmission_interval_seconds)  # type: ignore
+                    time.sleep(self.miner.config.price.submission_interval_seconds)  # type: ignore
                     continue
                 price_ratio = int(price_usd * PRICE_DECIMALS)
                 try:

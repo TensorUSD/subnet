@@ -66,7 +66,7 @@ class MinerAuctionManager:
         self.tusdt_contract = tusdt_contract
         self.approval_amount = approval_amount
 
-    async def handle_auction_created(self, event: AuctionCreatedEvent):
+    def handle_auction_created(self, event: AuctionCreatedEvent):
         """
         Handle new liquidation auction event.
 
@@ -115,7 +115,7 @@ class MinerAuctionManager:
             return
 
         # Submit bid
-        tx_hash = await self._submit_bid(event.auction_id, bid_amount)
+        tx_hash = self._submit_bid(event.auction_id, bid_amount)
 
         if tx_hash:
             bt.logging.success(
@@ -123,7 +123,7 @@ class MinerAuctionManager:
                 f"amount={bid_amount}, tx={tx_hash}"
             )
 
-    async def handle_bid_placed(self, event: BidPlacedEvent):
+    def handle_bid_placed(self, event: BidPlacedEvent):
         """
         Handle bid placed event.
 
@@ -183,7 +183,7 @@ class MinerAuctionManager:
             return
 
         # Submit counter-bid
-        tx_hash = await self._submit_bid(auction_id, new_bid)
+        tx_hash = self._submit_bid(auction_id, new_bid)
 
         if tx_hash:
             bt.logging.success(
@@ -191,7 +191,7 @@ class MinerAuctionManager:
                 f"amount={new_bid}, tx={tx_hash}"
             )
 
-    async def handle_auction_finalized(self, event: AuctionFinalizedEvent):
+    def handle_auction_finalized(self, event: AuctionFinalizedEvent):
         """
         Handle auction finalized event.
 
@@ -219,7 +219,7 @@ class MinerAuctionManager:
                     f"Could not fetch miner bid for auction {auction_id}, skipping"
                 )
             else:
-                tx_hash = await self.auction_contract.withdraw_refund(
+                tx_hash = self.auction_contract.withdraw_refund(
                     auction_id, miner_bid.id
                 )
                 if tx_hash:
@@ -232,7 +232,7 @@ class MinerAuctionManager:
                         f"Failed to withdraw refund for auction {auction_id}"
                     )
 
-    async def sync_historical_finalized_refunds(
+    def sync_historical_finalized_refunds(
         self,
         event_listener: "AuctionEventListener",
         start_block: int,
@@ -283,9 +283,9 @@ class MinerAuctionManager:
             return
 
         for event in finalized_events:
-            await self.handle_auction_finalized(event)
+            self.handle_auction_finalized(event)
 
-    async def _submit_bid(self, auction_id: int, bid_amount: int) -> Optional[str]:
+    def _submit_bid(self, auction_id: int, bid_amount: int) -> Optional[str]:
         """
         Submit bid transaction to blockchain.
 
@@ -321,7 +321,7 @@ class MinerAuctionManager:
             bt.logging.error(f"Failed to submit bid for auction {auction_id}: {e}")
             return None
 
-    async def sync_active_auctions(self):
+    def sync_active_auctions(self):
         """
         Sync with active auctions on startup.
 
@@ -374,7 +374,7 @@ class MinerAuctionManager:
                 continue
 
             # Submit bid
-            tx_hash = await self._submit_bid(auction.auction_id, bid_amount)
+            tx_hash = self._submit_bid(auction.auction_id, bid_amount)
 
             if tx_hash:
                 bt.logging.success(

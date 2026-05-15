@@ -43,6 +43,7 @@ from tensorusd.auction.event_listener import AuctionEventListener
 from tensorusd.miner.bidding import BiddingStrategy
 from tensorusd.miner.auction_manager import MinerAuctionManager
 from tensorusd.miner.mech_1 import PriceOracleMiner
+import concurrent.futures
 
 
 class Miner(BaseMinerNeuron):
@@ -56,9 +57,8 @@ class Miner(BaseMinerNeuron):
 
     def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
-        self.tusd_substrate = create_substrate_interface(
-            self.config.subtensor.chain_endpoint
-        )
+        self.tusd_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
         self.oracle_contract = TensorUSDPriceOracleContract(
             substrate=self.tusd_substrate,
             contract_address=self.config.oracle_contract.address,
@@ -132,14 +132,16 @@ class Miner(BaseMinerNeuron):
             event: Decoded auction event
         """
         bt.logging.info(f"Auction event: {event.event_type.value} - {event.auction_id}")
+        self.executor.submit(self._process_event, event)
 
+    def _process_event(self, event: AuctionUnionEvent):
         try:
             if event.event_type == AuctionEventType.CREATED:
-                asyncio.run(self.auction_manager.handle_auction_created(event))
+                self.auction_manager.handle_auction_created(event)
             elif event.event_type == AuctionEventType.BID_PLACED:
-                asyncio.run(self.auction_manager.handle_bid_placed(event))
+                self.auction_manager.handle_bid_placed(event)
             elif event.event_type == AuctionEventType.FINALIZED:
-                asyncio.run(self.auction_manager.handle_auction_finalized(event))
+                self.auction_manager.handle_auction_finalized(event)
         except Exception as e:
             bt.logging.error(f"Error handling auction event: {e}")
 
@@ -149,10 +151,7 @@ class Miner(BaseMinerNeuron):
             bt.logging.info("Mining in mech 0")
             self._init_auction_system()
             bt.logging.info("Catching up on active auctions...")
-            threading.Thread(
-                target=lambda: asyncio.run(self.auction_manager.sync_active_auctions()),
-                daemon=True,
-            ).start()
+            self.executor.submit(self.auction_manager.sync_active_auctions)
             # Start listening for new events
             self.event_listener.run_in_background_thread()
 
@@ -171,6 +170,8 @@ class Miner(BaseMinerNeuron):
 
         if 1 in self.mechs:
             self.price_oracle_miner.stop_run_thread()
+
+        self.executor.shutdown(wait=True, cancel_futures=False)
 
         super().__exit__(exc_type, exc_value, traceback)
 

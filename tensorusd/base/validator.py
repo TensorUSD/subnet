@@ -96,7 +96,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     axon=self.axon,
                 )
                 bt.logging.info(
-                    f"Running validator {self.axon} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
+                    f"Running validator {self.axon} on network: {self.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
                 )
             except Exception as e:
                 bt.logging.error(f"Failed to serve Axon with exception: {e}")

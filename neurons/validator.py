@@ -66,9 +66,7 @@ class Validator(BaseValidatorNeuron):
         self.db_session_factory = init_db()
 
         # Initialize substrate interface ONCE and share with all components
-        self.tusd_substrate = create_substrate_interface(
-            self.config.subtensor.chain_endpoint
-        )
+        self.tusd_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
 
         # Initialize auction contract
         self.auction_contract = TensorUSDAuctionContract(
