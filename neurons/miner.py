@@ -152,7 +152,10 @@ class Miner(BaseMinerNeuron):
             elif event.event_type == AuctionEventType.FINALIZED:
                 self.auction_manager.handle_auction_finalized(event)
         except Exception as e:
-            bt.logging.error(f"Error handling auction event: {e}")
+            bt.logging.error(
+                f"Error handling auction event {event.event_type.value} - {event.auction_id}: {e}",
+                exc_info=True,
+            )
 
     def run(self):
         """Override run to start event listener alongside axon."""

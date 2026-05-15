@@ -87,6 +87,7 @@ class MinerAuctionManager:
             return
 
         # Fetch auction details from chain
+        bt.logging.debug(f"Fetching auction data for auction {event.auction_id}...")
         auction = self.auction_contract.get_auction(event.auction_id)
         if auction is None:
             bt.logging.warning(
@@ -94,13 +95,21 @@ class MinerAuctionManager:
             )
             return
 
+        bt.logging.debug(
+            f"Auction {event.auction_id}: collateral={auction.collateral_balance}, "
+            f"debt={auction.debt_balance}, ends_at={auction.ends_at}"
+        )
+
         # Get collateral price for profit calculation
+        bt.logging.debug("Fetching collateral price from oracle...")
         collateral_price = self.oracle_contract.get_latest_price()
         if collateral_price is None:
             bt.logging.warning(
                 f"Could not fetch collateral price for auction {event.auction_id}"
             )
             return
+
+        bt.logging.debug(f"Collateral price: {collateral_price}")
 
         # Calculate initial bid (no existing bids on new auction)
         bid_amount = self.strategy.calculate_bid(
@@ -110,11 +119,17 @@ class MinerAuctionManager:
             collateral_price,
         )
 
+        bt.logging.info(
+            f"Auction {event.auction_id} bid calculation: "
+            f"bid_amount={bid_amount}, collateral_value={auction.collateral_balance * collateral_price // 10**18}"
+        )
+
         if bid_amount <= 0:
             bt.logging.info(f"Skipping auction {event.auction_id} - not profitable")
             return
 
         # Submit bid
+        bt.logging.info(f"Submitting bid for auction {event.auction_id}: amount={bid_amount}")
         tx_hash = self._submit_bid(event.auction_id, bid_amount)
 
         if tx_hash:
