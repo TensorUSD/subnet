@@ -342,57 +342,81 @@ class MinerAuctionManager:
 
         Fetches active auctions from contract and bids on any profitable ones.
         """
-        bt.logging.info("Syncing active auctions...")
+        try:
+            bt.logging.info("Syncing active auctions...")
 
-        if self.strategy is None:
-            bt.logging.warning(
-                "Bidding strategy is not configured, skipping active sync"
-            )
-            return
+            if self.strategy is None:
+                bt.logging.warning(
+                    "Bidding strategy is not configured, skipping active sync"
+                )
+                return
 
-        active_auctions = self.auction_contract.get_active_auctions()
+            active_auctions = self.auction_contract.get_active_auctions()
 
-        if not active_auctions:
-            bt.logging.info("No active auctions found")
-            return
+            if not active_auctions:
+                bt.logging.info("No active auctions found")
+                return
 
-        bt.logging.info(f"Found {len(active_auctions)} active auctions")
+            bt.logging.info(f"Found {len(active_auctions)} active auctions")
 
-        # Get collateral price once for all auctions
-        collateral_price = self.oracle_contract.get_latest_price()
-        if collateral_price is None:
-            bt.logging.error("Could not fetch collateral price, skipping sync")
-            return
+            # Get collateral price once for all auctions
+            bt.logging.info("Fetching collateral price from oracle for sync...")
+            collateral_price = self.oracle_contract.get_latest_price()
+            if collateral_price is None:
+                bt.logging.error("Could not fetch collateral price, skipping sync")
+                return
 
-        my_address = self.wallet.coldkey.ss58_address
+            bt.logging.info(f"Collateral price for sync: {collateral_price}")
 
-        for auction in active_auctions:
-            # Skip if we're already the highest bidder
-            if auction.highest_bidder == my_address:
+            my_address = self.wallet.coldkey.ss58_address
+            bt.logging.info(f"Miner address: {my_address}")
+
+            for auction in active_auctions:
                 bt.logging.info(
-                    f"Skipping auction {auction.auction_id} - already highest bidder"
+                    f"Processing auction {auction.auction_id}: "
+                    f"collateral={auction.collateral_balance}, debt={auction.debt_balance}, "
+                    f"highest_bid={auction.highest_bid}, highest_bidder={auction.highest_bidder}"
                 )
-                continue
 
-            # Calculate bid (considering current highest bid and collateral price)
-            bid_amount = self.strategy.calculate_bid(
-                auction.collateral_balance,
-                auction.debt_balance,
-                auction.highest_bid,
-                collateral_price,
-            )
+                # Skip if we're already the highest bidder
+                if auction.highest_bidder == my_address:
+                    bt.logging.info(
+                        f"Skipping auction {auction.auction_id} - already highest bidder"
+                    )
+                    continue
 
-            if bid_amount <= 0:
+                # Calculate bid (considering current highest bid and collateral price)
                 bt.logging.info(
-                    f"Skipping auction {auction.auction_id} - not profitable"
+                    f"Calculating bid for auction {auction.auction_id} with "
+                    f"current_bid={auction.highest_bid}"
                 )
-                continue
-
-            # Submit bid
-            tx_hash = self._submit_bid(auction.auction_id, bid_amount)
-
-            if tx_hash:
-                bt.logging.success(
-                    f"Catch-up bid placed on auction {auction.auction_id}: "
-                    f"amount={bid_amount}, tx={tx_hash}"
+                bid_amount = self.strategy.calculate_bid(
+                    auction.collateral_balance,
+                    auction.debt_balance,
+                    auction.highest_bid,
+                    collateral_price,
                 )
+
+                if bid_amount <= 0:
+                    bt.logging.info(
+                        f"Skipping auction {auction.auction_id} - not profitable (bid_amount={bid_amount})"
+                    )
+                    continue
+
+                # Submit bid
+                bt.logging.info(f"Submitting catch-up bid for auction {auction.auction_id}: amount={bid_amount}")
+                tx_hash = self._submit_bid(auction.auction_id, bid_amount)
+
+                if tx_hash:
+                    bt.logging.success(
+                        f"Catch-up bid placed on auction {auction.auction_id}: "
+                        f"amount={bid_amount}, tx={tx_hash}"
+                    )
+                else:
+                    bt.logging.warning(
+                        f"Failed to place catch-up bid on auction {auction.auction_id}"
+                    )
+
+            bt.logging.info("Finished syncing active auctions")
+        except Exception as e:
+            bt.logging.error(f"Error in sync_active_auctions: {e}", exc_info=True)
