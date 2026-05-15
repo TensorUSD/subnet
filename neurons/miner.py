@@ -60,13 +60,16 @@ class Miner(BaseMinerNeuron):
         self.event_listener_substrate = create_substrate_interface(
             self.subtensor.chain_endpoint
         )
-        self.contract_substrate = create_substrate_interface(
+        self.auction_substrate = create_substrate_interface(
+            self.subtensor.chain_endpoint
+        )
+        self.oracle_substrate = create_substrate_interface(
             self.subtensor.chain_endpoint
         )
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
         self.oracle_contract = TensorUSDPriceOracleContract(
-            substrate=self.contract_substrate,
+            substrate=self.oracle_substrate,
             contract_address=self.config.oracle_contract.address,
             metadata_path="tensorusd/abis/tusdt_oracle.json",
             wallet=self.wallet,
@@ -84,7 +87,7 @@ class Miner(BaseMinerNeuron):
 
         # Initialize auction contract interface
         self.auction_contract = TensorUSDAuctionContract(
-            substrate=self.contract_substrate,
+            substrate=self.auction_substrate,
             contract_address=self.config.auction_contract.address,
             metadata_path="tensorusd/abis/tusdt_auction.json",
             wallet=self.wallet,
@@ -92,14 +95,14 @@ class Miner(BaseMinerNeuron):
 
         # Initialize vault contract interface (for collateral price)
         self.vault_contract = TensorUSDVaultContract(
-            substrate=self.contract_substrate,
+            substrate=self.auction_substrate,
             contract_address=self.config.vault_contract.address,
             metadata_path="tensorusd/abis/tusdt_vault.json",
             wallet=self.wallet,
         )
 
         self.tusdt_contract = TUSDTContract(
-            substrate=self.contract_substrate,
+            substrate=self.auction_substrate,
             contract_address=self.config.tusdt.address,
             metadata_path="tensorusd/abis/tusdt_erc20.json",
             wallet=self.wallet,
@@ -186,9 +189,14 @@ class Miner(BaseMinerNeuron):
             bt.logging.debug(f"Error closing event listener substrate: {e}")
 
         try:
-            self.contract_substrate.close()
+            self.auction_substrate.close()
         except Exception as e:
-            bt.logging.debug(f"Error closing contract substrate: {e}")
+            bt.logging.debug(f"Error closing auction substrate: {e}")
+
+        try:
+            self.oracle_substrate.close()
+        except Exception as e:
+            bt.logging.debug(f"Error closing oracle substrate: {e}")
 
         super().__exit__(exc_type, exc_value, traceback)
 
