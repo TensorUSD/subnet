@@ -47,7 +47,7 @@ class BiddingStrategy:
         Returns:
             Collateral value in TUSDT
         """
-        return collateral * collateral_price / 10**9
+        return collateral * collateral_price / 10**18
 
     def calculate_bid(
         self,
