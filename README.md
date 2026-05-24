@@ -43,28 +43,10 @@ Miners can participate in **two mechanisms** to earn rewards:
 - **Mechanism 0**: Liquidation auctions (bid on undercollateralized vaults)
 - **Mechanism 1**: Price oracle (submit TAO/USD prices)
 
-### Option 1: Run Both Mechanisms (Recommended)
+### Option 1: Liquidation Only (Mechanism 0)
 
 ```bash
-uv run neurons/miner.py \
-  --netuid 113 \
-  --subtensor.network finney \
-  --wallet.name my_wallet \
-  --wallet.hotkey my_hotkey \
-  --mech.ids 0,1 \
-  --auction_contract.address 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
-  --vault_contract.address 5CiPPseXPECbkjWca6MnjNokrgYjMqmKndv2rSnekmSK2DjL \
-  --tusdt.address 5DAAnrj7VKbSBAiC3R9YJY4g8eZN8DLqr3gZJvJT8qYgL3Nq \
-  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
-  --cmc.api_key YOUR_COINMARKETCAP_API_KEY \
-  --price.submission_interval_seconds 300 \
-  --coldkey.password YOUR_COLDKEY_PASSWORD
-```
-
-### Option 2: Liquidation Only (Mechanism 0)
-
-```bash
-uv run neurons/miner.py \
+uv run neurons/miner/liquidator.py \
   --netuid 113 \
   --subtensor.network finney \
   --wallet.name my_wallet \
@@ -76,10 +58,10 @@ uv run neurons/miner.py \
   --coldkey.password YOUR_COLDKEY_PASSWORD
 ```
 
-### Option 3: Price Oracle Only (Mechanism 1)
+### Option 2: Price Oracle Only (Mechanism 1)
 
 ```bash
-uv run neurons/miner.py \
+uv run neurons/miner/oracle.py \
   --netuid 113 \
   --subtensor.network finney \
   --wallet.name my_wallet \
@@ -110,14 +92,18 @@ ORACLE_CONTRACT_ADDRESS=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 CMC_API_KEY=your_coinmarketcap_api_key
 PRICE_SUBMISSION_INTERVAL=300
 
-# Mechanism selection (comma-separated)
-MECH_IDS=0,1
 ```
 
 Then run:
 
 ```bash
-uv run neurons/miner.py --netuid 113 \
+uv run neurons/miner/liquidator.py --netuid 113 \
+--subtensor network <finney | test> \
+--wallet.name miner \
+--wallet.hotkey default \
+--logging.info
+
+uv run neurons/miner/oracle.py --netuid 113 \
 --subtensor network <finney | test> \
 --wallet.name miner \
 --wallet.hotkey default \
@@ -161,16 +147,28 @@ uv run neurons/miner.py \
 
 Validators monitor on-chain events and distribute rewards for both mechanisms.
 
-### Basic Validator
+### Validator Mechanism 0: Liquidation And Agent
 
 ```bash
-uv run neurons/validator.py \
+uv run neurons/validator/liquidator_and_agent.py \
   --netuid 113 \
   --subtensor.network finney \
   --wallet.name validator_wallet \
   --wallet.hotkey validator_hotkey \
   --logging.info \
   --auction_contract.address 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
+  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+```
+
+### Validator Mechanism 1: Oracle
+
+```bash
+uv run neurons/validator/oracle.py \
+  --netuid 113 \
+  --subtensor.network finney \
+  --wallet.name validator_wallet \
+  --wallet.hotkey validator_hotkey \
+  --logging.info \
   --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
 ```
 

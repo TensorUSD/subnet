@@ -17,36 +17,36 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import threading
+import argparse
 import time
 import typing
-import asyncio
 import bittensor as bt
 
 # Bittensor Miner tensorusd:
 import tensorusd
 
 # import base miner class which takes care of most of the boilerplate
-from tensorusd.auction import AuctionUnionEvent, AuctionEventType
+from tensorusd.liquidator import AuctionUnionEvent, AuctionEventType
 from tensorusd.base.miner import BaseMinerNeuron
 
 
-from tensorusd.auction.config import MinerBidConfig
-from tensorusd.auction.contract import (
+from tensorusd.liquidator.config import MinerBidConfig
+from tensorusd.common.contract import (
     TensorUSDAuctionContract,
     TensorUSDPriceOracleContract,
     TensorUSDVaultContract,
     create_substrate_interface,
 )
-from tensorusd.auction.erc20 import TUSDTContract, MAX_APPROVAL
-from tensorusd.auction.event_listener import AuctionEventListener
-from tensorusd.miner.bidding import BiddingStrategy
-from tensorusd.miner.auction_manager import MinerAuctionManager
-from tensorusd.miner.mech_1 import PriceOracleMiner
+from tensorusd.liquidator.erc20 import TUSDTContract, MAX_APPROVAL
+from tensorusd.liquidator.event_listener import AuctionEventListener
+from tensorusd.liquidator.bidding import BiddingStrategy
+from tensorusd.liquidator.auction_manager import MinerAuctionManager
 import concurrent.futures
 
+from tensorusd.utils.config import add_miner_args
 
-class Miner(BaseMinerNeuron):
+
+class LiquidationMiner(BaseMinerNeuron):
     """
     Your miner neuron class. You should use this class to define your miner's behavior. In particular, you should replace the forward function with your own logic. You may also want to override the blacklist and priority functions according to your needs.
 
@@ -55,8 +55,13 @@ class Miner(BaseMinerNeuron):
     This class provides reasonable default behavior for a miner such as blacklisting unrecognized hotkeys, prioritizing requests based on stake, and forwarding requests to the forward function. If you need to define custom
     """
 
+    @classmethod
+    def add_args(cls, parser: argparse.ArgumentParser):
+        super().add_args(parser)
+        add_miner_args(cls, parser, 0)
+
     def __init__(self, config=None):
-        super(Miner, self).__init__(config=config)
+        super(LiquidationMiner, self).__init__(config=config, mech_id=0)
         self.event_listener_substrate = create_substrate_interface(
             self.subtensor.chain_endpoint
         )
@@ -71,7 +76,7 @@ class Miner(BaseMinerNeuron):
         self.oracle_contract = TensorUSDPriceOracleContract(
             substrate=self.oracle_substrate,
             contract_address=self.config.oracle_contract.address,
-            metadata_path="tensorusd/abis/tusdt_oracle.json",
+            metadata_path="tensorusd/common/abis/tusdt_oracle.json",
             wallet=self.wallet,
         )
 
@@ -89,7 +94,7 @@ class Miner(BaseMinerNeuron):
         self.auction_contract = TensorUSDAuctionContract(
             substrate=self.auction_substrate,
             contract_address=self.config.auction_contract.address,
-            metadata_path="tensorusd/abis/tusdt_auction.json",
+            metadata_path="tensorusd/common/abis/tusdt_auction.json",
             wallet=self.wallet,
         )
 
@@ -97,14 +102,14 @@ class Miner(BaseMinerNeuron):
         self.vault_contract = TensorUSDVaultContract(
             substrate=self.auction_substrate,
             contract_address=self.config.vault_contract.address,
-            metadata_path="tensorusd/abis/tusdt_vault.json",
+            metadata_path="tensorusd/common/abis/tusdt_vault.json",
             wallet=self.wallet,
         )
 
         self.tusdt_contract = TUSDTContract(
             substrate=self.auction_substrate,
             contract_address=self.config.tusdt.address,
-            metadata_path="tensorusd/abis/tusdt_erc20.json",
+            metadata_path="tensorusd/common/abis/tusdt_erc20.json",
             wallet=self.wallet,
         )
 
@@ -129,7 +134,7 @@ class Miner(BaseMinerNeuron):
         self.event_listener = AuctionEventListener(
             substrate=self.event_listener_substrate,
             contract_address=self.config.auction_contract.address,
-            metadata_path="tensorusd/abis/tusdt_auction.json",
+            metadata_path="tensorusd/common/abis/tusdt_auction.json",
             callback=self._handle_auction_event,
         )
 
@@ -159,30 +164,19 @@ class Miner(BaseMinerNeuron):
 
     def run(self):
         """Override run to start event listener alongside axon."""
-        if 0 in self.mechs:
-            bt.logging.info("Mining in mech 0")
-            self._init_auction_system()
-            bt.logging.info("Catching up on active auctions...")
-            self.executor.submit(self.auction_manager.sync_active_auctions)
-            # Start listening for new events
-            self.event_listener.run_in_background_thread()
-
-        if 1 in self.mechs:
-            bt.logging.info("Mining in mech 1")
-            self.price_oracle_miner = PriceOracleMiner(self)
-            self.price_oracle_miner.run_in_background_thread()
+        bt.logging.info("Mining in mech 0")
+        self._init_auction_system()
+        bt.logging.info("Catching up on active auctions...")
+        self.executor.submit(self.auction_manager.sync_active_auctions)
+        # Start listening for new events
+        self.event_listener.run_in_background_thread()
 
         # Run normal miner operation (axon serving, metagraph sync)
-        super().run()
+        super().run(mech_id=0)
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Override to also stop event listener and cleanup substrate connections."""
-        if 0 in self.mechs:
-            self.event_listener.stop_run_thread()
-
-        if 1 in self.mechs:
-            self.price_oracle_miner.stop_run_thread()
-
+        self.event_listener.stop_run_thread()
         self.executor.shutdown(wait=True, cancel_futures=False)
 
         # Close substrate connections
@@ -195,11 +189,6 @@ class Miner(BaseMinerNeuron):
             self.auction_substrate.close()
         except Exception as e:
             bt.logging.debug(f"Error closing auction substrate: {e}")
-
-        try:
-            self.oracle_substrate.close()
-        except Exception as e:
-            bt.logging.debug(f"Error closing oracle substrate: {e}")
 
         super().__exit__(exc_type, exc_value, traceback)
 
@@ -241,10 +230,10 @@ class Miner(BaseMinerNeuron):
             return True, "Missing dendrite or hotkey"
 
         # TODO(developer): Define how miners should blacklist requests.
-        uid = self.metagraph_0.hotkeys.index(synapse.dendrite.hotkey)
+        uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)
         if (
             not self.config.blacklist.allow_non_registered
-            and synapse.dendrite.hotkey not in self.metagraph_0.hotkeys
+            and synapse.dendrite.hotkey not in self.metagraph.hotkeys
         ):
             # Ignore requests from un-registered entities.
             bt.logging.trace(
@@ -254,7 +243,7 @@ class Miner(BaseMinerNeuron):
 
         if self.config.blacklist.force_validator_permit:
             # If the config is set to force validator permit, then we should only allow requests from validators.
-            if not self.metagraph_0.validator_permit[uid]:
+            if not self.metagraph.validator_permit[uid]:
                 bt.logging.warning(
                     f"Blacklisting a request from non-validator hotkey {synapse.dendrite.hotkey}"
                 )
@@ -290,11 +279,11 @@ class Miner(BaseMinerNeuron):
             return 0.0
 
         # TODO(developer): Define how miners should prioritize requests.
-        caller_uid = self.metagraph_0.hotkeys.index(
+        caller_uid = self.metagraph.hotkeys.index(
             synapse.dendrite.hotkey
         )  # Get the caller index.
         priority = float(
-            self.metagraph_0.S[caller_uid]
+            self.metagraph.S[caller_uid]
         )  # Return the stake as the priority.
         bt.logging.trace(
             f"Prioritizing {synapse.dendrite.hotkey} with value: {priority}"
@@ -304,7 +293,7 @@ class Miner(BaseMinerNeuron):
 
 # This is the main function, which runs the miner.
 if __name__ == "__main__":
-    with Miner() as miner:
+    with LiquidationMiner() as miner:
         while True:
             bt.logging.info(f"Miner running... {time.time()}")
             time.sleep(300)

@@ -45,16 +45,11 @@ class BaseValidatorNeuron(BaseNeuron):
 
     neuron_type: str = "ValidatorNeuron"
 
-    @classmethod
-    def add_args(cls, parser: argparse.ArgumentParser):
-        super().add_args(parser)
-        add_validator_args(cls, parser)
-
-    def __init__(self, config=None):
-        super().__init__(config=config)
+    def __init__(self, config=None, mech_id: int = 0):
+        super().__init__(config=config, mech_id=mech_id)
 
         # Save a copy of the hotkeys to local memory.
-        self.hotkeys = copy.deepcopy(self.metagraph_0.hotkeys)
+        self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
         # Dendrite lets us send messages to other nodes (axons) in the network.
         if self.config.mock:
@@ -65,12 +60,10 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")
-        self.scores = np.zeros(self.metagraph_0.n, dtype=np.float32)
-        self.scores_mech1 = np.zeros(self.metagraph_1.n, dtype=np.float32)
+        self.scores = np.zeros(self.metagraph.n, dtype=np.float32)
 
         # Init sync with the network. Updates the metagraph.
-        self.sync(mechid=0)
-        self.sync(mechid=1)
+        self.sync(mechid=mech_id)
 
         bt.logging.info("axon off, not serving ip to chain.")
 
@@ -107,33 +100,15 @@ class BaseValidatorNeuron(BaseNeuron):
             pass
 
     async def concurrent_forward(self):
-        async def forward_with_sync(mechid: int):
-            try:
-                if mechid == 0:
-                    await self.forward()
-                else:
-                    await self.forward_mech1()
-
-                bt.logging.info(f"Forward mechid={mechid} completed, syncing...")
-                self.sync(mechid=mechid)
-
-            except Exception as e:
-                bt.logging.error(f"Forward mechid={mechid} failed: {e}")
-                raise
-
-        tasks = [
-            asyncio.create_task(forward_with_sync(mechid=0)),
-            asyncio.create_task(forward_with_sync(mechid=1)),
+        coroutines = [
+            self.forward() for _ in range(self.config.neuron.num_concurrent_forwards)
         ]
-        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.gather(*coroutines)
 
     @abstractmethod
     async def forward(self, synapse: bt.Synapse) -> bt.Synapse: ...
 
-    @abstractmethod
-    async def forward_mech1(self, synapse: bt.Synapse) -> bt.Synapse: ...
-
-    def run(self):
+    def run(self, mech_id: int = 0):
         """
         Initiates and manages the main loop for the miner on the Bittensor network. The main loop handles graceful shutdown on keyboard interrupts and logs unforeseen errors.
 
@@ -154,34 +129,11 @@ class BaseValidatorNeuron(BaseNeuron):
         """
 
         # Check that validator is registered on the network.
-        self.sync()
+        self.sync(mechid=mech_id)
 
-        bt.logging.info(f"Validator starting at block: {self.block}")
-
-        async def start_all():
-            async def forward_loop(mechid: int):
-                while not self.should_exit:
-                    try:
-                        bt.logging.info(f"mechid={mechid} step block({self.block})")
-
-                        if mechid == 0:
-                            await self.forward()
-                        else:
-                            await self.forward_mech1()
-
-                        bt.logging.info(
-                            f"Forward mechid={mechid} completed, syncing..."
-                        )
-                        self.sync(mechid=mechid)
-
-                    except Exception as e:
-                        bt.logging.error(f"Forward mechid={mechid} failed: {e}")
-                        await asyncio.sleep(1)
-
-            # Start both as background tasks
-            await asyncio.gather(
-                forward_loop(mechid=0), forward_loop(mechid=1), return_exceptions=True
-            )
+        bt.logging.info(
+            f"Validator starting at block: {self.block} for mechanism {mech_id}"
+        )
 
         # This loop maintains the validator's operations until intentionally stopped.
         try:
@@ -189,11 +141,14 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.info(f"step({self.step}) block({self.block})")
 
                 # Run multiple forwards concurrently.
-                self.loop.run_until_complete(start_all())
+                self.loop.run_until_complete(self.concurrent_forward())
 
                 # Check if we should exit.
                 if self.should_exit:
                     break
+
+                # Sync metagraph and potentially set weights.
+                self.sync(mechid=mech_id)
 
                 self.step += 1
 
@@ -279,17 +234,17 @@ class BaseValidatorNeuron(BaseNeuron):
         raw_weights = self.scores / norm
 
         bt.logging.debug("raw_weights", raw_weights)
-        bt.logging.debug("raw_weight_uids", str(self.metagraph_0.uids.tolist()))
+        bt.logging.debug("raw_weight_uids", str(self.metagraph.uids.tolist()))
         # Process the raw weights to final_weights via subtensor limitations.
         (
             processed_weight_uids,
             processed_weights,
         ) = process_weights_for_netuid(
-            uids=self.metagraph_0.uids,
+            uids=self.metagraph.uids,
             weights=raw_weights,
             netuid=self.config.netuid,
             subtensor=self.subtensor,
-            metagraph=self.metagraph_0,
+            metagraph=self.metagraph,
         )
         bt.logging.debug("processed_weights", processed_weights)
         bt.logging.debug("processed_weight_uids", processed_weight_uids)
@@ -325,43 +280,36 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info(f"resync_mechagraph() Mechid: {mechid}")
 
         # Copies state of metagraph before syncing.
-        previous_metagraph = copy.deepcopy(self.metagraph_0)
+        previous_metagraph = copy.deepcopy(self.metagraph)
 
         # Sync the metagraph.
         if mechid == 0:
-            self.metagraph_0.sync(subtensor=self.subtensor)
+            self.metagraph.sync(subtensor=self.subtensor)
         else:
             self.metagraph_1.sync(subtensor=self.subtensor)
 
         # Check if the metagraph axon info has changed.
-        if previous_metagraph.axons == self.metagraph_0.axons:
+        if previous_metagraph.axons == self.metagraph.axons:
             return
 
         bt.logging.info(
             "Metagraph updated, re-syncing hotkeys, dendrite pool and moving averages"
         )
         # Zero out all hotkeys that have been replaced within overlapping range.
-        overlap = min(len(self.hotkeys), len(self.metagraph_0.hotkeys))
+        overlap = min(len(self.hotkeys), len(self.metagraph.hotkeys))
         for uid in range(overlap):
-            if self.hotkeys[uid] != self.metagraph_0.hotkeys[uid]:
+            if self.hotkeys[uid] != self.metagraph.hotkeys[uid]:
                 self.scores[uid] = 0
-                self.scores_mech1[uid] = 0
 
         # Resize scores to match current metagraph size (handle growth and shrink).
-        if len(self.scores) != int(self.metagraph_0.n):
-            new_scores = np.zeros((self.metagraph_0.n), dtype=self.scores.dtype)
-            copy_len = min(len(self.scores), int(self.metagraph_0.n))
+        if len(self.scores) != int(self.metagraph.n):
+            new_scores = np.zeros((self.metagraph.n), dtype=self.scores.dtype)
+            copy_len = min(len(self.scores), int(self.metagraph.n))
             new_scores[:copy_len] = self.scores[:copy_len]
             self.scores = new_scores
 
-        if len(self.scores_mech1) != int(self.metagraph_1.n):
-            new_scores = np.zeros((self.metagraph_1.n), dtype=self.scores_mech1.dtype)
-            copy_len = min(len(self.scores), int(self.metagraph_1.n))
-            new_scores[:copy_len] = self.scores[:copy_len]
-            self.scores_mech1 = new_scores
-
         # Update the hotkeys.
-        self.hotkeys = copy.deepcopy(self.metagraph_0.hotkeys)
+        self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
     def update_scores(self, rewards: np.ndarray, uids: List[int], mechid: int = 0):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
@@ -406,36 +354,29 @@ class BaseValidatorNeuron(BaseNeuron):
         # shape: [ metagraph.n ]
         # alpha: float = self.config.neuron.moving_average_alpha
         alpha: float = 1
-        scores = self.scores if mechid == 0 else self.scores_mech1
-        updated_scores: np.ndarray = alpha * scattered_rewards + (1 - alpha) * scores
-        if mechid == 0:
-            self.scores = updated_scores
-        else:
-            self.scores_mech1 = updated_scores
+        self.scores: np.ndarray = alpha * scattered_rewards + (1 - alpha) * self.scores
         bt.logging.debug(
-            f"Updated moving avg scores for mechid {mechid}: {updated_scores}"
+            f"Updated moving avg scores for mechid {mechid}: {self.scores}"
         )
 
-    def save_state(self):
+    def save_state(self, mech_id: int = 0):
         """Saves the state of the validator to a file."""
         bt.logging.info("Saving validator state.")
 
         # Save the state of the validator to file.
         np.savez(
-            self.config.neuron.full_path + "/state.npz",
+            self.config.neuron.full_path + f"/state_{mech_id}.npz",
             step=self.step,
             scores=self.scores,
-            scores_mech1=self.scores_mech1,
             hotkeys=self.hotkeys,
         )
 
-    def load_state(self):
+    def load_state(self, mech_id: int = 0):
         """Loads the state of the validator from a file."""
         bt.logging.info("Loading validator state.")
 
         # Load the state of the validator from file.
-        state = np.load(self.config.neuron.full_path + "/state.npz")
+        state = np.load(self.config.neuron.full_path + f"/state_{mech_id}.npz")
         self.step = state["step"]
         self.scores = state["scores"]
-        self.scores_mech1 = state["scores_mech1"]
         self.hotkeys = state["hotkeys"]

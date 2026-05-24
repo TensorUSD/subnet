@@ -15,8 +15,12 @@ from substrateinterface.contracts import ContractEvent, ContractMetadata
 
 import bittensor as bt
 
-from tensorusd.auction import AuctionCreatedEvent, AuctionFinalizedEvent, BidPlacedEvent
-from tensorusd.auction.types import AuctionEventType, AuctionUnionEvent
+from tensorusd.liquidator import (
+    AuctionCreatedEvent,
+    AuctionFinalizedEvent,
+    BidPlacedEvent,
+)
+from tensorusd.liquidator.types import AuctionEventType, AuctionUnionEvent
 
 
 class AuctionEventListener:

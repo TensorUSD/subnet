@@ -9,7 +9,7 @@ Profit calculation:
 
 import bittensor as bt
 
-from tensorusd.auction.config import MinerBidConfig
+from tensorusd.liquidator.config import MinerBidConfig
 
 
 class BiddingStrategy:

@@ -67,8 +67,13 @@ def check_config(cls, config: "bt.Config"):
         bt.logging.register_primary_logger(events_logger.name)
 
 
-def is_required_arg(key: str):
-    return os.getenv(key) is None
+def is_required_arg(
+    key: str, required_both: bool, required_mechid: int = 0, current_mech_id: int = 0
+):
+    if required_both:
+        return os.getenv(key) is None
+    if current_mech_id != required_mechid:
+        return False
 
 
 def add_args(cls, parser):
@@ -133,37 +138,9 @@ def add_args(cls, parser):
         help="Notes to add to the wandb run.",
         default="",
     )
-    parser.add_argument(
-        "--auction_contract.address",
-        type=str,
-        help="TensorUSD Auction contract address (SS58). Required for auction bidding.",
-        default=os.getenv("AUCTION_CONTRACT_ADDRESS", None),
-        required=is_required_arg("AUCTION_CONTRACT_ADDRESS"),
-    )
-    parser.add_argument(
-        "--oracle_contract.address",
-        type=str,
-        help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
-        default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
-        required=is_required_arg("ORACLE_CONTRACT_ADDRESS"),
-    )
-    parser.add_argument(
-        "--cmc.api_key",
-        type=str,
-        help="API key for CoinMarketCap. Required for fetching price data for the oracle.",
-        default=os.getenv("CMC_API_KEY", None),
-        required=is_required_arg("CMC_API_KEY"),
-    )
-    parser.add_argument(
-        "--price.submission_interval_seconds",
-        type=int,
-        help="Interval in seconds between price submissions to the oracle.",
-        default=os.getenv("PRICE_SUBMISSION_INTERVAL", None),
-        required=is_required_arg("PRICE_SUBMISSION_INTERVAL"),
-    )
 
 
-def add_miner_args(cls, parser):
+def add_miner_args(cls, parser, mech_id: int = 0):
     """Add miner specific arguments to the parser."""
 
     parser.add_argument(
@@ -203,11 +180,25 @@ def add_miner_args(cls, parser):
 
     # Contract address arguments
     parser.add_argument(
+        "--auction_contract.address",
+        type=str,
+        help="TensorUSD Auction contract address (SS58). Required for auction bidding.",
+        default=os.getenv("AUCTION_CONTRACT_ADDRESS", None),
+        required=is_required_arg("AUCTION_CONTRACT_ADDRESS", False, 0, mech_id),
+    )
+    parser.add_argument(
+        "--oracle_contract.address",
+        type=str,
+        help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
+        default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True),
+    )
+    parser.add_argument(
         "--vault_contract.address",
         type=str,
         help="TensorUSD Vault contract address (SS58). Required for collateral price.",
         default=os.getenv("VAULT_CONTRACT_ADDRESS", None),
-        required=os.getenv("VAULT_CONTRACT_ADDRESS") is None,
+        required=is_required_arg("VAULT_CONTRACT_ADDRESS", False, 0, mech_id),
     )
     # Bidding strategy arguments
     parser.add_argument(
@@ -251,7 +242,7 @@ def add_miner_args(cls, parser):
         type=str,
         help="TUSDT ERC20 token contract address (SS58). Required for auction bidding.",
         default=os.getenv("TOKEN_CONTRACT_ADDRESS", None),
-        required=is_required_arg("TOKEN_CONTRACT_ADDRESS"),
+        required=is_required_arg("TOKEN_CONTRACT_ADDRESS", False, 0, mech_id),
     )
 
     parser.add_argument(
@@ -266,17 +257,25 @@ def add_miner_args(cls, parser):
         type=str,
         help="coldkey password",
         default=os.getenv("COLDKEY_PASSWORD", None),
-        required=is_required_arg("COLDKEY_PASSWORD"),
+        required=is_required_arg("COLDKEY_PASSWORD", True),
     )
     parser.add_argument(
-        "--mech.ids",
+        "--cmc.api_key",
         type=str,
-        help="Comma separated list of mechanism ids to run the miner with. E.g. '0' or '0,1'.",
-        default=os.getenv("MECH_IDS", "0,1"),
+        help="API key for CoinMarketCap. Required for fetching price data for the oracle.",
+        default=os.getenv("CMC_API_KEY", None),
+        required=is_required_arg("CMC_API_KEY", False, 1, mech_id),
+    )
+    parser.add_argument(
+        "--price.submission_interval_seconds",
+        type=int,
+        help="Interval in seconds between price submissions to the oracle.",
+        default=os.getenv("PRICE_SUBMISSION_INTERVAL", None),
+        required=is_required_arg("PRICE_SUBMISSION_INTERVAL", False, 1, mech_id),
     )
 
 
-def add_validator_args(cls, parser):
+def add_validator_args(cls, parser, mech_id: int = 0):
     """Add validator specific arguments to the parser."""
 
     parser.add_argument(
@@ -350,6 +349,20 @@ def add_validator_args(cls, parser):
         type=str,
         help="The name of the project where you are sending the new run.",
         default="opentensor-dev",
+    )
+    parser.add_argument(
+        "--auction_contract.address",
+        type=str,
+        help="TensorUSD Auction contract address (SS58). Required for auction bidding.",
+        default=os.getenv("AUCTION_CONTRACT_ADDRESS", None),
+        required=is_required_arg("AUCTION_CONTRACT_ADDRESS", False, 0, mech_id),
+    )
+    parser.add_argument(
+        "--oracle_contract.address",
+        type=str,
+        help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
+        default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True),
     )
 
 

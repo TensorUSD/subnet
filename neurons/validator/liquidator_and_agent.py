@@ -18,6 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 
+import argparse
 import time
 
 # Bittensor
@@ -27,20 +28,20 @@ import bittensor as bt
 from tensorusd.base.validator import BaseValidatorNeuron
 
 # Bittensor Validator Template:
+from tensorusd.utils.config import add_validator_args
 from tensorusd.utils.subnet import get_dynamic_info
 from tensorusd.validator import forward, forward_mech1
 
 # Auction tracking components
 from tensorusd.common.contract import (
     TensorUSDAuctionContract,
-    TensorUSDPriceOracleContract,
     create_substrate_interface,
 )
 from tensorusd.validator.db import init_db
 from tensorusd.validator.event_listener import ValidatorEventListener
 
 
-class Validator(BaseValidatorNeuron):
+class LiqNagentValidator(BaseValidatorNeuron):
     """
     Your validator neuron class. You should use this class to define your validator's behavior. In particular, you should replace the forward function with your own logic.
 
@@ -49,11 +50,13 @@ class Validator(BaseValidatorNeuron):
     This class provides reasonable default behavior for a validator such as keeping a moving average of the scores of the miners and using them to set weights at the end of each epoch. Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
-    def __init__(self, config=None):
-        super(Validator, self).__init__(config=config)
+    @classmethod
+    def add_args(cls, parser: argparse.ArgumentParser):
+        super().add_args(parser)
+        add_validator_args(cls, parser, 0)
 
-        bt.logging.info("load_state()")
-        self.load_state()
+    def __init__(self, config=None):
+        super(LiqNagentValidator, self).__init__(config=config, mech_id=0)
 
         # Initialize auction tracking system
         self.setup()
@@ -72,7 +75,7 @@ class Validator(BaseValidatorNeuron):
         self.auction_contract = TensorUSDAuctionContract(
             substrate=self.tusd_substrate,
             contract_address=self.config.auction_contract.address,
-            metadata_path="tensorusd/abis/tusdt_auction.json",
+            metadata_path="tensorusd/common/abis/tusdt_auction.json",
             wallet=self.wallet,
         )
 
@@ -80,16 +83,9 @@ class Validator(BaseValidatorNeuron):
         self.event_listener = ValidatorEventListener(
             substrate=self.tusd_substrate,
             contract_address=self.config.auction_contract.address,
-            metadata_path="tensorusd/abis/tusdt_auction.json",
+            metadata_path="tensorusd/common/abis/tusdt_auction.json",
             db_session_factory=self.db_session_factory,
             auction_contract=self.auction_contract,
-        )
-
-        self.oracle_contract = TensorUSDPriceOracleContract(
-            substrate=self.tusd_substrate,
-            contract_address=self.config.oracle_contract.address,
-            metadata_path="tensorusd/abis/tusdt_oracle.json",
-            wallet=self.wallet,
         )
 
         bt.logging.info(
@@ -105,7 +101,7 @@ class Validator(BaseValidatorNeuron):
         )
         self.tempo = dynamic_info["tempo"]
         # Run normal validator operation
-        super().run()
+        super().run(mech_id=0)
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.event_listener.stop_run_thread()
@@ -128,7 +124,7 @@ class Validator(BaseValidatorNeuron):
 
 # The main function parses the configuration and runs the validator.
 if __name__ == "__main__":
-    with Validator() as validator:
+    with LiqNagentValidator() as validator:
         while True:
             bt.logging.info(f"Validator running... {time.time()}")
             time.sleep(300)

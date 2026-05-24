@@ -2,15 +2,13 @@ import threading
 import time
 from typing import Optional
 
-from bittensor_wallet import Keypair
 import requests
 import bittensor as bt
 
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
-    from neurons.miner import Miner
+    from neurons.miner.oracle import OracleMiner
 
 CMC_QUOTES_URL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
 PRICE_DECIMALS = 10**18
@@ -60,7 +58,7 @@ def fetch_tao_price_usd(api_key: str) -> Optional[float]:
 
 
 class PriceOracleMiner:
-    def __init__(self, miner: "Miner"):
+    def __init__(self, miner: "OracleMiner"):
         self.should_exit: bool = False
         self.is_running: bool = False
         self.thread: Optional[threading.Thread] = None
