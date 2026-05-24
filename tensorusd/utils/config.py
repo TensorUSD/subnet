@@ -74,6 +74,7 @@ def is_required_arg(
         return os.getenv(key) is None
     if current_mech_id != required_mechid:
         return False
+    return os.getenv(key) is None
 
 
 def add_args(cls, parser):
