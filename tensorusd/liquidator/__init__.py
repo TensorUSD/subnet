@@ -7,7 +7,7 @@ from .types import (
     AuctionUnionEvent,
 )
 from .config import MinerBidConfig
-from .contract import (
+from ..common.contract import (
     TensorUSDAuctionContract,
     TensorUSDVaultContract,
     create_substrate_interface,
@@ -17,6 +17,8 @@ from .contract import (
 )
 from .erc20 import TUSDTContract, MAX_APPROVAL
 from .event_listener import AuctionEventListener
+from ..liquidator.bidding import BiddingStrategy
+from ..liquidator.auction_manager import MinerAuctionManager
 
 __all__ = [
     "AuctionResult",
@@ -35,4 +37,6 @@ __all__ = [
     "TUSDTContract",
     "MAX_APPROVAL",
     "AuctionEventListener",
+    "BiddingStrategy",
+    "MinerAuctionManager",
 ]

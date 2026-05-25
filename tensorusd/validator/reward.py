@@ -20,10 +20,9 @@ import numpy as np
 from typing import List, Dict, Tuple, Optional
 import bittensor as bt
 
-from tensorusd.auction.contract import PriceSubmission
+from tensorusd.common.contract import PriceSubmission
 from tensorusd.validator.db import SessionFactory
 from tensorusd.validator.db.models import AuctionWin
-
 
 # Reward calculation constants
 BASE_REWARD = 1.0  # Base reward for paying exactly debt amount

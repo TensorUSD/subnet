@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 
 import bittensor as bt
 
-from tensorusd.auction.event_listener import AuctionEventListener
-from tensorusd.auction.contract import TensorUSDAuctionContract
-from tensorusd.auction.types import (
+from tensorusd.liquidator.event_listener import AuctionEventListener
+from tensorusd.common.contract import TensorUSDAuctionContract
+from tensorusd.liquidator.types import (
     AuctionEventType,
     AuctionFinalizedEvent,
     AuctionUnionEvent,

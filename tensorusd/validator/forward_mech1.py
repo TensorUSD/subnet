@@ -5,7 +5,6 @@ from tensorusd.validator.reward import calculate_rewards_for_mech1
 import bittensor as bt
 import numpy as np
 
-
 if TYPE_CHECKING:
     from neurons.validator import Validator
 
@@ -32,7 +31,7 @@ async def forward_mech1(self: "Validator"):
             to_validate_round_id
         )
         rewards, uids = calculate_rewards_for_mech1(
-            metagraph=self.metagraph_0,
+            metagraph=self.metagraph,
             submissions=to_validate_round_submissions,
             actual_price=to_validate_round_price,
             burn_uid=0,

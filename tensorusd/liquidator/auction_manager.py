@@ -8,22 +8,22 @@ from typing import TYPE_CHECKING, Optional
 
 import bittensor as bt
 
-from tensorusd.auction.types import (
+from tensorusd.liquidator.types import (
     AuctionCreatedEvent,
     AuctionEventType,
     AuctionFinalizedEvent,
     BidPlacedEvent,
 )
-from tensorusd.auction.contract import (
+from tensorusd.common.contract import (
     TensorUSDAuctionContract,
     TensorUSDPriceOracleContract,
     TensorUSDVaultContract,
 )
-from tensorusd.auction.erc20 import TUSDTContract
-from tensorusd.miner.bidding import BiddingStrategy
+from tensorusd.liquidator.erc20 import TUSDTContract
+from tensorusd.liquidator.bidding import BiddingStrategy
 
 if TYPE_CHECKING:
-    from tensorusd.auction.event_listener import AuctionEventListener
+    from tensorusd.liquidator.event_listener import AuctionEventListener
 
 
 class MinerAuctionManager:
@@ -129,7 +129,9 @@ class MinerAuctionManager:
             return
 
         # Submit bid
-        bt.logging.info(f"Submitting bid for auction {event.auction_id}: amount={bid_amount}")
+        bt.logging.info(
+            f"Submitting bid for auction {event.auction_id}: amount={bid_amount}"
+        )
         tx_hash = self._submit_bid(event.auction_id, bid_amount)
 
         if tx_hash:
@@ -404,7 +406,9 @@ class MinerAuctionManager:
                     continue
 
                 # Submit bid
-                bt.logging.info(f"Submitting catch-up bid for auction {auction.auction_id}: amount={bid_amount}")
+                bt.logging.info(
+                    f"Submitting catch-up bid for auction {auction.auction_id}: amount={bid_amount}"
+                )
                 tx_hash = self._submit_bid(auction.auction_id, bid_amount)
 
                 if tx_hash:

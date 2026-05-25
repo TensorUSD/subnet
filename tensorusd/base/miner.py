@@ -36,13 +36,8 @@ class BaseMinerNeuron(BaseNeuron):
 
     neuron_type: str = "MinerNeuron"
 
-    @classmethod
-    def add_args(cls, parser: argparse.ArgumentParser):
-        super().add_args(parser)
-        add_miner_args(cls, parser)
-
-    def __init__(self, config=None):
-        super().__init__(config=config)
+    def __init__(self, config=None, mech_id: int = 0):
+        super().__init__(config=config, mech_id=mech_id)
 
         # Warn if allowing incoming requests from anyone.
         if not self.config.blacklist.force_validator_permit:
@@ -59,16 +54,13 @@ class BaseMinerNeuron(BaseNeuron):
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
-        self.mechs = [int(id.strip()) for id in self.config.mech.ids.split(",")]  # type: ignore
-        if not self.mechs:
-            self.mechs = [0]
 
     def unlock_wallet(self):
         self.wallet.coldkey_file.save_password_to_env(self.config.coldkey.password)
         self.wallet.unlock_coldkey()
         bt.logging.info("Wallet unlocked successfully")
 
-    def run(self):
+    def run(self, mech_id: int = 0):
         """
         Initiates and manages the main loop for the miner on the Bittensor network. The main loop handles graceful shutdown on keyboard interrupts and logs unforeseen errors.
 
@@ -92,20 +84,13 @@ class BaseMinerNeuron(BaseNeuron):
         """
 
         # Check that miner is registered on the network.
-        if 0 in self.mechs:
-            self.sync(0)
-        if 1 in self.mechs:
-            self.sync(1)
+        self.sync(mech_id)
         bt.logging.info(f"Miner starting at block: {self.block}")
 
         # This loop maintains the miner's operations until intentionally stopped.
         try:
             while not self.should_exit:
-                # Sync metagraph and potentially set weights.
-                if 0 in self.mechs:
-                    self.sync(0)
-                if 1 in self.mechs:
-                    self.sync(1)
+                self.sync(mech_id)
                 self.step += 1
 
         # If someone intentionally stops the miner, it'll safely terminate operations.
@@ -165,10 +150,7 @@ class BaseMinerNeuron(BaseNeuron):
         """
         self.stop_run_thread()
 
-    def resync_mechagraph(self, mechid: int = 0):
+    def resync_mechagraph(self):
         """Resyncs the metagraph and updates the hotkeys and moving averages based on the new metagraph."""
         # Sync the metagraph.
-        if mechid == 0:
-            self.metagraph_0.sync(subtensor=self.subtensor)
-        else:
-            self.metagraph_1.sync(subtensor=self.subtensor)
+        self.metagraph.sync(subtensor=self.subtensor)

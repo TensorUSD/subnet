@@ -26,7 +26,6 @@ from tensorusd.validator.reward import get_auction_rewards_from_db
 
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from neurons.validator import Validator
 
@@ -42,7 +41,7 @@ async def forward(self: "Validator"):
         sleep_time = (self.tempo // 2) * 12
     rewards, uids = get_auction_rewards_from_db(
         db_session_factory=self.db_session_factory,
-        metagraph=self.metagraph_0,
+        metagraph=self.metagraph,
         tempo_start_block=dynamic_info["last_step_block"],
         tempo_end_block=self.block,
         burn_uid=0,

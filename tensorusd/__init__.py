@@ -32,6 +32,6 @@ from . import protocol
 from . import base
 from . import validator
 from . import api
-from . import auction
-from . import miner
+from . import liquidator
+from . import oracle
 from .subnet_links import SUBNET_LINKS

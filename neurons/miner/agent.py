@@ -17,36 +17,21 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import threading
+import argparse
 import time
 import typing
-import asyncio
 import bittensor as bt
 
 # Bittensor Miner tensorusd:
 import tensorusd
 
 # import base miner class which takes care of most of the boilerplate
-from tensorusd.auction import AuctionUnionEvent, AuctionEventType
 from tensorusd.base.miner import BaseMinerNeuron
 
-
-from tensorusd.auction.config import MinerBidConfig
-from tensorusd.auction.contract import (
-    TensorUSDAuctionContract,
-    TensorUSDPriceOracleContract,
-    TensorUSDVaultContract,
-    create_substrate_interface,
-)
-from tensorusd.auction.erc20 import TUSDTContract, MAX_APPROVAL
-from tensorusd.auction.event_listener import AuctionEventListener
-from tensorusd.miner.bidding import BiddingStrategy
-from tensorusd.miner.auction_manager import MinerAuctionManager
-from tensorusd.miner.mech_1 import PriceOracleMiner
-import concurrent.futures
+from tensorusd.utils.config import add_miner_args
 
 
-class Miner(BaseMinerNeuron):
+class AgentMiner(BaseMinerNeuron):
     """
     Your miner neuron class. You should use this class to define your miner's behavior. In particular, you should replace the forward function with your own logic. You may also want to override the blacklist and priority functions according to your needs.
 
@@ -55,153 +40,39 @@ class Miner(BaseMinerNeuron):
     This class provides reasonable default behavior for a miner such as blacklisting unrecognized hotkeys, prioritizing requests based on stake, and forwarding requests to the forward function. If you need to define custom
     """
 
+    @classmethod
+    def add_args(cls, parser: argparse.ArgumentParser):
+        super().add_args(parser)
+        add_miner_args(cls, parser, 0)
+
     def __init__(self, config=None):
-        super(Miner, self).__init__(config=config)
-        self.event_listener_substrate = create_substrate_interface(
-            self.subtensor.chain_endpoint
-        )
-        self.auction_substrate = create_substrate_interface(
-            self.subtensor.chain_endpoint
-        )
-        self.oracle_substrate = create_substrate_interface(
-            self.subtensor.chain_endpoint
-        )
+        super(AgentMiner, self).__init__(config=config, mech_id=0)
 
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-        self.oracle_contract = TensorUSDPriceOracleContract(
-            substrate=self.oracle_substrate,
-            contract_address=self.config.oracle_contract.address,
-            metadata_path="tensorusd/abis/tusdt_oracle.json",
-            wallet=self.wallet,
-        )
-
-    def _init_auction_system(self):
-        # Initialize bid config from CLI args
-        self.bid_config = MinerBidConfig(
-            initial_bid_percentage=self.config.bid.initial_percentage,
-            bid_increment_rate=self.config.bid.increment_rate,
-            max_bid_percentage=self.config.bid.max_percentage,
-            max_bid_absolute=self.config.bid.max_absolute,
-            min_profit_margin=self.config.bid.min_profit_margin,
-        )
-
-        # Initialize auction contract interface
-        self.auction_contract = TensorUSDAuctionContract(
-            substrate=self.auction_substrate,
-            contract_address=self.config.auction_contract.address,
-            metadata_path="tensorusd/abis/tusdt_auction.json",
-            wallet=self.wallet,
-        )
-
-        # Initialize vault contract interface (for collateral price)
-        self.vault_contract = TensorUSDVaultContract(
-            substrate=self.auction_substrate,
-            contract_address=self.config.vault_contract.address,
-            metadata_path="tensorusd/abis/tusdt_vault.json",
-            wallet=self.wallet,
-        )
-
-        self.tusdt_contract = TUSDTContract(
-            substrate=self.auction_substrate,
-            contract_address=self.config.tusdt.address,
-            metadata_path="tensorusd/abis/tusdt_erc20.json",
-            wallet=self.wallet,
-        )
-
-        approval_amount = self.config.tusdt.approval_amount
-        if approval_amount == 0:
-            approval_amount = MAX_APPROVAL
-        # Initialize bidding strategy
-        self.strategy = BiddingStrategy(self.bid_config)
-
-        # Initialize auction manager
-        self.auction_manager = MinerAuctionManager(
-            auction_contract=self.auction_contract,
-            vault_contract=self.vault_contract,
-            oracle_contract=self.oracle_contract,
-            strategy=self.strategy,
-            wallet=self.wallet,
-            tusdt_contract=self.tusdt_contract,
-            approval_amount=approval_amount,
-        )
-
-        # Initialize event listener
-        self.event_listener = AuctionEventListener(
-            substrate=self.event_listener_substrate,
-            contract_address=self.config.auction_contract.address,
-            metadata_path="tensorusd/abis/tusdt_auction.json",
-            callback=self._handle_auction_event,
-        )
-
-    def _handle_auction_event(self, event: AuctionUnionEvent):
+    async def forward(
+        self, synapse: tensorusd.protocol.Dummy
+    ) -> tensorusd.protocol.Dummy:
         """
-        Callback from event listener - runs in listener thread.
+        Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
+        This method should be replaced with actual logic relevant to the miner's purpose.
 
         Args:
-            event: Decoded auction event
-        """
-        bt.logging.info(f"Auction event: {event.event_type.value} - {event.auction_id}")
-        self.executor.submit(self._process_event, event)
+            synapse (template.protocol.Dummy): The synapse object containing the 'dummy_input' data.
 
-    def _process_event(self, event: AuctionUnionEvent):
-        try:
-            if event.event_type == AuctionEventType.CREATED:
-                self.auction_manager.handle_auction_created(event)
-            elif event.event_type == AuctionEventType.BID_PLACED:
-                self.auction_manager.handle_bid_placed(event)
-            elif event.event_type == AuctionEventType.FINALIZED:
-                self.auction_manager.handle_auction_finalized(event)
-        except Exception as e:
-            bt.logging.error(
-                f"Error handling auction event {event.event_type.value} - {event.auction_id}: {e}",
-                exc_info=True,
-            )
+        Returns:
+            template.protocol.Dummy: The synapse object with the 'dummy_output' field set to twice the 'dummy_input' value.
+
+        The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
+        the miner's intended operation. This method demonstrates a basic transformation of input data.
+        """
+        # TODO(developer): Replace with actual implementation logic.
+        synapse.dummy_output = synapse.dummy_input * 2
+        return synapse
 
     def run(self):
         """Override run to start event listener alongside axon."""
-        if 0 in self.mechs:
-            bt.logging.info("Mining in mech 0")
-            self._init_auction_system()
-            bt.logging.info("Catching up on active auctions...")
-            self.executor.submit(self.auction_manager.sync_active_auctions)
-            # Start listening for new events
-            self.event_listener.run_in_background_thread()
-
-        if 1 in self.mechs:
-            bt.logging.info("Mining in mech 1")
-            self.price_oracle_miner = PriceOracleMiner(self)
-            self.price_oracle_miner.run_in_background_thread()
-
+        bt.logging.info("Mining in mech 0")
         # Run normal miner operation (axon serving, metagraph sync)
-        super().run()
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Override to also stop event listener and cleanup substrate connections."""
-        if 0 in self.mechs:
-            self.event_listener.stop_run_thread()
-
-        if 1 in self.mechs:
-            self.price_oracle_miner.stop_run_thread()
-
-        self.executor.shutdown(wait=True, cancel_futures=False)
-
-        # Close substrate connections
-        try:
-            self.event_listener_substrate.close()
-        except Exception as e:
-            bt.logging.debug(f"Error closing event listener substrate: {e}")
-
-        try:
-            self.auction_substrate.close()
-        except Exception as e:
-            bt.logging.debug(f"Error closing auction substrate: {e}")
-
-        try:
-            self.oracle_substrate.close()
-        except Exception as e:
-            bt.logging.debug(f"Error closing oracle substrate: {e}")
-
-        super().__exit__(exc_type, exc_value, traceback)
+        super().run(mech_id=0)
 
     async def blacklist(
         self, synapse: tensorusd.protocol.Dummy
@@ -241,10 +112,10 @@ class Miner(BaseMinerNeuron):
             return True, "Missing dendrite or hotkey"
 
         # TODO(developer): Define how miners should blacklist requests.
-        uid = self.metagraph_0.hotkeys.index(synapse.dendrite.hotkey)
+        uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)
         if (
             not self.config.blacklist.allow_non_registered
-            and synapse.dendrite.hotkey not in self.metagraph_0.hotkeys
+            and synapse.dendrite.hotkey not in self.metagraph.hotkeys
         ):
             # Ignore requests from un-registered entities.
             bt.logging.trace(
@@ -254,7 +125,7 @@ class Miner(BaseMinerNeuron):
 
         if self.config.blacklist.force_validator_permit:
             # If the config is set to force validator permit, then we should only allow requests from validators.
-            if not self.metagraph_0.validator_permit[uid]:
+            if not self.metagraph.validator_permit[uid]:
                 bt.logging.warning(
                     f"Blacklisting a request from non-validator hotkey {synapse.dendrite.hotkey}"
                 )
@@ -290,11 +161,11 @@ class Miner(BaseMinerNeuron):
             return 0.0
 
         # TODO(developer): Define how miners should prioritize requests.
-        caller_uid = self.metagraph_0.hotkeys.index(
+        caller_uid = self.metagraph.hotkeys.index(
             synapse.dendrite.hotkey
         )  # Get the caller index.
         priority = float(
-            self.metagraph_0.S[caller_uid]
+            self.metagraph.S[caller_uid]
         )  # Return the stake as the priority.
         bt.logging.trace(
             f"Prioritizing {synapse.dendrite.hotkey} with value: {priority}"
@@ -304,7 +175,7 @@ class Miner(BaseMinerNeuron):
 
 # This is the main function, which runs the miner.
 if __name__ == "__main__":
-    with Miner() as miner:
+    with AgentMiner() as miner:
         while True:
             bt.logging.info(f"Miner running... {time.time()}")
             time.sleep(300)
