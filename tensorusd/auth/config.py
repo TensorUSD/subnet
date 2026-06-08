@@ -115,6 +115,13 @@ class Settings:
         default_factory=lambda: _env("TENSORUSD_SETUP_ALLOWED_HOSTS", "")
     )
 
+    # Delayed evaluation (Phase 2 scoring)
+    scoring_poll_interval: int = field(
+        default_factory=lambda: _env_int("TENSORUSD_SCORING_POLL_INTERVAL", 120)
+    )
+    scoring_timeout: int = field(
+        default_factory=lambda: _env_int("TENSORUSD_SCORING_TIMEOUT", 60)
+    )
 
 
 settings = Settings()

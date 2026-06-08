@@ -5,6 +5,8 @@ Main validator evaluation loop.
 from __future__ import annotations
 
 import ast
+import io
+import csv
 import time
 from pathlib import Path
 
@@ -17,9 +19,14 @@ from tensorusd.utils.backend_client import BackendClient
 from tensorusd.utils.agent_cache import BestAgentCache, BestAgentWatcher
 from tensorusd.utils.sandbox import SandboxRunner
 from tensorusd.utils.scored_cache import ScoredCache
-from tensorusd.validator.agent_evaluation import get_score
 from tensorusd.utils.security import validate_agent_file, validate_agent_format
 from tensorusd.utils.weight_setter import WeightSetter
+from tensorusd.validator.delayed_evaluation import (
+    AgentOutputRecord,
+    BackendCsvOutputStore,
+    CsvComparisonScorer,
+    DelayedEvaluator,
+)
 
 log = get_logger(__name__)
 
@@ -43,6 +50,13 @@ class ValidatorCore:
         self._watcher = BestAgentWatcher(self._client, self._cache)
         self._sandbox = SandboxRunner()
         self._weight_setter = WeightSetter(self._wallet, self._subtensor, self._metagraph)
+
+        # Phase 2 delayed evaluation
+        self._delayed_evaluator = DelayedEvaluator(
+            client=self._client,
+            store=BackendCsvOutputStore(self._client),
+            scorer=CsvComparisonScorer(),
+        )
 
         # Persistent, bounded cache of already-scored submission IDs.
         # Survives validator restarts; auto-evicts oldest entries at max_size.
@@ -82,7 +96,12 @@ class ValidatorCore:
     def _run_loop(self) -> None:
         while True:
             try:
+                # Phase 1: Agent execution
                 self._evaluation_cycle()
+
+                # When there are no unevaluated submissions, try Phase 2 scoring
+                if self._client.get_unevaluated_submission() is None:
+                    self._run_scoring_cycle()
             except requests.HTTPError as exc:
                 if exc.response is not None and exc.response.status_code == 403:
                     log.error(
@@ -97,8 +116,23 @@ class ValidatorCore:
                 log.error("Unexpected error in evaluation cycle: %s", exc, exc_info=True)
                 time.sleep(settings.validator_poll_interval)
 
+    def _run_scoring_cycle(self) -> None:
+        """
+        Phase 2: attempt to claim and score a matured unscored submission.
+        """
+        try:
+            result = self._delayed_evaluator.run_once()
+            if result is not None:
+                log.info("Phase 2 scored submission %s = %.4f", result.submission_id, result.score)
+            else:
+                log.debug("No unscored submissions ready yet — sleeping %ds.", settings.scoring_poll_interval)
+                time.sleep(settings.scoring_poll_interval)
+        except Exception as exc:
+            log.error("Scoring cycle failed: %s", exc, exc_info=True)
+            time.sleep(settings.scoring_poll_interval)
+
     def _evaluation_cycle(self) -> None:
-        """One full pass: poll → validate → evaluate → score → (maybe) set weights."""
+        """One full pass: poll → validate → sandbox → upload → (maybe) set weights."""
 
         # Poll for next submission
         submission = self._client.get_unevaluated_submission()
@@ -199,29 +233,64 @@ class ValidatorCore:
             self._maybe_set_weights()
             return
 
-        # Fetch ground truth fresh into memory
-        try:
-            ground_truth_bytes = self._client.download_ground_truth(settings.benchmark_type)
-            log.debug("Ground truth downloaded into memory (%d bytes).", len(ground_truth_bytes))
-        except Exception as exc:
-            log.error("Ground truth download failed: %s — skipping cycle.", exc)
-            # Don't penalise the miner for our own failure — do NOT mark as scored
-            return
-
-        # Score
         output_csv_bytes = sandbox_result.output_csv_bytes
-        scorer = get_score(settings.benchmark_type)
-        score_result = scorer(output_csv_bytes, ground_truth_bytes)
 
-        # Post score and mark as done
-        try:
-            self._client.post_score(sub_id, score_result.final_score)
-            self._scored.add(sub_id)  # mark as scored so we never re-evaluate
-        except Exception as exc:
-            log.error("Failed to post score for %s: %s", sub_id, exc)
+        # Validate the output CSV is non-empty and parseable
+        if not self._validate_csv(output_csv_bytes):
+            log.warning("Invalid or empty CSV output for %s — marking as failed.", sub_id)
+            self._client.post_score(sub_id, 0.0)
+            self._scored.add(sub_id)
+            self._maybe_set_weights()
             return
 
-        # set weights
+        # Determine the original agent filename from submission metadata.
+        # Fall back to submission_id-based name if not provided by the backend.
+        agent_filename: str = (
+            submission.get("agent_filename")
+            or submission.get("filename")
+            or f"{sub_id}.py"
+        )
+
+        # Upload the generated CSV to backend storage
+        try:
+            upload_meta = self._client.upload_agent_output(
+                csv_bytes=output_csv_bytes,
+                agent_filename=agent_filename,
+            )
+            log.info(
+                "Output CSV uploaded for %s — file_id=%s  eval_date=%s",
+                sub_id,
+                upload_meta.get("file_id", "?"),
+                upload_meta.get("eval_date", "?"),
+            )
+        except Exception as exc:
+            log.error(
+                "Failed to upload output CSV for %s: %s — marking as failed.",
+                sub_id,
+                exc,
+            )
+            self._client.post_score(sub_id, 0.0)
+            self._scored.add(sub_id)
+            self._maybe_set_weights()
+            return
+
+        # Record evaluation metadata for future delayed-scoring stage
+        self._record_evaluation(
+            submission_id=sub_id,
+            agent_filename=agent_filename,
+            csv_bytes=output_csv_bytes,
+            upload_metadata=upload_meta,
+        )
+
+        # Phase 1 complete — submission is now evaluated; no score is posted.
+        # The real score will be computed later in Phase 2 (delayed evaluation)
+        # once ground truth is available and the maturation window has passed.
+        log.info(
+            "Phase 1 complete for submission %s — output CSV uploaded, awaiting delayed scoring.",
+            sub_id,
+        )
+
+        # Set weights
         self._maybe_set_weights(hint_hotkey=miner_hotkey)
 
     # Helpers
@@ -252,6 +321,96 @@ class ValidatorCore:
             self._weight_setter.maybe_set_weights(best_hotkey)
         except Exception as exc:
             log.error("Weight setting failed: %s", exc)
+
+    def _validate_csv(self, csv_bytes: bytes) -> bool:
+        """
+        Verify that *csv_bytes* contains parseable CSV data with at least one row
+        (beyond headers).
+        """
+        try:
+            text = csv_bytes.decode("utf-8")
+            if not text.strip():
+                log.warning("CSV content is empty (whitespace only).")
+                return False
+
+            reader = csv.DictReader(io.StringIO(text))
+            rows = list(reader)
+
+            if not reader.fieldnames or len(reader.fieldnames) < 1:
+                log.warning("CSV has no column headers.")
+                return False
+
+            if len(rows) < 1:
+                log.warning("CSV has headers but no data rows.")
+                return False
+
+            log.debug(
+                "CSV validation passed: %d rows, %d columns.",
+                len(rows),
+                len(reader.fieldnames),
+            )
+            return True
+
+        except csv.Error as exc:
+            log.warning("CSV parse error: %s", exc)
+            return False
+        except UnicodeDecodeError as exc:
+            log.warning("CSV encoding error (not valid UTF-8): %s", exc)
+            return False
+        except Exception as exc:
+            log.warning("Unexpected CSV validation error: %s", exc)
+            return False
+
+    def _record_evaluation(
+        self,
+        submission_id: str,
+        agent_filename: str,
+        csv_bytes: bytes,
+        upload_metadata: dict,
+    ) -> None:
+        """
+        Persist an AgentOutputRecord for the future delayed-evaluation stage.
+
+        Currently this logs the record and constructs an AgentOutputRecord.
+        In the future, this record could be written to a local store (SQLite,
+        JSON lines file, etc.) that the DelayedEvaluator reads to discover
+        matured outputs.
+
+        The *upload_metadata* dict returned from the backend contains at least:
+            file_id, file_path, filename, eval_date
+        """
+        eval_date = upload_metadata.get("eval_date")
+
+        record = AgentOutputRecord(
+            submission_id=submission_id,
+            agent_filename=agent_filename,
+            csv_filename=f"agent-output-{submission_id}.csv",
+            csv_bytes=csv_bytes,
+            upload_metadata=upload_metadata,
+            eval_date=eval_date,
+        )
+
+        log.info(
+            "Evaluation record — sub=%s  agent=%s  eval_date=%s  file_id=%s",
+            record.submission_id,
+            record.agent_filename,
+            record.eval_date or "?",
+            record.upload_metadata.get("file_id", "?"),
+        )
+
+        # Future: persist `record` to a local store that the DelayedEvaluator
+        # can query. For example, append to a JSON-lines file:
+        #
+        #   import json
+        #   store_path = Path(".TENSORUSD_cache/evaluations.jsonl")
+        #   with open(store_path, "a") as f:
+        #       f.write(json.dumps({
+        #           "submission_id": record.submission_id,
+        #           "agent_filename": record.agent_filename,
+        #           "eval_date": record.eval_date,
+        #           "upload_metadata": record.upload_metadata,
+        #       }) + "\n")
+        #
 
     def _check_plagiarism(self, agent_source: str) -> str | None:
         """

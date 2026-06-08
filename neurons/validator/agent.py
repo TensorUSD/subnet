@@ -67,17 +67,17 @@ class AgentValidator(BaseValidatorNeuron):
                 sys.exit(1)
 
             uid = self.metagraph.hotkeys.index(hotkey_ss58)
-            # has_permit = bool(self.metagraph.validator_permit[uid])
+            has_permit = bool(self.metagraph.validator_permit[uid])
 
-            # if not has_permit:
-            #     log.error(
-            #         "  Hotkey %s (uid=%d) does not have a validator permit on netuid %d.\n"
-            #         "  Please make sure you are using validator hotkey.\n",
-            #         hotkey_ss58,
-            #         uid,
-            #         settings.netuid,
-            #     )
-            #     sys.exit(1)
+            if not has_permit:
+                log.error(
+                    "  Hotkey %s (uid=%d) does not have a validator permit on netuid %d.\n"
+                    "  Please make sure you are using validator hotkey.\n",
+                    hotkey_ss58,
+                    uid,
+                    settings.netuid,
+                )
+                sys.exit(1)
 
             log.info("Validator permit confirmed — uid=%d hotkey=%s", uid, hotkey_ss58)
 
