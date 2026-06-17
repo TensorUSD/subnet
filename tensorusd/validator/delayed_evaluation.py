@@ -12,6 +12,7 @@ from typing import Protocol
 from tensorusd.auth.config import settings
 from tensorusd.utils.backend_client import BackendClient
 from tensorusd.utils.logging import get_logger
+from tensorusd.validator import ground_truth as gt
 
 log = get_logger(__name__)
 
@@ -26,6 +27,8 @@ class AgentOutputRecord:
     csv_bytes: bytes
     upload_metadata: dict
     eval_date: str | None
+    uid: int | str | None = None
+    hotkey: str | None = None
 
 
 @dataclass
@@ -50,11 +53,11 @@ class CsvOutputStore(Protocol):
         pass
 
     def download_ground_truth_csv(self, eval_date: str) -> bytes:
-        """Download the ground-truth CSV for the given eval date."""
+        """Return the ground-truth CSV for the given eval date (generated locally)."""
         pass
 
     def persist_evaluation_score(self, result: EvaluationResult) -> None:
-        """Persist the computed score back to the backend."""
+        """Persist the computed score locally and to the backend."""
         pass
 
 
@@ -74,10 +77,9 @@ class Scorer(Protocol):
 
 class BackendCsvOutputStore:
     """
-    Real CsvOutputStore that talks to the TensorUSD backend.
-
-    All S3/MinIO access is proxied through the backend — no direct S3
-    credentials are needed on the validator.
+    CsvOutputStore that talks to the TensorUSD backend for submission claims
+    and output CSV downloads, but generates ground truth **locally** and
+    persists results locally as well as to the backend.
     """
 
     def __init__(self, client: BackendClient) -> None:
@@ -96,6 +98,8 @@ class BackendCsvOutputStore:
 
         agent_filename: str = data.get("filename") or f"{submission_id}.py"
         eval_date: str | None = data.get("eval_date")
+        uid: int | str | None = data.get("uid")
+        hotkey: str | None = data.get("hotkey") or data.get("miner_hotkey")
 
         return AgentOutputRecord(
             submission_id=submission_id,
@@ -104,6 +108,8 @@ class BackendCsvOutputStore:
             csv_bytes=b"",  # will be fetched separately
             upload_metadata=data,
             eval_date=eval_date,
+            uid=uid,
+            hotkey=hotkey,
         )
 
     def download_output_csv(self, submission_id: str) -> bytes:
@@ -111,14 +117,36 @@ class BackendCsvOutputStore:
         return self._client.download_agent_output_csv(submission_id)
 
     def download_ground_truth_csv(self, eval_date: str) -> bytes:
-        """Download ground-truth CSV via backend proxy endpoint."""
-        return self._client.download_ground_truth(eval_date=eval_date)
+        """
+        Return the ground-truth CSV for *eval_date*.
+
+        Unlike the previous implementation, this **generates the CSV locally**
+        via ``ground_truth.generate_ground_truth()`` instead of downloading
+        it from the backend.
+        """
+        return gt.generate_ground_truth(eval_date)
 
     def persist_evaluation_score(self, result: EvaluationResult) -> None:
-        """Post the computed score to the backend."""
+        """
+        Persist the computed score:
+          1. Append a row to the local ``ground-truth/<eval_date>/result.csv``.
+          2. Post the score to the backend.
+
+        After this call the submission is considered scored and will not be
+        re-evaluated.
+        """
+        eval_date = result.details.get("eval_date", "")
+        uid = result.details.get("uid", "")
+        hotkey = result.details.get("hotkey", "")
+
+        # 1. Local persistence
+        if eval_date and uid and hotkey:
+            gt.append_result(eval_date=eval_date, uid=uid, hotkey=hotkey, score=result.score)
+
+        # 2. Backend persistence
         self._client.post_score(result.submission_id, result.score)
         log.info(
-            "Persisted score %.4f for submission %s",
+            "Persisted score %.4f for submission %s (local + backend).",
             result.score,
             result.submission_id,
         )
@@ -240,10 +268,11 @@ class DelayedEvaluator:
         """
         Execute one scoring cycle:
           1. Claim an unscored submission from the backend.
-          2. Download its output CSV.
-          3. Download the corresponding ground-truth CSV.
-          4. Compute the score.
-          5. Persist the score back to the backend.
+          2. Check whether it has already been scored locally (by uid + hotkey).
+          3. Download the output CSV from object storage.
+          4. Get the ground-truth CSV (generated locally).
+          5. Compute the score.
+          6. Persist the score locally and to the backend.
 
         Returns the EvaluationResult if a submission was scored, or None
         if no unscored submissions are ready yet.
@@ -255,12 +284,32 @@ class DelayedEvaluator:
             return None
 
         log.info(
-            "Claimed unscored submission %s (eval_date=%s)",
+            "Claimed unscored submission %s (eval_date=%s uid=%s hotkey=%s)",
             record.submission_id,
             record.eval_date or "?",
+            record.uid or "?",
+            record.hotkey or "?",
         )
 
-        # Step 2: Download output CSV
+        eval_date = record.eval_date
+
+        # Step 2: Check if already scored locally (before downloading anything)
+        if eval_date and record.uid is not None and record.hotkey:
+            if gt.is_already_scored(eval_date, record.uid, record.hotkey):
+                log.info(
+                    "Submission %s (uid=%s hotkey=%s) already scored locally for %s — skipping.",
+                    record.submission_id,
+                    record.uid,
+                    record.hotkey,
+                    eval_date,
+                )
+                # Still mark it scored on the backend so we don't claim it again
+                # (use score from local file = re-read it; for simplicity just post 0)
+                # Better: we could skip posting altogether and let the backend move on.
+                # But posting 0 would penalize — so instead log and return None.
+                return None
+
+        # Step 3: Download output CSV
         try:
             output_csv_bytes = self._store.download_output_csv(record.submission_id)
         except Exception as exc:
@@ -273,25 +322,23 @@ class DelayedEvaluator:
 
         if not output_csv_bytes or not output_csv_bytes.strip():
             log.warning("Output CSV for %s is empty — scoring as 0.0", record.submission_id)
-            # Still persist a score of 0 so the submission is marked scored
             result = EvaluationResult(
                 submission_id=record.submission_id,
                 agent_filename=record.agent_filename,
                 score=0.0,
-                details={"error": "empty output CSV"},
+                details={"error": "empty output CSV", "eval_date": eval_date or "", "uid": str(record.uid or ""), "hotkey": record.hotkey or ""},
             )
             self._store.persist_evaluation_score(result)
             return result
 
-        # Step 3: Download ground truth
-        eval_date = record.eval_date
+        # Step 4: Get ground truth (generated locally)
         if not eval_date:
             log.warning("No eval_date for %s — scoring as 0.0", record.submission_id)
             result = EvaluationResult(
                 submission_id=record.submission_id,
                 agent_filename=record.agent_filename,
                 score=0.0,
-                details={"error": "missing eval_date"},
+                details={"error": "missing eval_date", "eval_date": "", "uid": str(record.uid or ""), "hotkey": record.hotkey or ""},
             )
             self._store.persist_evaluation_score(result)
             return result
@@ -300,12 +347,11 @@ class DelayedEvaluator:
             gt_csv_bytes = self._store.download_ground_truth_csv(eval_date)
         except Exception as exc:
             log.error(
-                "Failed to download ground-truth CSV for eval_date=%s (%s): %s",
+                "Failed to get ground-truth CSV for eval_date=%s (%s): %s",
                 eval_date,
                 record.submission_id,
                 exc,
             )
-            # Do not persist — ground truth may not be available yet, retry later
             return None
 
         if not gt_csv_bytes or not gt_csv_bytes.strip():
@@ -316,7 +362,7 @@ class DelayedEvaluator:
             )
             return None
 
-        # Step 4: Compute score
+        # Step 5: Compute score
         log.info("Computing score for submission %s ...", record.submission_id)
         try:
             score = self._scorer.compute_score(
@@ -337,18 +383,22 @@ class DelayedEvaluator:
             score=score,
             details={
                 "eval_date": eval_date,
+                "uid": str(record.uid or ""),
+                "hotkey": record.hotkey or "",
                 "output_rows": len(output_csv_bytes),
                 "ground_truth_rows": len(gt_csv_bytes),
             },
         )
 
-        # Step 5: Persist
+        # Step 6: Persist (local + backend)
         try:
             self._store.persist_evaluation_score(result)
             log.info(
-                "Successfully scored submission %s = %.4f",
+                "Successfully scored submission %s = %.4f (uid=%s hotkey=%s)",
                 record.submission_id,
                 score,
+                record.uid or "?",
+                record.hotkey or "?",
             )
         except Exception as exc:
             log.error(
@@ -372,7 +422,5 @@ class DelayedEvaluator:
         """
         results: list[EvaluationResult] = []
         for sid in submission_ids:
-            # For backfill, we need to reconstruct the record from the backend
-            # Currently this is a stub — implement if needed.
             log.warning("Backfill for %s not yet implemented.", sid)
         return results

@@ -115,6 +115,16 @@ class Settings:
         default_factory=lambda: _env("TENSORUSD_SETUP_ALLOWED_HOSTS", "")
     )
 
+    # Ground-truth generation
+    ground_truth_dir: Path = field(
+        default_factory=lambda: Path(
+            _env("TENSORUSD_GROUND_TRUTH_DIR", "ground-truth")
+        )
+    )
+    scoring_delay_days: int = field(
+        default_factory=lambda: _env_int("TENSORUSD_SCORING_DELAY_DAYS", 7)
+    )
+
     # Delayed evaluation (Phase 2 scoring)
     scoring_poll_interval: int = field(
         default_factory=lambda: _env_int("TENSORUSD_SCORING_POLL_INTERVAL", 120)

@@ -27,6 +27,7 @@ from tensorusd.validator.delayed_evaluation import (
     CsvComparisonScorer,
     DelayedEvaluator,
 )
+from tensorusd.validator.ground_truth_collector import GroundTruthCollector
 
 log = get_logger(__name__)
 
@@ -65,6 +66,10 @@ class ValidatorCore:
             max_size=settings.scored_cache_max_size,
         )
 
+        # Ground-truth collector (background daemon — collects 24 hourly
+        # snapshots after 23:00 UTC each day for the next day's scoring).
+        self._gt_collector = GroundTruthCollector(self._wallet)
+
     # Lifecycle
 
     def start(self) -> None:
@@ -77,6 +82,7 @@ class ValidatorCore:
         )
         self._watcher.start()
         self._weight_setter.start_monitor()
+        self._gt_collector.start()
 
         try:
             self._run_loop()
@@ -86,6 +92,7 @@ class ValidatorCore:
             self._shutdown()
 
     def _shutdown(self) -> None:
+        self._gt_collector.stop()
         self._watcher.stop()
         self._weight_setter.stop_monitor()
         self._client.close()
