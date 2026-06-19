@@ -206,7 +206,7 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         "--bid.initial_percentage",
         type=float,
         help="Initial bid as percentage of collateral value (0.0-1.0).",
-        default=0.0005,
+        default=0.11,  # base is 11%, so make sure it's always above this for initial bid
     )
 
     parser.add_argument(
