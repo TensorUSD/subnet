@@ -7,6 +7,11 @@ import bittensor as bt
 
 from typing import TYPE_CHECKING
 
+import concurrent.futures
+from decimal import Decimal
+
+from tensorusd.common.contract import TensorUSDPriceOracleContract
+
 if TYPE_CHECKING:
     from neurons.miner.oracle import OracleMiner
 
@@ -57,67 +62,167 @@ def fetch_tao_price_usd(api_key: str) -> Optional[float]:
         return None
 
 
+PRICE_MONITOR_INTERVAL_SECONDS = 5 * 60  # 5 minutes
+FORCE_SUBMISSION_INTERVAL_SECONDS = 6 * 60 * 60  # 6 hours
+
+REFERENCE_TAO_PRICE_USD = 400.0
+PRICE_CHANGE_THRESHOLD_PERCENT = 2.0
+
+
 class PriceOracleMiner:
-    def __init__(self, miner: "OracleMiner"):
-        self.should_exit: bool = False
-        self.is_running: bool = False
-        self.thread: Optional[threading.Thread] = None
+    def __init__(
+        self, miner: "OracleMiner", oracle_contract: TensorUSDPriceOracleContract
+    ):
         self.miner = miner
+
+        self.is_running: bool = False
+        self.future: Optional[concurrent.futures.Future] = None
+        self.stop_event = threading.Event()
+
+        self.last_submission_time: Optional[float] = None
+        self.oracle_contract = oracle_contract
+        self.last_oracle_price = None
+        self.step = 0
+
+    def price_change_percent(self, current_price: int, reference_price: int) -> float:
+        if reference_price <= 0:
+            raise ValueError("Reference price must be greater than zero")
+
+        return abs(current_price - reference_price) / reference_price
+
+    def should_submit_price(self, current_price: float) -> tuple[bool, str]:
+        now = time.time()
+        if self.step > 1:
+            self.last_oracle_price = self.oracle_contract.get_latest_price()
+            bt.logging.info(
+                f"Fetched latest price from chain : {self.last_oracle_price/PRICE_DECIMALS} TAO"
+            )
+            self.step = 0
+        elif self.step == 1:
+            self.step += 1
+        # First run: submit immediately
+        if self.last_submission_time is None:
+            self.last_oracle_price = self.oracle_contract.get_latest_price()
+            bt.logging.info(
+                f"Fetched latest price initially from chain : {self.last_oracle_price/PRICE_DECIMALS} TAO"
+            )
+            return True, "initial submission"
+
+        seconds_since_last_submission = now - self.last_submission_time
+
+        # Rule 1: force submit every 6 hours no matter what
+        if (
+            seconds_since_last_submission
+            >= self.miner.config.price.submission_interval_seconds
+        ):
+            self.step += 1
+            return True, "force submission interval reached"
+
+        # Rule 2: submit early if price moved by threshold %
+        change_percent = self.price_change_percent(
+            current_price=int(Decimal(str(current_price)) * PRICE_DECIMALS),
+            reference_price=self.last_oracle_price,
+        )
+
+        if change_percent >= self.miner.config.price.change_threshold:
+            return True, f"price changed by {change_percent * 100:.2f}%"
+
+        return False, f"price change only {change_percent * 100:.2f}%"
+
+    def wait_or_stop(self, seconds: int) -> bool:
+        return self.stop_event.wait(timeout=seconds)
+
+    def submit_price(self, price_usd: float) -> bool:
+        price_ratio = int(Decimal(str(price_usd)) * PRICE_DECIMALS)
+
+        bt.logging.info(f"Submitting price to oracle: {price_ratio}")
+
+        tx_hash = self.miner.oracle_contract.submit_price(
+            price=price_ratio,
+            keypair=self.miner.wallet.coldkey,  # type: ignore
+        )
+
+        if tx_hash:
+            bt.logging.success(f"Price submitted successfully! Tx hash: {tx_hash}")
+            self.last_submission_time = time.time()
+            return True
+
+        bt.logging.error("Price submission failed - no transaction hash returned")
+        return False
 
     def run(self):
         bt.logging.info("Starting price oracle miner...")
-        while True:
+
+        while not self.stop_event.is_set():
             try:
-                price_usd = fetch_tao_price_usd(self.miner.config.cmc.api_key)  # type: ignore
+                price_usd = fetch_tao_price_usd(
+                    self.miner.config.cmc.api_key  # type: ignore
+                )
+
                 if price_usd is None:
-                    bt.logging.error("Failed to fetch price, skipping submission")
-                    time.sleep(self.miner.config.price.submission_interval_seconds)  # type: ignore
+                    bt.logging.error("Failed to fetch price, skipping this cycle")
+
+                    if self.wait_or_stop(
+                        self.miner.config.price.monitor_interval_seconds
+                    ):
+                        break
+
                     continue
-                price_ratio = int(price_usd * PRICE_DECIMALS)
-                try:
-                    bt.logging.info(f"Submitting price to oracle: {price_ratio}")
 
-                    tx_hash = self.miner.oracle_contract.submit_price(
-                        price=price_ratio,
-                        keypair=self.miner.wallet.coldkey,  # type: ignore
+                should_submit, reason = self.should_submit_price(price_usd)
+
+                bt.logging.info(
+                    f"Current TAO price: ${price_usd}. Submission check: {reason}"
+                )
+
+                if should_submit:
+                    try:
+                        self.submit_price(price_usd)
+                    except Exception as e:
+                        bt.logging.error(f"Error submitting price to oracle: {e}")
+                else:
+                    bt.logging.info(
+                        f"No submission needed. Checking again in "
+                        f"{self.miner.config.price.monitor_interval_seconds} seconds."
                     )
-                    if tx_hash:
-                        bt.logging.success(
-                            f"Price submitted successfully! Tx hash: {tx_hash}"
-                        )
-                    else:
-                        bt.logging.error(
-                            "Price submission failed - no transaction hash returned"
-                        )
 
-                except Exception as e:
-                    bt.logging.error(f"Error submitting price to oracle: {e}")
+                if self.wait_or_stop(self.miner.config.price.monitor_interval_seconds):
+                    break
 
-                bt.logging.info(f"Waiting {self.miner.config.price.submission_interval_seconds} seconds before next submission...")  # type: ignore
-                time.sleep(self.miner.config.price.submission_interval_seconds)  # type: ignore
-
-            except KeyboardInterrupt:
-                bt.logging.info("Received shutdown signal, stopping miner...")
-                break
             except Exception as e:
-                bt.logging.error(f"Unexpected error in main loop: {e}")
-                bt.logging.info("Continuing after error...")
-                time.sleep(60)  # Wait 1 minute before retrying after error
+                bt.logging.error(f"Unexpected error in price oracle loop: {e}")
+                bt.logging.info("Retrying after 60 seconds...")
 
-    def run_in_background_thread(self):
-        """Start listener in background thread."""
-        if not self.is_running:
-            bt.logging.debug("Starting event listener in background thread.")
-            self.should_exit = False
-            self.thread = threading.Thread(target=self.run, daemon=True)
-            self.thread.start()
-            self.is_running = True
+                if self.wait_or_stop(60):
+                    break
 
-    def stop_run_thread(self):
-        """Stop the background thread."""
+        bt.logging.info("Price oracle miner stopped.")
+
+    def run_in_executor(self, executor: concurrent.futures.ThreadPoolExecutor):
         if self.is_running:
-            bt.logging.debug("Stopping event listener.")
-            self.should_exit = True
-            if self.thread is not None:
-                self.thread.join(5)
-            self.is_running = False
+            bt.logging.warning("Price oracle miner is already running.")
+            return
+
+        bt.logging.debug("Starting price oracle miner in executor.")
+
+        self.stop_event.clear()
+        self.future = executor.submit(self.run)
+        self.is_running = True
+
+    def stop(self):
+        if not self.is_running:
+            return
+
+        bt.logging.debug("Stopping price oracle miner.")
+
+        self.stop_event.set()
+
+        if self.future is not None:
+            try:
+                self.future.result(timeout=5)
+            except concurrent.futures.TimeoutError:
+                bt.logging.warning("Price oracle miner did not stop within 5 seconds.")
+            except Exception as e:
+                bt.logging.error(f"Error while stopping price oracle miner: {e}")
+
+        self.is_running = False

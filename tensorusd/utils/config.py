@@ -271,8 +271,22 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         "--price.submission_interval_seconds",
         type=int,
         help="Interval in seconds between price submissions to the oracle.",
-        default=os.getenv("PRICE_SUBMISSION_INTERVAL", None),
+        default=os.getenv("PRICE_SUBMISSION_INTERVAL", 6 * 60 * 60),  # default 6 hours
         required=is_required_arg("PRICE_SUBMISSION_INTERVAL", False, 1, mech_id),
+    )
+    parser.add_argument(
+        "--price.monitor_interval_seconds",
+        type=int,
+        help="Interval in seconds between price monitors from the api.",
+        default=os.getenv("PRICE_MONITOR_INTERVAL", 5 * 60),  # default 5 minutes
+        required=is_required_arg("PRICE_MONITOR_INTERVAL", False, 1, mech_id),
+    )
+    parser.add_argument(
+        "--price.change_threshold",
+        type=float,
+        help="Change threshold for force price submission",
+        default=os.getenv("PRICE_CHANGE_THRESHOLD", 0.017),  # default 1.7%
+        required=is_required_arg("PRICE_CHANGE_THRESHOLD", False, 1, mech_id),
     )
 
 
