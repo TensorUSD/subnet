@@ -284,10 +284,9 @@ class DelayedEvaluator:
             return None
 
         log.info(
-            "Claimed unscored submission %s (eval_date=%s uid=%s hotkey=%s)",
+            "Claimed unscored submission %s (eval_date=%s hotkey=%s)",
             record.submission_id,
             record.eval_date or "?",
-            record.uid or "?",
             record.hotkey or "?",
         )
 
@@ -321,27 +320,19 @@ class DelayedEvaluator:
             return None
 
         if not output_csv_bytes or not output_csv_bytes.strip():
-            log.warning("Output CSV for %s is empty — scoring as 0.0", record.submission_id)
-            result = EvaluationResult(
-                submission_id=record.submission_id,
-                agent_filename=record.agent_filename,
-                score=0.0,
-                details={"error": "empty output CSV", "eval_date": eval_date or "", "uid": str(record.uid or ""), "hotkey": record.hotkey or ""},
+            log.warning(
+                "Output CSV for %s is empty — skipping score (will retry when ground truth is available).",
+                record.submission_id,
             )
-            self._store.persist_evaluation_score(result)
-            return result
+            return None
 
         # Step 4: Get ground truth (generated locally)
         if not eval_date:
-            log.warning("No eval_date for %s — scoring as 0.0", record.submission_id)
-            result = EvaluationResult(
-                submission_id=record.submission_id,
-                agent_filename=record.agent_filename,
-                score=0.0,
-                details={"error": "missing eval_date", "eval_date": "", "uid": str(record.uid or ""), "hotkey": record.hotkey or ""},
+            log.warning(
+                "No eval_date for %s — skipping score (submission not yet matured).",
+                record.submission_id,
             )
-            self._store.persist_evaluation_score(result)
-            return result
+            return None
 
         try:
             gt_csv_bytes = self._store.download_ground_truth_csv(eval_date)
@@ -356,7 +347,7 @@ class DelayedEvaluator:
 
         if not gt_csv_bytes or not gt_csv_bytes.strip():
             log.warning(
-                "Ground-truth CSV for eval_date=%s is empty — skipping %s",
+                "Ground-truth CSV for eval_date=%s is empty (first run or GT not yet collected) — skipping %s",
                 eval_date,
                 record.submission_id,
             )

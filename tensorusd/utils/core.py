@@ -104,10 +104,9 @@ class ValidatorCore:
         while True:
             try:
                 # Phase 1: Agent execution
-                self._evaluation_cycle()
+                had_work = self._evaluation_cycle()
 
-                # When there are no unevaluated submissions, try Phase 2 scoring
-                if self._client.get_unevaluated_submission() is None:
+                if not had_work:
                     self._run_scoring_cycle()
             except requests.HTTPError as exc:
                 if exc.response is not None and exc.response.status_code == 403:
@@ -148,7 +147,7 @@ class ValidatorCore:
             log.info("No unevaluated submissions.  Sleeping %ds.", settings.validator_poll_interval)
             self._maybe_set_weights()
             time.sleep(settings.validator_poll_interval)
-            return
+            return False
 
         log.debug("Raw submission response: %s", submission)
         sub_id: str = submission.get("submission_id") or submission.get("id")
@@ -157,7 +156,7 @@ class ValidatorCore:
                 "Submission response missing id field. Keys received: %s",
                 list(submission.keys()),
             )
-            return
+            return True
 
         # Check persistent scored cache — survives restarts
         if sub_id in self._scored:
@@ -166,7 +165,7 @@ class ValidatorCore:
                 sub_id,
             )
             time.sleep(settings.validator_poll_interval)
-            return
+            return True
 
         miner_hotkey: str | None = (
             submission.get("miner_hotkey") or submission.get("hotkey") or None
@@ -179,13 +178,22 @@ class ValidatorCore:
             score_count,
         )
 
+
+        agent_filename: str = (
+            submission.get("agent_filename")
+            or submission.get("filename")
+            or f"{sub_id}.py"
+        )
+
         # Download agent file
         try:
             agent_bytes = self._client.download_submission_file(sub_id)
         except Exception as exc:
             log.error("Failed to download submission %s: %s", sub_id, exc)
-            self._client.post_score(sub_id, 0.0)
-            return
+
+            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._maybe_set_weights()
+            return True
 
         # Security validation — pure Python, binary check, AST scan, token scan.
         # This replaces the old regex-based _detect_malware().
@@ -196,16 +204,18 @@ class ValidatorCore:
                 self._client.blacklist_miner(miner_hotkey, sub_id, f"security: {security_reason}")
             except Exception as bl_exc:
                 log.error("Blacklist call failed (continuing): %s", bl_exc)
-            self._client.post_score(sub_id, 0.0)
+            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
             self._scored.add(sub_id)
-            return
+            self._maybe_set_weights()
+            return True
 
         format_reason = validate_agent_format(agent_bytes)
         if format_reason:
             log.warning("Format check failed for %s: %s", sub_id, format_reason)
-            self._client.post_score(sub_id, 0.0)
+            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
             self._scored.add(sub_id)
-            return
+            self._maybe_set_weights()
+            return True
 
         # Plagiarism check
         #    validate_agent_file guarantees the file is valid Python, so we can
@@ -220,9 +230,11 @@ class ValidatorCore:
                 )
             except Exception as bl_exc:
                 log.error("Blacklist call failed (continuing): %s", bl_exc)
-            self._client.post_score(sub_id, 0.0)
+            # Upload empty CSV so Phase 2 can still score after 7 days
+            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
             self._scored.add(sub_id)
-            return
+            self._maybe_set_weights()
+            return True
 
         # Sandbox evaluation
         log.info("Running sandbox for submission %s", sub_id)
@@ -235,28 +247,23 @@ class ValidatorCore:
                 sandbox_result.exit_code,
                 sandbox_result.stderr[:300],
             )
-            self._client.post_score(sub_id, 0.0)
+            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
             self._scored.add(sub_id)
             self._maybe_set_weights()
-            return
+            return True
 
         output_csv_bytes = sandbox_result.output_csv_bytes
 
-        # Validate the output CSV is non-empty and parseable
+        # Validate the output CSV is non-empty and parseable.
+        # Even if invalid, we upload it as-is so Phase 2 can evaluate.
         if not self._validate_csv(output_csv_bytes):
-            log.warning("Invalid or empty CSV output for %s — marking as failed.", sub_id)
-            self._client.post_score(sub_id, 0.0)
+            log.warning("Invalid or empty CSV output for %s — uploading as-is for delayed scoring.", sub_id)
+            # Upload as-is (even if empty/invalid) — Phase 2 will score it
+            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
             self._scored.add(sub_id)
             self._maybe_set_weights()
-            return
+            return True
 
-        # Determine the original agent filename from submission metadata.
-        # Fall back to submission_id-based name if not provided by the backend.
-        agent_filename: str = (
-            submission.get("agent_filename")
-            or submission.get("filename")
-            or f"{sub_id}.py"
-        )
 
         # Upload the generated CSV to backend storage
         try:
@@ -276,10 +283,11 @@ class ValidatorCore:
                 sub_id,
                 exc,
             )
-            self._client.post_score(sub_id, 0.0)
+            # Upload empty CSV on upload failure so Phase 2 can still score
+            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
             self._scored.add(sub_id)
             self._maybe_set_weights()
-            return
+            return True
 
         # Record evaluation metadata for future delayed-scoring stage
         self._record_evaluation(
@@ -288,6 +296,14 @@ class ValidatorCore:
             csv_bytes=output_csv_bytes,
             upload_metadata=upload_meta,
         )
+
+        # Phase 1 complete — tell the backend the submission is evaluated
+        # so Phase 2 can pick it up after the maturation window.
+        try:
+            self._client.mark_submission_evaluated(sub_id)
+        except Exception as exc:
+            log.error("Failed to mark submission %s as evaluated: %s", sub_id, exc)
+            # Non-fatal — backend will retry via polling or timeout recovery
 
         # Phase 1 complete — submission is now evaluated; no score is posted.
         # The real score will be computed later in Phase 2 (delayed evaluation)
@@ -299,6 +315,7 @@ class ValidatorCore:
 
         # Set weights
         self._maybe_set_weights(hint_hotkey=miner_hotkey)
+        return True
 
     # Helpers
 
@@ -321,8 +338,7 @@ class ValidatorCore:
             log.info("  → from backend: %s", best_hotkey or "none")
 
         if not best_hotkey:
-            log.info("No best hotkey found anywhere — skipping weight set.")
-            return
+            log.info("No best hotkey found — falling back to cold-start burn (UID 0).")
 
         try:
             self._weight_setter.maybe_set_weights(best_hotkey)
@@ -418,6 +434,51 @@ class ValidatorCore:
         #           "upload_metadata": record.upload_metadata,
         #       }) + "\n")
         #
+
+    def _upload_fallback_empty_csv_and_record(
+        self,
+        submission_id: str,
+        agent_filename: str,
+        miner_hotkey: str | None,
+    ) -> None:
+        """
+        Upload a headers-only empty CSV when the agent cannot produce output,
+        so the submission enters the Phase 2 scoring pipeline instead of being
+        immediately zero-scored.
+        """
+        empty_csv = b"snapshot_hour,snapshot_time_utc,block_number,vault_owner,vault_id,vault_health,tokens_minted\n"
+        try:
+            upload_meta = self._client.upload_agent_output(
+                csv_bytes=empty_csv,
+                agent_filename=agent_filename,
+            )
+            log.info(
+                "Uploaded fallback empty CSV for %s — file_id=%s  eval_date=%s",
+                submission_id,
+                upload_meta.get("file_id", "?"),
+                upload_meta.get("eval_date", "?"),
+            )
+            self._record_evaluation(
+                submission_id=submission_id,
+                agent_filename=agent_filename,
+                csv_bytes=empty_csv,
+                upload_metadata=upload_meta,
+            )
+            # Mark evaluated so Phase 2 can pick it up
+            try:
+                self._client.mark_submission_evaluated(submission_id)
+            except Exception as mark_exc:
+                log.error(
+                    "Failed to mark fallback submission %s as evaluated: %s",
+                    submission_id,
+                    mark_exc,
+                )
+        except Exception as exc:
+            log.error(
+                "Failed to upload fallback empty CSV for %s: %s",
+                submission_id,
+                exc,
+            )
 
     def _check_plagiarism(self, agent_source: str) -> str | None:
         """
