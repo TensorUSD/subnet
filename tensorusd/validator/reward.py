@@ -177,10 +177,14 @@ def calculate_rewards_for_mech1(
             diff_percent = diff / actual_price
             if diff_percent <= accepted_diff:
                 reward = 2.0 - diff_percent / accepted_diff
-                uid = metagraph.hotkeys.index(submission.metadata.hot_key)
-                if uid:
-                    uids.append(uid)
-                    rewards.append(reward)
+                try:
+                    uid = metagraph.hotkeys.index(submission.metadata.hot_key)
+                    if uid:
+                        uids.append(uid)
+                        rewards.append(reward)
+                except Exception as e:
+                    bt.logging.error(e)
+                    continue
 
         total_reward = sum(rewards)
         if burn_uid is not None and 0 < burn_weight_percent < 1.0:
@@ -194,7 +198,9 @@ def calculate_rewards_for_mech1(
                     f"Burning {burn_weight_percent * 100:.1f}% of total reward to UID {burn_uid}"
                 )
             else:
-                bt.logging.info(f"No auction wins - giving UID {burn_uid} weight of 1")
+                bt.logging.info(
+                    f"No price submissions - giving UID {burn_uid} weight of 1"
+                )
                 rewards = [1.0]
                 uids = [burn_uid]
         elif burn_weight_percent == 1:
@@ -202,7 +208,7 @@ def calculate_rewards_for_mech1(
             rewards = [1]
 
         if sum(rewards) == 0:
-            bt.logging.info(f"No auction wins - giving UID {burn_uid} weight of 1")
+            bt.logging.info(f"No price submissions - giving UID {burn_uid} weight of 1")
             rewards = [1.0]
             uids = [burn_uid]
 
