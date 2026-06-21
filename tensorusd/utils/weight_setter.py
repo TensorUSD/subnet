@@ -137,6 +137,7 @@ class WeightSetter:
         except Exception as exc:
             log.warning("WeightSetter: could not seed last_set_block: %s — using 0.", exc)
             self._last_set_block = 0
+        self._last_set_time: float = 0.0
         self._monitor = WeightMonitor(wallet, subtensor, metagraph)
 
     def start_monitor(self) -> None:
@@ -149,8 +150,27 @@ class WeightSetter:
         """
         Entry point called after every evaluation cycle.
         Never raises — all failures are logged and the validator keeps running.
+
+        Weight setting is gated by a 1-hour wall-clock interval
+        (configurable via TENSORUSD_WEIGHT_INTERVAL_SECONDS).
         """
         current_block = self._current_block()
+        now = time.time()
+
+        # Time-based gate: must wait at least weight_interval_seconds between sets
+        if self._last_set_time > 0.0:
+            time_since = now - self._last_set_time
+            if time_since < settings.weight_interval_seconds:
+                remaining = settings.weight_interval_seconds - time_since
+                log.info(
+                    "Weight set gated: %.0fs/%.0fs elapsed — will retry in ~%.0fs.",
+                    time_since,
+                    settings.weight_interval_seconds,
+                    remaining,
+                )
+                return False
+        else:
+            log.info("First weight set attempt — time gate waived (no prior set).")
 
         if settings.burn_mode:
             blocks_since = current_block - self._last_set_block
@@ -169,12 +189,21 @@ class WeightSetter:
                 "BURN MODE active — forcing weights to UID 0 (100%% burn) at block %d",
                 current_block,
             )
-            return self._safe_call(self._burn_with_retry, label="burn")
+            ok = self._safe_call(self._burn_with_retry, label="burn")
+            if ok:
+                self._last_set_time = time.time()
+            return ok
 
         # Normal mode
         if not best_hotkey:
-            log.info("No best hotkey available — skipping normal weight set.")
-            return False
+            log.info(
+                "No best hotkey available (cold start / no scored submissions yet) — "
+                "falling back to burn (UID 0)."
+            )
+            ok = self._safe_call(self._burn_with_retry, label="cold-start-burn")
+            if ok:
+                self._last_set_time = time.time()
+            return ok
 
         blocks_since = current_block - self._last_set_block
         log.info(
@@ -197,7 +226,10 @@ class WeightSetter:
             return False
 
         log.info("Weight set interval cleared — proceeding to set weights (normal mode).")
-        return self._safe_call(self._normal_with_retry, best_hotkey, label="normal")
+        ok = self._safe_call(self._normal_with_retry, best_hotkey, label="normal")
+        if ok:
+            self._last_set_time = time.time()
+        return ok
 
     # Non-raising wrapper
     def _safe_call(self, fn, *args, label: str, **kwargs) -> bool:

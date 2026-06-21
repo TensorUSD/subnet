@@ -24,6 +24,7 @@ def setup_events_logger(full_path, events_retention_size):
 
     logger = logging.getLogger("event")
     logger.setLevel(EVENTS_LEVEL_NUM)
+    logger.propagate = False
 
     def event(self, message, *args, **kws):
         if self.isEnabledFor(EVENTS_LEVEL_NUM):
