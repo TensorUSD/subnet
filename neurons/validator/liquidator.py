@@ -30,7 +30,7 @@ from tensorusd.base.validator import BaseValidatorNeuron
 # Bittensor Validator Template:
 from tensorusd.utils.config import add_validator_args
 from tensorusd.utils.subnet import get_dynamic_info
-from tensorusd.validator import forward, forward_mech1
+from tensorusd.validator import forward
 
 # Auction tracking components
 from tensorusd.common.contract import (
@@ -41,7 +41,7 @@ from tensorusd.validator.db import init_db
 from tensorusd.validator.event_listener import ValidatorEventListener
 
 
-class LiqNagentValidator(BaseValidatorNeuron):
+class LiqValidator(BaseValidatorNeuron):
     """
     Your validator neuron class. You should use this class to define your validator's behavior. In particular, you should replace the forward function with your own logic.
 
@@ -56,7 +56,7 @@ class LiqNagentValidator(BaseValidatorNeuron):
         add_validator_args(cls, parser, 0)
 
     def __init__(self, config=None):
-        super(LiqNagentValidator, self).__init__(config=config, mech_id=0)
+        super(LiqValidator, self).__init__(config=config, mech_id=0)
 
         # Initialize auction tracking system
         self.setup()
@@ -118,13 +118,10 @@ class LiqNagentValidator(BaseValidatorNeuron):
         """
         return await forward(self)
 
-    async def forward_mech1(self):
-        return await forward_mech1(self)
-
 
 # The main function parses the configuration and runs the validator.
 if __name__ == "__main__":
-    with LiqNagentValidator() as validator:
+    with LiqValidator() as validator:
         while True:
             bt.logging.info(f"Validator running... {time.time()}")
             time.sleep(300)

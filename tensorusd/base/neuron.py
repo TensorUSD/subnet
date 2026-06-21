@@ -121,7 +121,7 @@ class BaseNeuron(ABC):
             self.set_weights(mechid)  # or 1 for mech1
 
         # Always save state.
-        self.save_state(mechid)
+        self.save_state()
 
     def check_registered(self):
         # --- Check for registration.
