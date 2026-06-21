@@ -50,10 +50,10 @@ class OracleValidator(BaseValidatorNeuron):
     @classmethod
     def add_args(cls, parser: argparse.ArgumentParser):
         super().add_args(parser)
-        add_validator_args(cls, parser, 1)
+        add_validator_args(cls=cls, parser=parser, mech_id=1)
 
     def __init__(self, config=None):
-        super(OracleValidator, self).__init__(config=config, mech_id=0)
+        super(OracleValidator, self).__init__(config=config, mech_id=1)
 
         self.setup()
         self.is_first_run = True

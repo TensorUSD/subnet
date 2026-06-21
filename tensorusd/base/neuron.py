@@ -115,7 +115,7 @@ class BaseNeuron(ABC):
         self.check_registered()
 
         if self.should_sync_mechagraph():
-            self.resync_mechagraph()
+            self.resync_mechagraph(mechid=mechid)
 
         if self.should_set_weights():
             self.set_weights(mechid)  # or 1 for mech1
