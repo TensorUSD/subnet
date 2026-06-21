@@ -45,7 +45,10 @@ class Settings:
         default_factory=lambda: _env_int("TENSORUSD_VALIDATOR_POLL_INTERVAL", 60)
     )
     weight_interval_blocks: int = field(
-        default_factory=lambda: _env_int("TENSORUSD_WEIGHT_INTERVAL_BLOCKS", 100)
+        default_factory=lambda: _env_int("TENSORUSD_WEIGHT_INTERVAL_BLOCKS", 300)
+    )
+    weight_interval_seconds: int = field(
+        default_factory=lambda: _env_int("TENSORUSD_WEIGHT_INTERVAL_SECONDS", 3600)
     )
     weight_monitor_interval: int = field(
         default_factory=lambda: _env_int("TENSORUSD_WEIGHT_MONITOR_INTERVAL", 300)
@@ -61,7 +64,7 @@ class Settings:
 
     # Sandbox
     sandbox_image: str = field(
-        default_factory=lambda: _env("TENSORUSD_SANDBOX_IMAGE", "TENSORUSD-sandbox:latest")
+        default_factory=lambda: _env("TENSORUSD_SANDBOX_IMAGE", "tensorusd-sandbox:latest")
     )
     sandbox_workdir: Path = field(
         default_factory=lambda: Path(_env("TENSORUSD_SANDBOX_WORKDIR", "/tmp/TENSORUSD_sandbox"))
