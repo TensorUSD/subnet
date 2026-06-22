@@ -271,7 +271,9 @@ class BaseValidatorNeuron(BaseNeuron):
             mechid=mechid,
         )
         if result is True:
-            bt.logging.info(f"set_weights on chain successfully! for mechid {mechid}")
+            bt.logging.success(
+                f"set_weights on chain successfully! for mechid {mechid}"
+            )
         else:
             bt.logging.error(f"set_weights failed for {mechid}", msg)
 
@@ -282,11 +284,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # Copies state of metagraph before syncing.
         previous_metagraph = copy.deepcopy(self.metagraph)
 
-        # Sync the metagraph.
-        if mechid == 0:
-            self.metagraph.sync(subtensor=self.subtensor)
-        else:
-            self.metagraph_1.sync(subtensor=self.subtensor)
+        self.metagraph.sync(subtensor=self.subtensor)
 
         # Check if the metagraph axon info has changed.
         if previous_metagraph.axons == self.metagraph.axons:

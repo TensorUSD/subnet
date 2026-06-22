@@ -62,13 +62,6 @@ def fetch_tao_price_usd(api_key: str) -> Optional[float]:
         return None
 
 
-PRICE_MONITOR_INTERVAL_SECONDS = 5 * 60  # 5 minutes
-FORCE_SUBMISSION_INTERVAL_SECONDS = 6 * 60 * 60  # 6 hours
-
-REFERENCE_TAO_PRICE_USD = 400.0
-PRICE_CHANGE_THRESHOLD_PERCENT = 2.0
-
-
 class PriceOracleMiner:
     def __init__(
         self, miner: "OracleMiner", oracle_contract: TensorUSDPriceOracleContract
@@ -104,7 +97,7 @@ class PriceOracleMiner:
         if self.last_submission_time is None:
             self.last_oracle_price = self.oracle_contract.get_latest_price()
             bt.logging.info(
-                f"Fetched latest price initially from chain : {self.last_oracle_price/PRICE_DECIMALS} TAO"
+                f"Fetched latest price initially from chain : ${self.last_oracle_price/PRICE_DECIMALS}"
             )
             return True, "initial submission"
 
