@@ -166,3 +166,6 @@ testing/
 
 
 *.db
+
+ground-truth/
+.TENSORUSD_cache/

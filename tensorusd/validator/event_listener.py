@@ -130,8 +130,8 @@ class ValidatorEventListener:
 
         try:
             for block_num in range(start_block, end_block + 1):
-                if block_num % 100 == 0:
-                    bt.logging.debug(f"Scanning block {block_num}...")
+                if block_num % 10 == 0:
+                    bt.logging.info(f"Scanning block {block_num}...")
 
                 try:
                     block_hash = self.substrate.get_block_hash(block_num)

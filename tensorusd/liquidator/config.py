@@ -15,7 +15,7 @@ class MinerBidConfig:
         min_profit_margin: Minimum profit margin required to bid (0.0-1.0)
     """
 
-    initial_bid_percentage: float = 0.05
+    initial_bid_percentage: float = 0.11
     bid_increment_rate: float = 0.05
     max_bid_percentage: float = 0.95
     max_bid_absolute: Optional[int] = None

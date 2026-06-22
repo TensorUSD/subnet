@@ -8,6 +8,8 @@ dependencies = [
     "alembic>=1.18.4",
     "async-substrate-interface>=1.6.2",
     "bittensor>=10.1.0",
+    "click>=8.3.2",
+    "docker>=7.1.0",
     "numpy>=1",
     "pydantic>=2",
     "pytest>=8",
@@ -17,6 +19,7 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "starlette>=0.30.0",
     "substrate-interface>=1.8.1",
+    "tenacity>=9.1.4",
 ]
 [tool.setuptools.packages.find]
 include = ["tensorusd*", "neurons*"]

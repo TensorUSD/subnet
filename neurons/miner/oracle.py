@@ -70,10 +70,11 @@ class OracleMiner(BaseMinerNeuron):
     def run(self):
         """Override run to start event listener alongside axon."""
         bt.logging.info("Mining in mech 1")
-        self.price_oracle_miner = PriceOracleMiner(self)
-        self.price_oracle_miner.run_in_background_thread()
+        self.price_oracle_miner = PriceOracleMiner(
+            self, oracle_contract=self.oracle_contract
+        )
+        self.price_oracle_miner.run_in_executor(self.executor)
 
-        # Run normal miner operation (axon serving, metagraph sync)
         super().run(mech_id=1)
 
     def __exit__(self, exc_type, exc_value, traceback):

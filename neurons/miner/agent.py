@@ -1,181 +1,89 @@
-# The MIT License (MIT)
-# Copyright © 2023 Yuma Rao
-# TODO(developer): Set your name
-# Copyright © 2023 <your name>
+#!/usr/bin/env python3
+"""
+Minimal TensorUSD miner agent that satisfies all format requirements.
 
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Usage (sandbox):
+    python agent.py --infer    # run inference → /data/output/output.csv
+"""
 
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-# the Software.
-
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
+from __future__ import annotations
 
 import argparse
-import time
-import typing
-import bittensor as bt
-
-# Bittensor Miner tensorusd:
-import tensorusd
-
-# import base miner class which takes care of most of the boilerplate
-from tensorusd.base.miner import BaseMinerNeuron
-
-from tensorusd.utils.config import add_miner_args
+import csv
+import sys
+from pathlib import Path
 
 
-class AgentMiner(BaseMinerNeuron):
+# ---------------------------------------------------------------------------
+# AgentMiner — required class with infer() only
+# ---------------------------------------------------------------------------
+
+
+class AgentMiner:
     """
-    Your miner neuron class. You should use this class to define your miner's behavior. In particular, you should replace the forward function with your own logic. You may also want to override the blacklist and priority functions according to your needs.
+    Miner agent that produces a prediction CSV output file.
 
-    This class inherits from the BaseMinerNeuron class, which in turn inherits from BaseNeuron. The BaseNeuron class takes care of routine tasks such as setting up wallet, subtensor, metagraph, logging directory, parsing config, etc. You can override any of the methods in BaseNeuron if you need to customize the behavior.
+    The output CSV must match the expected ground-truth schema:
 
-    This class provides reasonable default behavior for a miner such as blacklisting unrecognized hotkeys, prioritizing requests based on stake, and forwarding requests to the forward function. If you need to define custom
+        snapshot_hour, snapshot_time_utc, block_number,
+        vault_owner, vault_id, vault_health, tokens_minted
     """
 
-    @classmethod
-    def add_args(cls, parser: argparse.ArgumentParser):
-        super().add_args(parser)
-        add_miner_args(cls, parser, 0)
+    def __init__(self) -> None:
+        """Initialize any resources needed for inference."""
+        # Placeholder: a real agent would setup apis, setup agents.
+        pass
 
-    def __init__(self, config=None):
-        super(AgentMiner, self).__init__(config=config, mech_id=0)
-
-    async def forward(
-        self, synapse: tensorusd.protocol.Dummy
-    ) -> tensorusd.protocol.Dummy:
+    def infer(self, output_path: str = "/data/output/output.csv") -> None:
         """
-        Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
-        This method should be replaced with actual logic relevant to the miner's purpose.
+        Run inference and write a CSV prediction file.
 
-        Args:
-            synapse (template.protocol.Dummy): The synapse object containing the 'dummy_input' data.
+        The output must match the ground-truth schema:
 
-        Returns:
-            template.protocol.Dummy: The synapse object with the 'dummy_output' field set to twice the 'dummy_input' value.
+            snapshot_hour, snapshot_time_utc, block_number,
+            vault_owner, vault_id, vault_health, tokens_minted
 
-        The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
-        the miner's intended operation. This method demonstrates a basic transformation of input data.
+        This is a placeholder that writes a headers-only CSV.
         """
-        # TODO(developer): Replace with actual implementation logic.
-        synapse.dummy_output = synapse.dummy_input * 2
-        return synapse
+        print("[infer] Running inference...", flush=True)
 
-    def run(self):
-        """Override run to start event listener alongside axon."""
-        bt.logging.info("Mining in mech 0")
-        # Run normal miner operation (axon serving, metagraph sync)
-        super().run(mech_id=0)
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        fieldnames = [
+            "snapshot_hour",
+            "snapshot_time_utc",
+            "block_number",
+            "vault_owner",
+            "vault_id",
+            "vault_health",
+            "tokens_minted",
+        ]
 
-    async def blacklist(
-        self, synapse: tensorusd.protocol.Dummy
-    ) -> typing.Tuple[bool, str]:
-        """
-        Determines whether an incoming request should be blacklisted and thus ignored. Your implementation should
-        define the logic for blacklisting requests based on your needs and desired security parameters.
+        with open(output_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
 
-        Blacklist runs before the synapse data has been deserialized (i.e. before synapse.data is available).
-        The synapse is instead contracted via the headers of the request. It is important to blacklist
-        requests before they are deserialized to avoid wasting resources on requests that will be ignored.
-
-        Args:
-            synapse (tensorusd.protocol.Dummy): A synapse object constructed from the headers of the incoming request.
-
-        Returns:
-            Tuple[bool, str]: A tuple containing a boolean indicating whether the synapse's hotkey is blacklisted,
-                            and a string providing the reason for the decision.
-
-        This function is a security measure to prevent resource wastage on undesired requests. It should be enhanced
-        to include checks against the metagraph for entity registration, validator status, and sufficient stake
-        before deserialization of synapse data to minimize processing overhead.
-
-        Example blacklist logic:
-        - Reject if the hotkey is not a registered entity within the metagraph.
-        - Consider blacklisting entities that are not validators or have insufficient stake.
-
-        In practice it would be wise to blacklist requests from entities that are not validators, or do not have
-        enough stake. This can be checked via metagraph.S and metagraph.validator_permit. You can always attain
-        the uid of the sender via a metagraph.hotkeys.index( synapse.dendrite.hotkey ) call.
-
-        Otherwise, allow the request to be processed further.
-        """
-
-        if synapse.dendrite is None or synapse.dendrite.hotkey is None:
-            bt.logging.warning("Received a request without a dendrite or hotkey.")
-            return True, "Missing dendrite or hotkey"
-
-        # TODO(developer): Define how miners should blacklist requests.
-        uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)
-        if (
-            not self.config.blacklist.allow_non_registered
-            and synapse.dendrite.hotkey not in self.metagraph.hotkeys
-        ):
-            # Ignore requests from un-registered entities.
-            bt.logging.trace(
-                f"Blacklisting un-registered hotkey {synapse.dendrite.hotkey}"
-            )
-            return True, "Unrecognized hotkey"
-
-        if self.config.blacklist.force_validator_permit:
-            # If the config is set to force validator permit, then we should only allow requests from validators.
-            if not self.metagraph.validator_permit[uid]:
-                bt.logging.warning(
-                    f"Blacklisting a request from non-validator hotkey {synapse.dendrite.hotkey}"
-                )
-                return True, "Non-validator hotkey"
-
-        bt.logging.trace(
-            f"Not Blacklisting recognized hotkey {synapse.dendrite.hotkey}"
-        )
-        return False, "Hotkey recognized!"
-
-    async def priority(self, synapse: tensorusd.protocol.Dummy) -> float:
-        """
-        The priority function determines the order in which requests are handled. More valuable or higher-priority
-        requests are processed before others. You should design your own priority mechanism with care.
-
-        This implementation assigns priority to incoming requests based on the calling entity's stake in the metagraph.
-
-        Args:
-            synapse (tensorusd.protocol.Dummy): The synapse object that contains metadata about the incoming request.
-
-        Returns:
-            float: A priority score derived from the stake of the calling entity.
-
-        Miners may receive messages from multiple entities at once. This function determines which request should be
-        processed first. Higher values indicate that the request should be processed first. Lower values indicate
-        that the request should be processed later.
-
-        Example priority logic:
-        - A higher stake results in a higher priority value.
-        """
-        if synapse.dendrite is None or synapse.dendrite.hotkey is None:
-            bt.logging.warning("Received a request without a dendrite or hotkey.")
-            return 0.0
-
-        # TODO(developer): Define how miners should prioritize requests.
-        caller_uid = self.metagraph.hotkeys.index(
-            synapse.dendrite.hotkey
-        )  # Get the caller index.
-        priority = float(
-            self.metagraph.S[caller_uid]
-        )  # Return the stake as the priority.
-        bt.logging.trace(
-            f"Prioritizing {synapse.dendrite.hotkey} with value: {priority}"
-        )
-        return priority
+        print(f"[infer] Wrote header-only CSV → {output_path}", flush=True)
 
 
-# This is the main function, which runs the miner.
+# ---------------------------------------------------------------------------
+# main() — required top-level entry point
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    """Entry point: parse args and run inference."""
+    parser = argparse.ArgumentParser(description="TensorUSD Agent")
+    parser.add_argument("--infer", action="store_true", help="Run inference phase")
+    args = parser.parse_args()
+
+    agent = AgentMiner()
+
+    if args.infer:
+        agent.infer()
+    else:
+        print("Usage: python agent.py --infer", file=sys.stderr)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    with AgentMiner() as miner:
-        while True:
-            bt.logging.info(f"Miner running... {time.time()}")
-            time.sleep(300)
+    main()

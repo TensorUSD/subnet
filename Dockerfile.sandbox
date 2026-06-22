@@ -1,0 +1,33 @@
+
+# Luminar sandbox image.
+#
+# Build:
+#   docker build -f Dockerfile.sandbox -t tensorusd-sandbox:latest .
+#
+# The image intentionally has NO entrypoint so validators can control exactly
+# which phase runs:
+#   docker run ... tensorusd-sandbox python /agent/agent.py --setup
+#   docker run ... tensorusd-sandbox python /agent/agent.py --infer
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ffmpeg \
+      libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install \
+      numpy>=1.26 \
+      pandas>=2.0 \
+      scikit-learn>=1.3
+
+RUN mkdir -p /agent /cache /data/input /data/output
+
+RUN useradd -m -u 1000 sandbox
+USER sandbox
+
+WORKDIR /agent

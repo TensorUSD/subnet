@@ -6,12 +6,12 @@ import bittensor as bt
 import numpy as np
 
 if TYPE_CHECKING:
-    from neurons.validator import Validator
+    from neurons.validator import OracleValidator
 
 SLEEP_TIME = 300  # Sleep for 5 minutes between mech1 validations, adjust as needed
 
 
-async def forward_mech1(self: "Validator"):
+async def forward_mech1(self: "OracleValidator"):
     current_round_id = self.oracle_contract.get_current_round_id()
     to_validate_round_id = current_round_id - 1
     if to_validate_round_id == 0:
