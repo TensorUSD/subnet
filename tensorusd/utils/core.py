@@ -39,7 +39,6 @@ class ValidatorCore:
 
     def __init__(self, wallet: bt.Wallet) -> None:
         self._wallet = wallet
-        # self._benchmark_dir = benchmark_data_dir
 
         # Bittensor chain connections
         self._subtensor = bt.Subtensor(network=settings.network)
@@ -50,7 +49,9 @@ class ValidatorCore:
         self._cache = BestAgentCache()
         self._watcher = BestAgentWatcher(self._client, self._cache)
         self._sandbox = SandboxRunner()
-        self._weight_setter = WeightSetter(self._wallet, self._subtensor, self._metagraph)
+        self._weight_setter = WeightSetter(
+            self._wallet, self._subtensor, self._metagraph
+        )
 
         # Phase 2 delayed evaluation
         self._delayed_evaluator = DelayedEvaluator(
@@ -115,11 +116,15 @@ class ValidatorCore:
                         "  Shutting down. Run with a registered validator hotkey."
                     )
                     raise SystemExit(1)  # noqa: B904
-                log.error("Unexpected HTTP error in evaluation cycle: %s", exc, exc_info=True)
+                log.error(
+                    "Unexpected HTTP error in evaluation cycle: %s", exc, exc_info=True
+                )
                 time.sleep(settings.validator_poll_interval)
             except Exception as exc:
                 # Log but never crash — always keep running
-                log.error("Unexpected error in evaluation cycle: %s", exc, exc_info=True)
+                log.error(
+                    "Unexpected error in evaluation cycle: %s", exc, exc_info=True
+                )
                 time.sleep(settings.validator_poll_interval)
 
     def _run_scoring_cycle(self) -> None:
@@ -129,9 +134,16 @@ class ValidatorCore:
         try:
             result = self._delayed_evaluator.run_once()
             if result is not None:
-                log.info("Phase 2 scored submission %s = %.4f", result.submission_id, result.score)
+                log.info(
+                    "Phase 2 scored submission %s = %.4f",
+                    result.submission_id,
+                    result.score,
+                )
             else:
-                log.debug("No unscored submissions ready yet — sleeping %ds.", settings.scoring_poll_interval)
+                log.debug(
+                    "No unscored submissions ready yet — sleeping %ds.",
+                    settings.scoring_poll_interval,
+                )
                 time.sleep(settings.scoring_poll_interval)
         except Exception as exc:
             log.error("Scoring cycle failed: %s", exc, exc_info=True)
@@ -144,7 +156,10 @@ class ValidatorCore:
         submission = self._client.get_unevaluated_submission()
 
         if submission is None:
-            log.info("No unevaluated submissions.  Sleeping %ds.", settings.validator_poll_interval)
+            log.info(
+                "No unevaluated submissions.  Sleeping %ds.",
+                settings.validator_poll_interval,
+            )
             self._maybe_set_weights()
             time.sleep(settings.validator_poll_interval)
             return False
@@ -178,7 +193,6 @@ class ValidatorCore:
             score_count,
         )
 
-
         agent_filename: str = (
             submission.get("agent_filename")
             or submission.get("filename")
@@ -191,7 +205,9 @@ class ValidatorCore:
         except Exception as exc:
             log.error("Failed to download submission %s: %s", sub_id, exc)
 
-            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._upload_fallback_empty_csv_and_record(
+                sub_id, agent_filename, miner_hotkey
+            )
             self._maybe_set_weights()
             return True
 
@@ -201,10 +217,14 @@ class ValidatorCore:
         if security_reason:
             log.warning("Security check failed for %s: %s", sub_id, security_reason)
             try:
-                self._client.blacklist_miner(miner_hotkey, sub_id, f"security: {security_reason}")
+                self._client.blacklist_miner(
+                    miner_hotkey, sub_id, f"security: {security_reason}"
+                )
             except Exception as bl_exc:
                 log.error("Blacklist call failed (continuing): %s", bl_exc)
-            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._upload_fallback_empty_csv_and_record(
+                sub_id, agent_filename, miner_hotkey
+            )
             self._scored.add(sub_id)
             self._maybe_set_weights()
             return True
@@ -212,7 +232,9 @@ class ValidatorCore:
         format_reason = validate_agent_format(agent_bytes)
         if format_reason:
             log.warning("Format check failed for %s: %s", sub_id, format_reason)
-            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._upload_fallback_empty_csv_and_record(
+                sub_id, agent_filename, miner_hotkey
+            )
             self._scored.add(sub_id)
             self._maybe_set_weights()
             return True
@@ -231,7 +253,9 @@ class ValidatorCore:
             except Exception as bl_exc:
                 log.error("Blacklist call failed (continuing): %s", bl_exc)
             # Upload empty CSV so Phase 2 can still score after 7 days
-            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._upload_fallback_empty_csv_and_record(
+                sub_id, agent_filename, miner_hotkey
+            )
             self._scored.add(sub_id)
             self._maybe_set_weights()
             return True
@@ -247,7 +271,9 @@ class ValidatorCore:
                 sandbox_result.exit_code,
                 sandbox_result.stderr[:300],
             )
-            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._upload_fallback_empty_csv_and_record(
+                sub_id, agent_filename, miner_hotkey
+            )
             self._scored.add(sub_id)
             self._maybe_set_weights()
             return True
@@ -257,13 +283,17 @@ class ValidatorCore:
         # Validate the output CSV is non-empty and parseable.
         # Even if invalid, we upload it as-is so Phase 2 can evaluate.
         if not self._validate_csv(output_csv_bytes):
-            log.warning("Invalid or empty CSV output for %s — uploading as-is for delayed scoring.", sub_id)
+            log.warning(
+                "Invalid or empty CSV output for %s — uploading as-is for delayed scoring.",
+                sub_id,
+            )
             # Upload as-is (even if empty/invalid) — Phase 2 will score it
-            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._upload_fallback_empty_csv_and_record(
+                sub_id, agent_filename, miner_hotkey
+            )
             self._scored.add(sub_id)
             self._maybe_set_weights()
             return True
-
 
         # Upload the generated CSV to backend storage
         try:
@@ -284,7 +314,9 @@ class ValidatorCore:
                 exc,
             )
             # Upload empty CSV on upload failure so Phase 2 can still score
-            self._upload_fallback_empty_csv_and_record(sub_id, agent_filename, miner_hotkey)
+            self._upload_fallback_empty_csv_and_record(
+                sub_id, agent_filename, miner_hotkey
+            )
             self._scored.add(sub_id)
             self._maybe_set_weights()
             return True
@@ -492,7 +524,9 @@ class ValidatorCore:
             return None
 
         try:
-            similarity = _ast_similarity(agent_source, best_path.read_text(errors="replace"))
+            similarity = _ast_similarity(
+                agent_source, best_path.read_text(errors="replace")
+            )
         except SyntaxError as exc:
             log.warning("AST parse error in submission: %s", exc)
             return None
@@ -501,9 +535,7 @@ class ValidatorCore:
             return None
 
         if similarity >= settings.plagiarism_threshold:
-            return (
-                f"AST similarity {similarity:.2%} ≥ threshold {settings.plagiarism_threshold:.2%}"
-            )
+            return f"AST similarity {similarity:.2%} ≥ threshold {settings.plagiarism_threshold:.2%}"
 
         return None
 
@@ -521,7 +553,7 @@ def _strip_boilerplate(tree: ast.Module) -> ast.Module:
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):  # noqa: SIM102
-            if node.name in ("setup", "infer"):
+            if node.name == "setup":
                 continue
         if isinstance(node, ast.If):
             test = node.test

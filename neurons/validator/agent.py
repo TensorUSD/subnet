@@ -4,6 +4,7 @@
 import argparse
 import sys
 import os
+
 from pathlib import Path
 
 # Fix potential import resolution paths before bringing in local modules
@@ -22,6 +23,7 @@ from tensorusd.utils.logging import get_logger
 from tensorusd.utils.core import ValidatorCore
 
 log = get_logger(__name__)
+
 
 class AgentValidator(BaseValidatorNeuron):
     """
@@ -46,7 +48,7 @@ class AgentValidator(BaseValidatorNeuron):
 
         # Run registration and permit verification steps
         self.verify_validator_permit()
-        
+
         # Initialize internal Agent components
         self.setup()
 
@@ -104,7 +106,7 @@ class AgentValidator(BaseValidatorNeuron):
             self.wallet.hotkey.ss58_address,
             settings.backend_url,
         )
-        
+
         # Hand off our pre-initialized wallet instance to your backend tracking layer
         self.core = ValidatorCore(wallet=self.wallet)
 
@@ -115,17 +117,19 @@ class AgentValidator(BaseValidatorNeuron):
         """
         # Ensure underlying system synchronization state updates occur once before launching
         # self.sync(mechid=mech_id)
-        
-        log.info("Validator core successfully linked. Initializing Agent loop execution.")
+
+        log.info(
+            "Validator core successfully linked. Initializing Agent loop execution."
+        )
         try:
             # Execution hooks into your dedicated background tracking loops here
-            self.core.start()  
+            self.core.start()
         except (KeyboardInterrupt, SystemExit):
             log.info("Validator received a kill signal. Stopping context execution.")
 
     async def forward(self):
         """
-        Abstract signature match for BaseValidatorNeuron. 
+        Abstract signature match for BaseValidatorNeuron.
         Unused since execution blocks inside `self.core.start()`.
         """
         pass

@@ -7,9 +7,8 @@ Validates that a submitted file is:
   3. Free of dangerous constructs detected via AST walk (cannot be evaded
      by string encoding, unicode lookalikes, or dynamic attribute tricks).
   4. Free of suspiciously large encoded string literals.
-  5. Structurally valid: must define a TensorUSDAgent class with setup() and
-     infer() methods, a main() function, and main() must call both
-     agent.setup() and agent.infer()
+  5. Structurally valid: must define an AgentMiner class with an infer()
+     method, a main() function, and main() must call agent.infer()
 """
 
 from __future__ import annotations
@@ -352,36 +351,36 @@ def _format_check(tree: ast.Module) -> str | None:
     """
     Verify the structural contract required of every miner agent.
 
-    The check is intentionally lenient about *how* inference is done inside
-    setup/infer — it only verifies that the required names and call sites
-    exist.
+    The check verifies that the required class 'AgentMiner' is defined with
+    an 'infer' method (no setup required), and that a top-level 'main'
+    function exists that instantiates AgentMiner and calls .infer().
     """
 
-    # TensorUSDAgent class with setup() and infer() methods
-    tensorusd_class: ast.ClassDef | None = None
+    # AgentMiner class with infer() method
+    agent_class: ast.ClassDef | None = None
     for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name == "TensorUSDAgent":
-            tensorusd_class = node
+        if isinstance(node, ast.ClassDef) and node.name == "AgentMiner":
+            agent_class = node
             break
 
-    if tensorusd_class is None:
+    if agent_class is None:
         return (
-            "Missing required class 'TensorUSDAgent'. "
-            "Your agent.py must define a class named TensorUSDAgent."
+            "Missing required class 'AgentMiner'. "
+            "Your agent.py must define a class named AgentMiner."
         )
 
     class_method_names: set[str] = {
         n.name
-        for n in ast.walk(tensorusd_class)
+        for n in ast.walk(agent_class)
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
 
-    for required_method in ("setup", "infer"):
-        if required_method not in class_method_names:
-            return (
-                f"TensorUSDAgent is missing required method '{required_method}'. "
-                f"Define 'def {required_method}(self): ...' inside TensorUSDAgent."
-            )
+    # Only 'infer' is required — no setup() needed
+    if "infer" not in class_method_names:
+        return (
+            "AgentMiner is missing required method 'infer'. "
+            "Define 'def infer(self, ...): ...' inside AgentMiner."
+        )
 
     # top-level main() function
     main_func: ast.FunctionDef | None = None
@@ -396,22 +395,21 @@ def _format_check(tree: ast.Module) -> str | None:
             "Your agent.py must define a 'def main() -> None:' function."
         )
 
-    # main() must instantiate TensorUSDAgent and call .setup() / .infer()
+    # main() must instantiate AgentMiner and call .infer()
     #
-    # Strategy: collect all names assigned via  `<name> = TensorUSDAgent(...)`
-    # inside main(), then verify that both `<name>.setup()` and
-    # `<name>.infer()` appear somewhere inside the same function body.
+    # Strategy: collect all names assigned via  `<name> = AgentMiner(...)`
+    # inside main(), then verify that `<name>.infer()` appears.
 
     agent_var_names: set[str] = set()
 
     for node in ast.walk(main_func):
         if not isinstance(node, ast.Assign):
             continue
-        # RHS must be a call to TensorUSDAgent (possibly with args/kwargs)
+        # RHS must be a call to AgentMiner (possibly with args/kwargs)
         if not (
             isinstance(node.value, ast.Call)
             and isinstance(node.value.func, ast.Name)
-            and node.value.func.id == "TensorUSDAgent"
+            and node.value.func.id == "AgentMiner"
         ):
             continue
         for target in node.targets:
@@ -420,11 +418,11 @@ def _format_check(tree: ast.Module) -> str | None:
 
     if not agent_var_names:
         return (
-            "main() does not instantiate TensorUSDAgent. Add 'agent = TensorUSDAgent()' inside main()."
+            "main() does not instantiate AgentMiner. Add 'agent = AgentMiner()' inside main()."
         )
 
     # Collect all method calls of the form  <var>.<method>()  inside main()
-    calls_found: set[str] = set()  # elements like "agent.setup", "agent.infer"
+    calls_found: set[str] = set()  # elements like "agent.infer"
     for node in ast.walk(main_func):
         if not isinstance(node, ast.Call):
             continue
@@ -438,13 +436,13 @@ def _format_check(tree: ast.Module) -> str | None:
         calls_found.add(f"{func.value.id}.{func.attr}")
 
     for var in agent_var_names:
-        for required_call in ("setup", "infer"):
-            dotted = f"{var}.{required_call}"
-            if dotted not in calls_found:
-                return (
-                    f"main() never calls '{dotted}()'. "
-                    f"Ensure main() calls both {var}.setup() and {var}.infer() "
-                    f"in the appropriate --setup / --infer branches."
-                )
+        # Only require .infer() — no .setup()
+        dotted = f"{var}.infer"
+        if dotted not in calls_found:
+            return (
+                f"main() never calls '{dotted}()'. "
+                f"Ensure main() calls {var}.infer() "
+                f"in the appropriate --infer branch."
+            )
 
     return None

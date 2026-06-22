@@ -1,5 +1,8 @@
 """
 TensorUSD CLI — Submit your agent file to the TensorUSD subnet.
+
+For submitting agent file:
+    - python tensorusd.py submit --agent "<file location>"
 """
 
 import os
@@ -82,7 +85,9 @@ def _request_nonce(backend_url: str, hotkey: str) -> dict:
     help="Path to your agent.py file.",
 )
 @click.option("--wallet", "wallet_name", default=None, help="Bittensor wallet name.")
-@click.option("--hotkey", "hotkey_name", default=None, help="Hotkey name within the wallet.")
+@click.option(
+    "--hotkey", "hotkey_name", default=None, help="Hotkey name within the wallet."
+)
 @click.pass_context
 def submit(
     ctx: click.Context,

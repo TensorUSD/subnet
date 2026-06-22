@@ -19,6 +19,7 @@ _configured = False
 _FILE_FORMAT = "%(asctime)s [%(levelname)-8s] %(name)s — %(message)s"
 _FILE_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+
 def setup_events_logger(full_path, events_retention_size):
     logging.addLevelName(EVENTS_LEVEL_NUM, "EVENT")
 
@@ -47,7 +48,6 @@ def setup_events_logger(full_path, events_retention_size):
     logger.addHandler(file_handler)
 
     return logger
-
 
 
 def get_logger(name: str) -> logging.Logger:
