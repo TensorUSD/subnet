@@ -545,7 +545,7 @@ class TensorUSDAuctionContract:
                         )
 
             bt.logging.info(
-                f"Fetched {len(active_auctions)} active auctions "
+                f"Filtered {len(active_auctions)} active auctions "
                 f"(filtered by ends_at > {current_timestamp})"
             )
             return active_auctions
@@ -601,7 +601,7 @@ class TensorUSDPriceOracleContract:
         bt.logging.info(f"TensorUSD oracle contract initialized at {contract_address}")
 
     def submit_price(
-        self, price: int, keypair: Optional[Keypair] = None
+        self, price: int, provider: str, keypair: Optional[Keypair] = None
     ) -> Optional[str]:
         """
         Submit a price to the oracle for the current round.
@@ -620,7 +620,10 @@ class TensorUSDPriceOracleContract:
             # Ratio is a struct containing a single u128 value
             args = {
                 "price": price,
-                "metadata": {"hot_key": self.wallet.hotkey.ss58_address},
+                "metadata": {
+                    "hot_key": self.wallet.hotkey.ss58_address,
+                    "provider": provider,
+                },
             }
 
             gas_predict_result = self.contract.read(

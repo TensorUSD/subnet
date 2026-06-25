@@ -7,6 +7,7 @@ Uses the shared AuctionEventListener and stores events in SQLite.
 from typing import Optional
 
 from scalecodec.base import ScaleBytes
+from sqlalchemy.dialects.sqlite import insert
 from substrateinterface import SubstrateInterface
 from substrateinterface.contracts import ContractEvent, ContractMetadata
 from sqlalchemy.orm import Session
@@ -20,7 +21,7 @@ from tensorusd.liquidator.types import (
     AuctionFinalizedEvent,
     AuctionUnionEvent,
 )
-from tensorusd.validator.db.models import AuctionWin, SessionFactory
+from tensorusd.validator.db.models import AuctionWin, SessionFactory, Settings
 
 
 class ValidatorEventListener:
@@ -60,13 +61,17 @@ class ValidatorEventListener:
             metadata_path=metadata_path,
             callback=self._handle_event,
         )
+        self.is_synced = False
 
-    def _handle_event(self, event: AuctionUnionEvent):
+    def _handle_event(self, event: AuctionUnionEvent | None, block_number: int):
         """Store AuctionFinalized events in SQLite database."""
+        session = self.db_session_factory()
+        if not event:
+            self._store_block_number(session=session, block_number=block_number)
+            return
         if event.event_type != AuctionEventType.FINALIZED:
             return
 
-        session = self.db_session_factory()
         try:
             self._store_win(session, event)
             session.commit()
@@ -75,6 +80,24 @@ class ValidatorEventListener:
             session.rollback()
         finally:
             session.close()
+
+    def _store_block_number(self, session: Session, block_number: int):
+        try:
+            if not self.is_synced:
+                return
+            stmt = insert(Settings).values(
+                {"key": "block_number", "value": str(block_number)}
+            )
+            upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=["key"], set_=dict(value=stmt.excluded.value)
+            )
+            session.execute(upsert_stmt)
+            session.commit()
+        except Exception as e:
+            bt.logging.error(f"Error inserting block number: {e}")
+
+    def _query_settings(self, session: Session, key: str):
+        return session.query(Settings).filter(Settings.key == key).first()
 
     def _store_win(self, session: Session, event: AuctionFinalizedEvent):
         """Store auction win in database."""
@@ -110,6 +133,10 @@ class ValidatorEventListener:
             start_block: Starting block number (inclusive)
             end_block: Ending block number (inclusive)
         """
+        session = self.db_session_factory()
+        setting = self._query_settings(session=session, key="block_number")
+        if setting:
+            start_block = max(int(setting.value), start_block)
         bt.logging.info(
             f"Syncing historical wins from block {start_block} to {end_block}"
         )
@@ -126,7 +153,6 @@ class ValidatorEventListener:
             return
 
         wins_found = 0
-        session = self.db_session_factory()
 
         try:
             for block_num in range(start_block, end_block + 1):
@@ -158,6 +184,7 @@ class ValidatorEventListener:
                 f"Historical sync complete: {wins_found} wins found "
                 f"(blocks {start_block}-{end_block})"
             )
+            self.is_synced = True
 
         except Exception as e:
             bt.logging.error(f"Error during historical sync: {e}")
@@ -203,7 +230,6 @@ class ValidatorEventListener:
             contract_event_obj.decode()
 
             value_object = contract_event_obj.value_object
-            print(value_object)
             event_name = value_object.get("name")
 
             # Only process AuctionFinalized events
@@ -226,14 +252,6 @@ class ValidatorEventListener:
         except Exception as e:
             bt.logging.warning(f"Failed to decode contract event: {e}")
             return None
-
-    def run_in_background_thread(self):
-        """Start listener in background thread."""
-        self._listener.run_in_background_thread()
-
-    def stop_run_thread(self):
-        """Stop the background thread."""
-        self._listener.stop_run_thread()
 
     @property
     def is_running(self) -> bool:

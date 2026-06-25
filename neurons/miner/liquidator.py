@@ -138,14 +138,18 @@ class LiquidationMiner(BaseMinerNeuron):
             callback=self._handle_auction_event,
         )
 
-    def _handle_auction_event(self, event: AuctionUnionEvent):
+    def _handle_auction_event(self, event: AuctionUnionEvent | None, block_number: int):
         """
         Callback from event listener - runs in listener thread.
 
         Args:
             event: Decoded auction event
         """
-        bt.logging.info(f"Auction event: {event.event_type.value} - {event.auction_id}")
+        if not event:
+            return
+        bt.logging.info(
+            f"Auction event: {event.event_type.value} - Auction ID: {event.auction_id} - Block: {block_number}"
+        )
         self.executor.submit(self._process_event, event)
 
     def _process_event(self, event: AuctionUnionEvent):
@@ -169,14 +173,13 @@ class LiquidationMiner(BaseMinerNeuron):
         bt.logging.info("Catching up on active auctions...")
         self.executor.submit(self.auction_manager.sync_active_auctions)
         # Start listening for new events
-        self.event_listener.run_in_background_thread()
+        self.event_listener.run_in_executor(self.executor)
 
         # Run normal miner operation (axon serving, metagraph sync)
         super().run(mech_id=0)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        """Override to also stop event listener and cleanup substrate connections."""
-        self.event_listener.stop_run_thread()
+        self.event_listener.stop()
         self.executor.shutdown(wait=True, cancel_futures=False)
 
         # Close substrate connections

@@ -78,9 +78,7 @@ class OracleMiner(BaseMinerNeuron):
         super().run(mech_id=1)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        """Override to also stop event listener and cleanup substrate connections."""
-        self.price_oracle_miner.stop_run_thread()
-
+        self.price_oracle_miner.stop()
         self.executor.shutdown(wait=True, cancel_futures=False)
 
         try:

@@ -57,6 +57,15 @@ class AuctionEventModel(Base):
     )
 
 
+class Settings(Base):
+    __tablename__ = "settings"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String, nullable=False, unique=True)
+    value = Column(String, nullable=False)
+
+    __table_args__ = (Index("ix_settings_key", "key"),)
+
+
 class AuctionWin(Base):
     """
     Track auction wins by miner hotkey.

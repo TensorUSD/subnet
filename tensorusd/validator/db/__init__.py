@@ -6,4 +6,5 @@ __all__ = [
     "AuctionWin",
     "init_db",
     "SessionFactory",
+    "Settings",
 ]

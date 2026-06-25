@@ -288,6 +288,13 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         default=os.getenv("PRICE_CHANGE_THRESHOLD", 0.017),  # default 1.7%
         required=is_required_arg("PRICE_CHANGE_THRESHOLD", False, 1, mech_id),
     )
+    parser.add_argument(
+        "--price.provider",
+        type=str,
+        help="Price provider",
+        default=os.getenv("PRICE_PROVIDER", None),  # default 1.7%
+        required=is_required_arg("PRICE_PROVIDER", False, 1, mech_id),
+    )
 
 
 def add_validator_args(cls, parser, mech_id: int = 0):
