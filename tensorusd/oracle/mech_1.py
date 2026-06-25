@@ -132,6 +132,7 @@ class PriceOracleMiner:
 
         tx_hash = self.miner.oracle_contract.submit_price(
             price=price_ratio,
+            provider=self.miner.config.price.provider,
             keypair=self.miner.wallet.coldkey,  # type: ignore
         )
 

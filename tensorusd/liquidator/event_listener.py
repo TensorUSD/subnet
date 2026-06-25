@@ -21,6 +21,7 @@ from tensorusd.liquidator import (
     BidPlacedEvent,
 )
 from tensorusd.liquidator.types import AuctionEventType, AuctionUnionEvent
+import concurrent.futures
 
 
 class AuctionEventListener:
@@ -40,6 +41,9 @@ class AuctionEventListener:
         max_reconnect_attempts: int = 10,
         retry_delay: float = 1.0,
     ):
+        self.is_running: bool = False
+        self.future: Optional[concurrent.futures.Future] = None
+        self.stop_event = threading.Event()
         """
         Initialize the event listener.
 
@@ -66,6 +70,10 @@ class AuctionEventListener:
         # Reconnection settings
         self.max_reconnect_attempts = max_reconnect_attempts
         self.retry_delay = retry_delay
+        self.counter = 0
+
+    def wait_or_stop(self, seconds: int) -> bool:
+        return self.stop_event.wait(timeout=seconds)
 
     def _ensure_metadata_loaded(self):
         """Load contract metadata once for decoding events."""
@@ -84,11 +92,10 @@ class AuctionEventListener:
         )
 
         retry_count = 0
-        while not self.should_exit:
+        while not self.stop_event.is_set():
             try:
                 bt.logging.info("Subscribing to block headers...")
                 self.substrate.subscribe_block_headers(self._subscription_handler)
-
             except Exception as e:
                 if self.should_exit:
                     bt.logging.info("Event listener stopped during reconnection.")
@@ -99,7 +106,8 @@ class AuctionEventListener:
                     )
                     sys.exit(1)
                 retry_count += 1
-                time.sleep(self.retry_delay)
+                if self.wait_or_stop(self.retry_delay):
+                    break
 
     def sync_historical_events(
         self,
@@ -148,7 +156,7 @@ class AuctionEventListener:
 
                 decoded_count += 1
                 try:
-                    self.callback(decoded_event)
+                    self.callback(decoded_event, block_number)
                 except Exception as e:
                     bt.logging.error(f"Error in historical event callback: {e}")
 
@@ -169,12 +177,18 @@ class AuctionEventListener:
         block_hash = self.substrate.get_block_hash(block_number)
         events = self.substrate.get_events(block_hash)
 
+        # Save blocknumber to db for vali
+        if self.counter % 5 == 0:
+            self.callback(None, block_number)
+
+        self.counter += 1
+
         for event in events:
             if self._is_contract_event(event):
                 decoded_event = self._decode_contract_event(event, block_number)
                 if decoded_event:
                     try:
-                        self.callback(decoded_event)
+                        self.callback(decoded_event, block_number)
                     except Exception as e:
                         bt.logging.error(f"Error in event callback: {e}")
 
@@ -270,20 +284,31 @@ class AuctionEventListener:
 
         return None
 
-    def run_in_background_thread(self):
-        """Start listener in background thread."""
-        if not self.is_running:
-            bt.logging.debug("Starting event listener in background thread.")
-            self.should_exit = False
-            self.thread = threading.Thread(target=self.run, daemon=True)
-            self.thread.start()
-            self.is_running = True
-
-    def stop_run_thread(self):
-        """Stop the background thread."""
+    def run_in_executor(self, executor: concurrent.futures.ThreadPoolExecutor):
         if self.is_running:
-            bt.logging.debug("Stopping event listener.")
-            self.should_exit = True
-            if self.thread is not None:
-                self.thread.join(5)
-            self.is_running = False
+            bt.logging.warning("Auction event listener is already running.")
+            return
+
+        bt.logging.debug("Starting auction event listener in executor.")
+
+        self.stop_event.clear()
+        self.future = executor.submit(self.run)
+        self.is_running = True
+
+    def stop(self):
+        if not self.is_running:
+            return
+
+        bt.logging.debug("Stopping price oracle miner.")
+
+        self.stop_event.set()
+
+        if self.future is not None:
+            try:
+                self.future.result(timeout=5)
+            except concurrent.futures.TimeoutError:
+                bt.logging.warning("Price oracle miner did not stop within 5 seconds.")
+            except Exception as e:
+                bt.logging.error(f"Error while stopping price oracle miner: {e}")
+
+        self.is_running = False
