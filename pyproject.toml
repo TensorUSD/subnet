@@ -12,6 +12,7 @@ dependencies = [
     "docker>=7.1.0",
     "numpy>=1",
     "pydantic>=2",
+    "prompt-toolkit>=3.0.0",
     "pytest>=8",
     "python-dotenv>=1.2.2",
     "rich>=13",

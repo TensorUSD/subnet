@@ -27,6 +27,8 @@ class SandboxResult:
     output_csv_bytes: bytes | None = None
     stderr: str = ""
     exit_code: int | None = None
+    token_budget: int | None = None
+    cost_budget_usd: float | None = None
 
 
 class SandboxRunner:
@@ -38,6 +40,10 @@ class SandboxRunner:
 
     def __init__(self) -> None:
         self._client = docker.from_env()
+        self.allowed_hosts = settings.sandbox_allowed_hosts
+        self.allowed_models = settings.sandbox_allowed_models
+        self.token_budget = settings.sandbox_token_budget
+        self.cost_budget_usd = settings.sandbox_cost_budget_usd
 
     def run(self, agent_bytes: bytes) -> SandboxResult:
         """
@@ -71,6 +77,8 @@ class SandboxRunner:
         output_dir.mkdir()
 
         # Create the sandbox network (bridge, internet access via NAT)
+        # NOTE: General internet access should be constrained by the host-level
+        # egress policy or proxy layer using settings.sandbox_allowed_hosts.
         network = self._create_sandbox_network(run_id)
 
         container: Container | None = None
@@ -98,7 +106,13 @@ class SandboxRunner:
                     container.kill()
                 except Exception:
                     pass
-                return SandboxResult(success=False, stderr="Timed out", exit_code=-1)
+                return SandboxResult(
+                    success=False,
+                    stderr="Timed out",
+                    exit_code=-1,
+                    token_budget=self.token_budget,
+                    cost_budget_usd=self.cost_budget_usd,
+                )
 
             logs = container.logs(stderr=True, stdout=True).decode(errors="replace")
             log.debug(
@@ -114,6 +128,8 @@ class SandboxRunner:
                     success=False,
                     stderr=logs,
                     exit_code=exit_code,
+                    token_budget=self.token_budget,
+                    cost_budget_usd=self.cost_budget_usd,
                 )
 
             output_csv = output_dir / "output.csv"
@@ -123,6 +139,8 @@ class SandboxRunner:
                     success=False,
                     stderr="output.csv not produced",
                     exit_code=exit_code,
+                    token_budget=self.token_budget,
+                    cost_budget_usd=self.cost_budget_usd,
                 )
 
             output_csv_bytes = output_csv.read_bytes()
@@ -132,6 +150,8 @@ class SandboxRunner:
                 output_csv_bytes=output_csv_bytes,
                 stderr=logs,
                 exit_code=exit_code,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
             )
 
         except docker.errors.ImageNotFound:
@@ -141,15 +161,33 @@ class SandboxRunner:
                 settings.sandbox_image,
                 settings.sandbox_image,
             )
-            return SandboxResult(success=False, stderr="Image not found", exit_code=-1)
+            return SandboxResult(
+                success=False,
+                stderr="Image not found",
+                exit_code=-1,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
+            )
 
         except docker.errors.APIError as exc:
             log.error("[%s] Docker API error: %s", run_id, exc)
-            return SandboxResult(success=False, stderr=str(exc), exit_code=-1)
+            return SandboxResult(
+                success=False,
+                stderr=str(exc),
+                exit_code=-1,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
+            )
 
         except Exception as exc:
             log.error("[%s] Unexpected error: %s", run_id, exc, exc_info=True)
-            return SandboxResult(success=False, stderr=str(exc), exit_code=-1)
+            return SandboxResult(
+                success=False,
+                stderr=str(exc),
+                exit_code=-1,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
+            )
 
         finally:
             # Remove the container
@@ -193,6 +231,16 @@ class SandboxRunner:
 
         log.debug("[%s] Network created: %s (id=%s)", run_id, network_name, network.id[:12])
         return network
+
+    def is_allowed_model(self, model_name: str) -> bool:
+        """Return True when the requested model is within the configured allowlist."""
+        return model_name in self.allowed_models
+
+    def is_allowed_host(self, host: str) -> bool:
+        """Return True when the requested host is within the configured allowlist."""
+        if host in self.allowed_hosts:
+            return True
+        return any(pattern.startswith("*.") and host.endswith(pattern[1:]) for pattern in self.allowed_hosts)
 
     def _remove_network(self, network: Network, run_id: str) -> None:
         """Silently remove a network, logging any errors."""
