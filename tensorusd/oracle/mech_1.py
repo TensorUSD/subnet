@@ -74,8 +74,7 @@ class PriceOracleMiner:
 
         self.last_submission_time: Optional[float] = None
         self.oracle_contract = oracle_contract
-        self.last_oracle_price = None
-        self.step = 0
+        self.oracle_price = None
 
     def price_change_percent(self, current_price: int, reference_price: int) -> float:
         if reference_price <= 0:
@@ -85,20 +84,12 @@ class PriceOracleMiner:
 
     def should_submit_price(self, current_price: float) -> tuple[bool, str]:
         now = time.time()
-        if self.step > 1:
-            self.last_oracle_price = self.oracle_contract.get_latest_price()
-            bt.logging.info(
-                f"Fetched latest price from chain : {self.last_oracle_price/PRICE_DECIMALS} TAO"
-            )
-            self.step = 0
-        elif self.step == 1:
-            self.step += 1
+        self.oracle_price = self.oracle_contract.get_latest_price()
+        bt.logging.info(
+            f"Fetched latest price from chain : {self.oracle_price/PRICE_DECIMALS} TAO"
+        )
         # First run: submit immediately
         if self.last_submission_time is None:
-            self.last_oracle_price = self.oracle_contract.get_latest_price()
-            bt.logging.info(
-                f"Fetched latest price initially from chain : ${self.last_oracle_price/PRICE_DECIMALS}"
-            )
             return True, "initial submission"
 
         seconds_since_last_submission = now - self.last_submission_time
@@ -108,13 +99,12 @@ class PriceOracleMiner:
             seconds_since_last_submission
             >= self.miner.config.price.submission_interval_seconds
         ):
-            self.step += 1
             return True, "force submission interval reached"
 
         # Rule 2: submit early if price moved by threshold %
         change_percent = self.price_change_percent(
             current_price=int(Decimal(str(current_price)) * PRICE_DECIMALS),
-            reference_price=self.last_oracle_price,
+            reference_price=self.oracle_price,
         )
 
         if change_percent >= self.miner.config.price.change_threshold:
