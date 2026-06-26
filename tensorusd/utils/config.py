@@ -220,7 +220,7 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         "--bid.max_percentage",
         type=float,
         help="Maximum bid as percentage of collateral value (0.0-1.0).",
-        default=0.95,
+        default=0.3,
     )
 
     parser.add_argument(

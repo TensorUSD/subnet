@@ -1,12 +1,12 @@
 {
   "source": {
-    "hash": "0xd280014072a3cddfd98a7f9bd18d5a7ba21ed1b6941534de6a23b7f337bcc334",
+    "hash": "0xa135116bbbf8fc61ee0777817b706c4960f444c9df80724643bc7d335f60434c",
     "language": "ink! 5.1.1",
-    "compiler": "rustc 1.91.1",
+    "compiler": "rustc 1.91.0",
     "build_info": {
       "build_mode": "Release",
       "cargo_contract_version": "5.0.3",
-      "rust_toolchain": "stable-x86_64-unknown-linux-gnu",
+      "rust_toolchain": "stable-aarch64-apple-darwin",
       "wasm_opt_settings": {
         "keep_debug_symbols": false,
         "optimization_passes": "Z"
@@ -1285,38 +1285,6 @@
           {
             "docs": [],
             "indexed": true,
-            "label": "recipient",
-            "type": {
-              "displayName": [
-                "AccountId"
-              ],
-              "type": 0
-            }
-          },
-          {
-            "docs": [],
-            "indexed": false,
-            "label": "amount",
-            "type": {
-              "displayName": [
-                "Balance"
-              ],
-              "type": 4
-            }
-          }
-        ],
-        "docs": [
-          "Emitted when the entire native balance of the contract is drained to abandon the vault, for emergency migration to a new deployment; **TESTNET ONLY**."
-        ],
-        "label": "EmergencyDrained",
-        "module_path": "tusdt_vault::vault",
-        "signature_topic": "0xb63738f4f1451acb16c1d42dec153e32c710e41096abb81dba611434ec9532cb"
-      },
-      {
-        "args": [
-          {
-            "docs": [],
-            "indexed": true,
             "label": "owner",
             "type": {
               "displayName": [
@@ -1697,39 +1665,6 @@
         "selector": "0x3b645db8"
       },
       {
-        "args": [
-          {
-            "label": "recipient",
-            "type": {
-              "displayName": [
-                "AccountId"
-              ],
-              "type": 0
-            }
-          }
-        ],
-        "default": false,
-        "docs": [
-          " **TESTNET ONLY** — Drains the entire native balance of the contract to `recipient`.",
-          "",
-          " Use this before migrating to a new contract deployment when storage layout has",
-          " changed and you need to recover all collateral funds locked in this instance.",
-          " `total_collateral_balance` is zeroed so internal accounting stays consistent.",
-          " Only callable by governance."
-        ],
-        "label": "emergency_drain",
-        "mutates": true,
-        "payable": false,
-        "returnType": {
-          "displayName": [
-            "ink",
-            "MessageResult"
-          ],
-          "type": 47
-        },
-        "selector": "0x78a5f8d5"
-      },
-      {
         "args": [],
         "default": false,
         "docs": [
@@ -1743,7 +1678,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 49
+          "type": 47
         },
         "selector": "0x17ff6720"
       },
@@ -1885,7 +1820,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 47
+          "type": 49
         },
         "selector": "0xde62814a"
       },
@@ -1959,7 +1894,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 49
+          "type": 47
         },
         "selector": "0xec6bd9f2"
       },
@@ -2319,7 +2254,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 47
+          "type": 49
         },
         "selector": "0x26fc3175"
       },
@@ -2356,7 +2291,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 47
+          "type": 49
         },
         "selector": "0x378eeec9"
       },
@@ -4496,7 +4431,7 @@
               {
                 "fields": [
                   {
-                    "type": 4
+                    "type": 6
                   }
                 ],
                 "index": 0,
@@ -4517,7 +4452,7 @@
         "params": [
           {
             "name": "T",
-            "type": 4
+            "type": 6
           },
           {
             "name": "E",
@@ -4580,7 +4515,7 @@
               {
                 "fields": [
                   {
-                    "type": 6
+                    "type": 4
                   }
                 ],
                 "index": 0,
@@ -4601,7 +4536,7 @@
         "params": [
           {
             "name": "T",
-            "type": 6
+            "type": 4
           },
           {
             "name": "E",
