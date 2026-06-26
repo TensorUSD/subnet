@@ -2,11 +2,11 @@
   "source": {
     "hash": "0xc75e6ac31006330559bedbdf1b952d1cb7c7c861699c0ce243bbe6e38dcc9f62",
     "language": "ink! 5.1.1",
-    "compiler": "rustc 1.91.0",
+    "compiler": "rustc 1.91.1",
     "build_info": {
       "build_mode": "Release",
       "cargo_contract_version": "5.0.3",
-      "rust_toolchain": "stable-aarch64-apple-darwin",
+      "rust_toolchain": "stable-x86_64-unknown-linux-gnu",
       "wasm_opt_settings": {
         "keep_debug_symbols": false,
         "optimization_passes": "Z"
@@ -16,7 +16,9 @@
   "contract": {
     "name": "tusdt-oracle",
     "version": "0.1.0",
-    "authors": ["tensorusd admin@tensorusd.com"]
+    "authors": [
+      "tensorusd admin@tensorusd.com"
+    ]
   },
   "image": null,
   "spec": {
@@ -26,22 +28,28 @@
           {
             "label": "controller",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "netuid",
             "type": {
-              "displayName": ["AccountId"],
-              "type": 0
+              "displayName": [
+                "u16"
+              ],
+              "type": 3
             }
           }
         ],
@@ -53,8 +61,11 @@
         "label": "new",
         "payable": false,
         "returnType": {
-          "displayName": ["ink_primitives", "ConstructorResult"],
-          "type": 34
+          "displayName": [
+            "ink_primitives",
+            "ConstructorResult"
+          ],
+          "type": 33
         },
         "selector": "0x9bae9d5e"
       }
@@ -62,30 +73,42 @@
     "docs": [],
     "environment": {
       "accountId": {
-        "displayName": ["AccountId"],
+        "displayName": [
+          "AccountId"
+        ],
         "type": 0
       },
       "balance": {
-        "displayName": ["Balance"],
-        "type": 26
+        "displayName": [
+          "Balance"
+        ],
+        "type": 24
       },
       "blockNumber": {
-        "displayName": ["BlockNumber"],
-        "type": 9
+        "displayName": [
+          "BlockNumber"
+        ],
+        "type": 5
       },
       "chainExtension": {
-        "displayName": ["ChainExtension"],
+        "displayName": [
+          "ChainExtension"
+        ],
         "type": 55
       },
       "hash": {
-        "displayName": ["Hash"],
+        "displayName": [
+          "Hash"
+        ],
         "type": 54
       },
       "maxEventTopics": 4,
       "staticBufferSize": 16384,
       "timestamp": {
-        "displayName": ["Timestamp"],
-        "type": 26
+        "displayName": [
+          "Timestamp"
+        ],
+        "type": 24
       }
     },
     "events": [
@@ -96,7 +119,9 @@
             "indexed": true,
             "label": "previous_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -105,7 +130,9 @@
             "indexed": true,
             "label": "new_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
@@ -124,8 +151,10 @@
             "indexed": false,
             "label": "max_price_deviation",
             "type": {
-              "displayName": ["Ratio"],
-              "type": 14
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 10
             }
           }
         ],
@@ -143,7 +172,9 @@
             "indexed": false,
             "label": "min_submitter_stake",
             "type": {
-              "displayName": ["u128"],
+              "displayName": [
+                "u128"
+              ],
               "type": 4
             }
           }
@@ -162,12 +193,16 @@
             "indexed": false,
             "label": "netuid",
             "type": {
-              "displayName": ["u16"],
+              "displayName": [
+                "u16"
+              ],
               "type": 3
             }
           }
         ],
-        "docs": ["Emitted when the governing subnet netuid is updated."],
+        "docs": [
+          "Emitted when the governing subnet netuid is updated."
+        ],
         "label": "NetuidUpdated",
         "module_path": "tusdt_oracle::oracle",
         "signature_topic": "0xb62491ff2dec7341b9b30f90adc6a7fcd382e6284c444b7f9622622efbd4aad7"
@@ -179,8 +214,10 @@
             "indexed": true,
             "label": "round_id",
             "type": {
-              "displayName": ["u32"],
-              "type": 9
+              "displayName": [
+                "u32"
+              ],
+              "type": 5
             }
           },
           {
@@ -188,7 +225,9 @@
             "indexed": true,
             "label": "reporter",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -197,8 +236,10 @@
             "indexed": false,
             "label": "price",
             "type": {
-              "displayName": ["Ratio"],
-              "type": 14
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 10
             }
           },
           {
@@ -206,8 +247,10 @@
             "indexed": false,
             "label": "metadata",
             "type": {
-              "displayName": ["Option"],
-              "type": 15
+              "displayName": [
+                "PriceSubmissionMetadata"
+              ],
+              "type": 11
             }
           },
           {
@@ -215,8 +258,10 @@
             "indexed": false,
             "label": "replaced_existing",
             "type": {
-              "displayName": ["bool"],
-              "type": 3
+              "displayName": [
+                "bool"
+              ],
+              "type": 25
             }
           }
         ],
@@ -234,8 +279,10 @@
             "indexed": true,
             "label": "round_id",
             "type": {
-              "displayName": ["u32"],
-              "type": 9
+              "displayName": [
+                "u32"
+              ],
+              "type": 5
             }
           },
           {
@@ -243,8 +290,10 @@
             "indexed": false,
             "label": "committed_price",
             "type": {
-              "displayName": ["Ratio"],
-              "type": 14
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 10
             }
           },
           {
@@ -252,8 +301,10 @@
             "indexed": false,
             "label": "median_price",
             "type": {
-              "displayName": ["Ratio"],
-              "type": 14
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 10
             }
           },
           {
@@ -261,8 +312,10 @@
             "indexed": false,
             "label": "reporter_count",
             "type": {
-              "displayName": ["u32"],
-              "type": 9
+              "displayName": [
+                "u32"
+              ],
+              "type": 5
             }
           },
           {
@@ -270,8 +323,10 @@
             "indexed": false,
             "label": "was_overridden",
             "type": {
-              "displayName": ["bool"],
-              "type": 3
+              "displayName": [
+                "bool"
+              ],
+              "type": 25
             }
           }
         ],
@@ -287,48 +342,29 @@
           {
             "docs": [],
             "indexed": true,
-            "label": "reporter",
-            "type": {
-              "displayName": ["AccountId"],
-              "type": 0
-            }
-          },
-          {
-            "docs": [],
-            "indexed": false,
-            "label": "enabled",
-            "type": {
-              "displayName": ["bool"],
-              "type": 3
-            }
-          }
-        ],
-        "docs": [],
-        "label": "ReporterUpdated",
-        "module_path": "tusdt_oracle::oracle",
-        "signature_topic": "0xd418423978c9fba185e0ab908177d71f060b16543e3d7aa68822799de1dcf3c6"
-      },
-      {
-        "args": [
-          {
-            "docs": [],
-            "indexed": true,
             "label": "validator",
             "type": {
-              "displayName": ["Option"],
-              "type": 32
+              "displayName": [
+                "Option"
+              ],
+              "type": 31
             }
           }
         ],
-        "docs": ["Emitted when the validator account is set or cleared."],
+        "docs": [
+          "Emitted when the validator account is set or cleared."
+        ],
         "label": "ValidatorUpdated",
         "module_path": "tusdt_oracle::oracle",
         "signature_topic": "0x9b9e984a30cbf16f16b8bb47b35802825876301f2562ae285a379d3e2b0cef05"
       }
     ],
     "lang_error": {
-      "displayName": ["ink", "LangError"],
-      "type": 35
+      "displayName": [
+        "ink",
+        "LangError"
+      ],
+      "type": 34
     },
     "messages": [
       {
@@ -336,15 +372,19 @@
           {
             "label": "price",
             "type": {
-              "displayName": ["Ratio"],
-              "type": 14
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 10
             }
           },
           {
             "label": "metadata",
             "type": {
-              "displayName": ["Option"],
-              "type": 15
+              "displayName": [
+                "PriceSubmissionMetadata"
+              ],
+              "type": 11
             }
           }
         ],
@@ -358,8 +398,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 36
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 35
         },
         "selector": "0xcaff10db"
       },
@@ -368,8 +411,10 @@
           {
             "label": "override_price",
             "type": {
-              "displayName": ["Option"],
-              "type": 39
+              "displayName": [
+                "Option"
+              ],
+              "type": 38
             }
           }
         ],
@@ -381,8 +426,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 40
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 39
         },
         "selector": "0x7e97b2fe"
       },
@@ -391,8 +439,10 @@
           {
             "label": "price",
             "type": {
-              "displayName": ["Ratio"],
-              "type": 14
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 10
             }
           }
         ],
@@ -404,8 +454,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 40
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 39
         },
         "selector": "0x1eea4419"
       },
@@ -414,26 +467,54 @@
           {
             "label": "netuid",
             "type": {
-              "displayName": ["AccountId"],
-              "type": 0
-            }
-          },
-          {
-            "label": "min_stake",
-            "type": {
-              "displayName": ["bool"],
+              "displayName": [
+                "u16"
+              ],
               "type": 3
             }
           }
         ],
         "default": false,
-        "docs": [" Enables or disables a reporter account."],
-        "label": "set_reporter",
+        "docs": [
+          " Updates the governing subnet netuid. Only governance may call this."
+        ],
+        "label": "set_netuid",
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 36
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 35
+        },
+        "selector": "0x66e6a1b7"
+      },
+      {
+        "args": [
+          {
+            "label": "min_stake",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " Updates the minimum subnet alpha stake required to submit a price. Governance-only."
+        ],
+        "label": "set_min_submitter_stake",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 35
         },
         "selector": "0x40e6fe6f"
       },
@@ -442,8 +523,10 @@
           {
             "label": "validator",
             "type": {
-              "displayName": ["Option"],
-              "type": 32
+              "displayName": [
+                "Option"
+              ],
+              "type": 31
             }
           }
         ],
@@ -455,8 +538,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 36
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 35
         },
         "selector": "0x297766e9"
       },
@@ -465,8 +551,10 @@
           {
             "label": "max_price_deviation",
             "type": {
-              "displayName": ["Ratio"],
-              "type": 14
+              "displayName": [
+                "Ratio"
+              ],
+              "type": 10
             }
           }
         ],
@@ -478,8 +566,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 36
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 35
         },
         "selector": "0x77326285"
       },
@@ -488,32 +579,44 @@
           {
             "label": "new_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
         ],
         "default": false,
-        "docs": [" Transfers oracle governance control to a new account."],
+        "docs": [
+          " Transfers oracle governance control to a new account."
+        ],
         "label": "update_governance",
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 36
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 35
         },
         "selector": "0xc33c8b6a"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the most recently committed oracle price, if any."],
+        "docs": [
+          " Returns the most recently committed oracle price, if any."
+        ],
         "label": "get_latest_price",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 42
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 41
         },
         "selector": "0x9b610c2e"
       },
@@ -522,8 +625,10 @@
           {
             "label": "round_id",
             "type": {
-              "displayName": ["u32"],
-              "type": 9
+              "displayName": [
+                "u32"
+              ],
+              "type": 5
             }
           }
         ],
@@ -535,8 +640,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 42
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 41
         },
         "selector": "0xd5d88d4a"
       },
@@ -550,8 +658,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 42
         },
         "selector": "0x8d954817"
       },
@@ -560,8 +671,10 @@
           {
             "label": "page",
             "type": {
-              "displayName": ["u32"],
-              "type": 9
+              "displayName": [
+                "u32"
+              ],
+              "type": 5
             }
           }
         ],
@@ -573,8 +686,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 44
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 43
         },
         "selector": "0x8bf30111"
       },
@@ -583,8 +699,10 @@
           {
             "label": "round_id",
             "type": {
-              "displayName": ["u32"],
-              "type": 9
+              "displayName": [
+                "u32"
+              ],
+              "type": 5
             }
           }
         ],
@@ -596,8 +714,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 46
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 45
         },
         "selector": "0xa577f0a9"
       },
@@ -611,83 +732,83 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 48
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 47
         },
         "selector": "0xc9948f7b"
       },
       {
-        "args": [
-          {
-            "label": "account",
-            "type": {
-              "displayName": ["AccountId"],
-              "type": 0
-            }
-          }
-        ],
-        "default": false,
-        "docs": [
-          " Returns whether the provided account is currently authorized as a reporter."
-        ],
-        "label": "is_reporter",
-        "mutates": false,
-        "payable": false,
-        "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 50
-        },
-        "selector": "0x6e33fab4"
-      },
-      {
         "args": [],
         "default": false,
-        "docs": [" Returns the controller account ID."],
+        "docs": [
+          " Returns the controller account ID."
+        ],
         "label": "controller",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 51
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 49
         },
         "selector": "0x7b3bfba9"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the governance account ID."],
+        "docs": [
+          " Returns the governance account ID."
+        ],
         "label": "governance",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 51
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 49
         },
         "selector": "0x9f90cf17"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the validator account ID, if one is configured."],
+        "docs": [
+          " Returns the validator account ID, if one is configured."
+        ],
         "label": "validator",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 52
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 50
         },
         "selector": "0x2d84e963"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the current open round ID."],
+        "docs": [
+          " Returns the current open round ID."
+        ],
         "label": "current_round_id",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 42
         },
         "selector": "0xe79fdd26"
       },
@@ -701,8 +822,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 42
         },
         "selector": "0x10e732de"
       },
@@ -716,20 +840,28 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 53
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 51
         },
         "selector": "0xbcef3638"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the governing subnet netuid."],
+        "docs": [
+          " Returns the governing subnet netuid."
+        ],
         "label": "get_netuid",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
           "type": 52
         },
         "selector": "0x75b98cec"
@@ -744,7 +876,10 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
           "type": 53
         },
         "selector": "0xe2d66aad"
@@ -1187,7 +1322,11 @@
             ]
           }
         },
-        "path": ["ink_primitives", "types", "AccountId"]
+        "path": [
+          "ink_primitives",
+          "types",
+          "AccountId"
+        ]
       }
     },
     {
@@ -1221,78 +1360,12 @@
       "id": 4,
       "type": {
         "def": {
-          "composite": {}
-        },
-        "params": [
-          {
-            "name": "K",
-            "type": 0
-          },
-          {
-            "name": "V",
-            "type": 3
-          },
-          {
-            "name": "KeyType",
-            "type": 5
-          }
-        ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
-      }
-    },
-    {
-      "id": 5,
-      "type": {
-        "def": {
-          "composite": {}
-        },
-        "params": [
-          {
-            "name": "L",
-            "type": 6
-          },
-          {
-            "name": "R",
-            "type": 7
-          }
-        ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
-      }
-    },
-    {
-      "id": 6,
-      "type": {
-        "def": {
-          "composite": {}
-        },
-        "path": ["ink_storage_traits", "impls", "AutoKey"]
-      }
-    },
-    {
-      "id": 7,
-      "type": {
-        "def": {
-          "composite": {}
-        },
-        "params": [
-          {
-            "name": "ParentKey",
-            "type": 8
-          }
-        ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
-      }
-    },
-    {
-      "id": 8,
-      "type": {
-        "def": {
-          "tuple": []
+          "primitive": "u128"
         }
       }
     },
     {
-      "id": 9,
+      "id": 5,
       "type": {
         "def": {
           "primitive": "u32"
@@ -1300,10 +1373,12 @@
       }
     },
     {
-      "id": 10,
+      "id": 6,
       "type": {
         "def": {
-          "primitive": "u128"
+          "sequence": {
+            "type": 2
+          }
         }
       }
     },
@@ -1327,14 +1402,22 @@
             "type": 13
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
       "id": 8,
       "type": {
         "def": {
-          "tuple": [9, 0]
+          "tuple": [
+            5,
+            0
+          ]
         }
       }
     },
@@ -1362,7 +1445,11 @@
             ]
           }
         },
-        "path": ["tusdt_oracle", "oracle", "PriceSubmission"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "PriceSubmission"
+        ]
       }
     },
     {
@@ -1378,11 +1465,40 @@
             ]
           }
         },
-        "path": ["tusdt_primitives", "Ratio"]
+        "path": [
+          "tusdt_primitives",
+          "Ratio"
+        ]
       }
     },
     {
-      "id": 15,
+      "id": 11,
+      "type": {
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "name": "hot_key",
+                "type": 0,
+                "typeName": "AccountId"
+              },
+              {
+                "name": "provider",
+                "type": 12,
+                "typeName": "Option<Vec<u8>>"
+              }
+            ]
+          }
+        },
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "PriceSubmissionMetadata"
+        ]
+      }
+    },
+    {
+      "id": 12,
       "type": {
         "def": {
           "variant": {
@@ -1409,28 +1525,13 @@
             "type": 6
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
-      "id": 16,
-      "type": {
-        "def": {
-          "composite": {
-            "fields": [
-              {
-                "name": "hot_key",
-                "type": 0,
-                "typeName": "AccountId"
-              }
-            ]
-          }
-        },
-        "path": ["tusdt_oracle", "oracle", "PriceSubmissionMetadata"]
-      }
-    },
-    {
-      "id": 17,
+      "id": 13,
       "type": {
         "def": {
           "composite": {}
@@ -1445,11 +1546,28 @@
             "type": 15
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
-      "id": 18,
+      "id": 14,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "AutoKey"
+        ]
+      }
+    },
+    {
+      "id": 15,
       "type": {
         "def": {
           "composite": {}
@@ -1460,7 +1578,11 @@
             "type": 16
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -1491,7 +1613,12 @@
             "type": 18
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
@@ -1510,7 +1637,11 @@
             "type": 19
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -1525,7 +1656,11 @@
             "type": 16
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -1548,14 +1683,22 @@
             "type": 22
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
       "id": 21,
       "type": {
         "def": {
-          "tuple": [9, 9]
+          "tuple": [
+            5,
+            5
+          ]
         }
       }
     },
@@ -1575,7 +1718,11 @@
             "type": 23
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -1590,7 +1737,11 @@
             "type": 16
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -1629,7 +1780,12 @@
             "type": 28
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
@@ -1671,7 +1827,11 @@
             ]
           }
         },
-        "path": ["tusdt_oracle", "oracle", "PriceData"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "PriceData"
+        ]
       }
     },
     {
@@ -1690,7 +1850,11 @@
             "type": 29
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -1705,7 +1869,11 @@
             "type": 16
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -1777,7 +1945,11 @@
             ]
           }
         },
-        "path": ["tusdt_oracle", "oracle", "TusdtOracle"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "TusdtOracle"
+        ]
       }
     },
     {
@@ -1808,7 +1980,9 @@
             "type": 0
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -1839,7 +2013,9 @@
             "type": 27
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -1879,7 +2055,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -1895,7 +2073,10 @@
             ]
           }
         },
-        "path": ["ink_primitives", "LangError"]
+        "path": [
+          "ink_primitives",
+          "LangError"
+        ]
       }
     },
     {
@@ -1935,7 +2116,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -1975,7 +2158,9 @@
             "type": 37
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2039,7 +2224,11 @@
             ]
           }
         },
-        "path": ["tusdt_oracle", "oracle", "Error"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "Error"
+        ]
       }
     },
     {
@@ -2070,7 +2259,9 @@
             "type": 10
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -2110,7 +2301,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2150,7 +2343,9 @@
             "type": 37
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2190,7 +2385,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2230,7 +2427,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2270,7 +2469,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2320,7 +2521,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2370,7 +2573,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2397,51 +2602,15 @@
             ]
           }
         },
-        "path": ["tusdt_oracle", "oracle", "RoundSummary"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "RoundSummary"
+        ]
       }
     },
     {
       "id": 49,
-      "type": {
-        "def": {
-          "variant": {
-            "variants": [
-              {
-                "fields": [
-                  {
-                    "type": 3
-                  }
-                ],
-                "index": 0,
-                "name": "Ok"
-              },
-              {
-                "fields": [
-                  {
-                    "type": 34
-                  }
-                ],
-                "index": 1,
-                "name": "Err"
-              }
-            ]
-          }
-        },
-        "params": [
-          {
-            "name": "T",
-            "type": 3
-          },
-          {
-            "name": "E",
-            "type": 34
-          }
-        ],
-        "path": ["Result"]
-      }
-    },
-    {
-      "id": 50,
       "type": {
         "def": {
           "variant": {
@@ -2477,7 +2646,93 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 50,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 31
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 34
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 31
+          },
+          {
+            "name": "E",
+            "type": 34
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 51,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 10
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 34
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 10
+          },
+          {
+            "name": "E",
+            "type": 34
+          }
+        ],
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2517,7 +2772,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2557,7 +2814,9 @@
             "type": 34
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -2573,7 +2832,11 @@
             ]
           }
         },
-        "path": ["ink_primitives", "types", "Hash"]
+        "path": [
+          "ink_primitives",
+          "types",
+          "Hash"
+        ]
       }
     },
     {
@@ -2582,7 +2845,10 @@
         "def": {
           "variant": {}
         },
-        "path": ["tusdt_env", "RuntimeReadWrite"]
+        "path": [
+          "tusdt_env",
+          "RuntimeReadWrite"
+        ]
       }
     }
   ],

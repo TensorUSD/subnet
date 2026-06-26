@@ -2,11 +2,11 @@
   "source": {
     "hash": "0xd280014072a3cddfd98a7f9bd18d5a7ba21ed1b6941534de6a23b7f337bcc334",
     "language": "ink! 5.1.1",
-    "compiler": "rustc 1.91.0",
+    "compiler": "rustc 1.91.1",
     "build_info": {
       "build_mode": "Release",
       "cargo_contract_version": "5.0.3",
-      "rust_toolchain": "stable-aarch64-apple-darwin",
+      "rust_toolchain": "stable-x86_64-unknown-linux-gnu",
       "wasm_opt_settings": {
         "keep_debug_symbols": false,
         "optimization_passes": "Z"
@@ -16,7 +16,9 @@
   "contract": {
     "name": "tusdt-vault",
     "version": "0.1.0",
-    "authors": ["tensorusd admin@tensorusd.com"]
+    "authors": [
+      "tensorusd admin@tensorusd.com"
+    ]
   },
   "image": null,
   "spec": {
@@ -26,29 +28,46 @@
           {
             "label": "treasury",
             "type": {
-              "displayName": ["Hash"],
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "label": "token_code_hash",
+            "type": {
+              "displayName": [
+                "Hash"
+              ],
               "type": 40
             }
           },
           {
             "label": "auction_code_hash",
             "type": {
-              "displayName": ["Hash"],
+              "displayName": [
+                "Hash"
+              ],
               "type": 40
             }
           },
           {
             "label": "oracle_code_hash",
             "type": {
-              "displayName": ["Hash"],
+              "displayName": [
+                "Hash"
+              ],
               "type": 40
             }
           },
           {
             "label": "netuid",
             "type": {
-              "displayName": ["Hash"],
-              "type": 40
+              "displayName": [
+                "u16"
+              ],
+              "type": 41
             }
           }
         ],
@@ -63,8 +82,11 @@
         "label": "new",
         "payable": false,
         "returnType": {
-          "displayName": ["ink_primitives", "ConstructorResult"],
-          "type": 41
+          "displayName": [
+            "ink_primitives",
+            "ConstructorResult"
+          ],
+          "type": 42
         },
         "selector": "0x9bae9d5e"
       }
@@ -72,29 +94,41 @@
     "docs": [],
     "environment": {
       "accountId": {
-        "displayName": ["AccountId"],
+        "displayName": [
+          "AccountId"
+        ],
         "type": 0
       },
       "balance": {
-        "displayName": ["Balance"],
+        "displayName": [
+          "Balance"
+        ],
         "type": 4
       },
       "blockNumber": {
-        "displayName": ["BlockNumber"],
+        "displayName": [
+          "BlockNumber"
+        ],
         "type": 6
       },
       "chainExtension": {
-        "displayName": ["ChainExtension"],
-        "type": 70
+        "displayName": [
+          "ChainExtension"
+        ],
+        "type": 72
       },
       "hash": {
-        "displayName": ["Hash"],
+        "displayName": [
+          "Hash"
+        ],
         "type": 40
       },
       "maxEventTopics": 4,
       "staticBufferSize": 16384,
       "timestamp": {
-        "displayName": ["Timestamp"],
+        "displayName": [
+          "Timestamp"
+        ],
         "type": 4
       }
     },
@@ -106,7 +140,9 @@
             "indexed": true,
             "label": "auction_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -115,7 +151,9 @@
             "indexed": true,
             "label": "recipient",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -124,7 +162,9 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -143,7 +183,9 @@
             "indexed": true,
             "label": "previous_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -152,7 +194,9 @@
             "indexed": true,
             "label": "new_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
@@ -171,7 +215,9 @@
             "indexed": true,
             "label": "auction_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -180,7 +226,9 @@
             "indexed": true,
             "label": "bid_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -189,7 +237,9 @@
             "indexed": true,
             "label": "bidder",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -198,12 +248,16 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
         ],
-        "docs": ["Emitted when a bid is placed or raised on an auction."],
+        "docs": [
+          "Emitted when a bid is placed or raised on an auction."
+        ],
         "label": "BidPlaced",
         "module_path": "tusdt_auction::auction",
         "signature_topic": "0x53773ad8dd764d7c2e273caf090006fa7ba6b468938259aa3d27ecd3b9b95f1b"
@@ -215,8 +269,10 @@
             "indexed": true,
             "label": "admin",
             "type": {
-              "displayName": ["Option"],
-              "type": 65
+              "displayName": [
+                "Option"
+              ],
+              "type": 66
             }
           }
         ],
@@ -234,7 +290,9 @@
             "indexed": true,
             "label": "auction_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -243,7 +301,9 @@
             "indexed": true,
             "label": "vault_owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -252,7 +312,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -261,7 +323,9 @@
             "indexed": false,
             "label": "starts_at",
             "type": {
-              "displayName": ["u64"],
+              "displayName": [
+                "u64"
+              ],
               "type": 4
             }
           },
@@ -270,12 +334,16 @@
             "indexed": false,
             "label": "ends_at",
             "type": {
-              "displayName": ["u64"],
+              "displayName": [
+                "u64"
+              ],
               "type": 4
             }
           }
         ],
-        "docs": ["Emitted when a new liquidation auction is created."],
+        "docs": [
+          "Emitted when a new liquidation auction is created."
+        ],
         "label": "AuctionCreated",
         "module_path": "tusdt_auction::auction",
         "signature_topic": "0x2d6206165e4527a66ee2e32d8b2fe44913914651cdd0fa449efd415b3b697558"
@@ -287,7 +355,9 @@
             "indexed": true,
             "label": "bidder",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -296,12 +366,16 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
         ],
-        "docs": ["Emitted when a losing bidder withdraws their refund."],
+        "docs": [
+          "Emitted when a losing bidder withdraws their refund."
+        ],
         "label": "RefundWithdrawn",
         "module_path": "tusdt_auction::auction",
         "signature_topic": "0x6040b9f8282871cf9199cf80cc6df679351435d48bc8743ad81a192b1f665d23"
@@ -313,7 +387,9 @@
             "indexed": true,
             "label": "auction_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -322,7 +398,9 @@
             "indexed": true,
             "label": "winner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -331,7 +409,9 @@
             "indexed": false,
             "label": "highest_bid",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -340,7 +420,9 @@
             "indexed": false,
             "label": "debt_balance",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -349,8 +431,10 @@
             "indexed": false,
             "label": "highest_bid_metadata",
             "type": {
-              "displayName": ["Option"],
-              "type": 66
+              "displayName": [
+                "Option"
+              ],
+              "type": 67
             }
           }
         ],
@@ -368,7 +452,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -377,7 +463,9 @@
             "indexed": true,
             "label": "spender",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -386,7 +474,9 @@
             "indexed": false,
             "label": "value",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -405,8 +495,10 @@
             "indexed": true,
             "label": "from",
             "type": {
-              "displayName": ["Option"],
-              "type": 65
+              "displayName": [
+                "Option"
+              ],
+              "type": 66
             }
           },
           {
@@ -414,8 +506,10 @@
             "indexed": true,
             "label": "to",
             "type": {
-              "displayName": ["Option"],
-              "type": 65
+              "displayName": [
+                "Option"
+              ],
+              "type": 66
             }
           },
           {
@@ -423,7 +517,9 @@
             "indexed": false,
             "label": "value",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -442,7 +538,9 @@
             "indexed": true,
             "label": "previous_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -451,7 +549,9 @@
             "indexed": true,
             "label": "new_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
@@ -470,7 +570,9 @@
             "indexed": false,
             "label": "max_price_deviation",
             "type": {
-              "displayName": ["Ratio"],
+              "displayName": [
+                "Ratio"
+              ],
               "type": 36
             }
           }
@@ -489,7 +591,51 @@
             "indexed": false,
             "label": "min_submitter_stake",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u128"
+              ],
+              "type": 5
+            }
+          }
+        ],
+        "docs": [
+          "Emitted when the minimum required submitter stake is changed."
+        ],
+        "label": "MinSubmitterStakeUpdated",
+        "module_path": "tusdt_oracle::oracle",
+        "signature_topic": "0x862f9b8f733953c288061b3a21bb6955a625374e5f24afe32da33fd31a38aa7f"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "netuid",
+            "type": {
+              "displayName": [
+                "u16"
+              ],
+              "type": 41
+            }
+          }
+        ],
+        "docs": [
+          "Emitted when the governing subnet netuid is updated."
+        ],
+        "label": "NetuidUpdated",
+        "module_path": "tusdt_oracle::oracle",
+        "signature_topic": "0xb62491ff2dec7341b9b30f90adc6a7fcd382e6284c444b7f9622622efbd4aad7"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "round_id",
+            "type": {
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -498,7 +644,9 @@
             "indexed": true,
             "label": "reporter",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -507,7 +655,9 @@
             "indexed": false,
             "label": "price",
             "type": {
-              "displayName": ["Ratio"],
+              "displayName": [
+                "Ratio"
+              ],
               "type": 36
             }
           },
@@ -516,8 +666,10 @@
             "indexed": false,
             "label": "metadata",
             "type": {
-              "displayName": ["Option"],
-              "type": 68
+              "displayName": [
+                "PriceSubmissionMetadata"
+              ],
+              "type": 69
             }
           },
           {
@@ -525,7 +677,9 @@
             "indexed": false,
             "label": "replaced_existing",
             "type": {
-              "displayName": ["bool"],
+              "displayName": [
+                "bool"
+              ],
               "type": 3
             }
           }
@@ -544,7 +698,9 @@
             "indexed": true,
             "label": "round_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -553,7 +709,9 @@
             "indexed": false,
             "label": "committed_price",
             "type": {
-              "displayName": ["Ratio"],
+              "displayName": [
+                "Ratio"
+              ],
               "type": 36
             }
           },
@@ -562,7 +720,9 @@
             "indexed": false,
             "label": "median_price",
             "type": {
-              "displayName": ["Ratio"],
+              "displayName": [
+                "Ratio"
+              ],
               "type": 36
             }
           },
@@ -571,7 +731,9 @@
             "indexed": false,
             "label": "reporter_count",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -580,7 +742,9 @@
             "indexed": false,
             "label": "was_overridden",
             "type": {
-              "displayName": ["bool"],
+              "displayName": [
+                "bool"
+              ],
               "type": 3
             }
           }
@@ -597,40 +761,18 @@
           {
             "docs": [],
             "indexed": true,
-            "label": "reporter",
-            "type": {
-              "displayName": ["AccountId"],
-              "type": 0
-            }
-          },
-          {
-            "docs": [],
-            "indexed": false,
-            "label": "enabled",
-            "type": {
-              "displayName": ["bool"],
-              "type": 3
-            }
-          }
-        ],
-        "docs": [],
-        "label": "ReporterUpdated",
-        "module_path": "tusdt_oracle::oracle",
-        "signature_topic": "0xd418423978c9fba185e0ab908177d71f060b16543e3d7aa68822799de1dcf3c6"
-      },
-      {
-        "args": [
-          {
-            "docs": [],
-            "indexed": true,
             "label": "validator",
             "type": {
-              "displayName": ["Option"],
-              "type": 65
+              "displayName": [
+                "Option"
+              ],
+              "type": 66
             }
           }
         ],
-        "docs": ["Emitted when the validator account is set or cleared."],
+        "docs": [
+          "Emitted when the validator account is set or cleared."
+        ],
         "label": "ValidatorUpdated",
         "module_path": "tusdt_oracle::oracle",
         "signature_topic": "0x9b9e984a30cbf16f16b8bb47b35802825876301f2562ae285a379d3e2b0cef05"
@@ -642,7 +784,9 @@
             "indexed": true,
             "label": "previous_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -651,7 +795,9 @@
             "indexed": true,
             "label": "new_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
@@ -670,7 +816,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -679,7 +827,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -688,7 +838,9 @@
             "indexed": true,
             "label": "auction_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -707,7 +859,9 @@
             "indexed": false,
             "label": "params",
             "type": {
-              "displayName": ["VaultContractParamsConfig"],
+              "displayName": [
+                "VaultContractParamsConfig"
+              ],
               "type": 39
             }
           }
@@ -726,7 +880,9 @@
             "indexed": false,
             "label": "params",
             "type": {
-              "displayName": ["VaultContractParamsConfig"],
+              "displayName": [
+                "VaultContractParamsConfig"
+              ],
               "type": 39
             }
           },
@@ -735,7 +891,9 @@
             "indexed": false,
             "label": "execute_after",
             "type": {
-              "displayName": ["u64"],
+              "displayName": [
+                "u64"
+              ],
               "type": 4
             }
           }
@@ -749,14 +907,18 @@
       },
       {
         "args": [],
-        "docs": ["Emitted when the contract is paused."],
+        "docs": [
+          "Emitted when the contract is paused."
+        ],
         "label": "Paused",
         "module_path": "tusdt_vault::vault",
         "signature_topic": "0x0bc7e2d93f816c37cebc39f8cd9f6461f8bd945f23b847e07a39e77b4b0c8820"
       },
       {
         "args": [],
-        "docs": ["Emitted when the contract is unpaused."],
+        "docs": [
+          "Emitted when the contract is unpaused."
+        ],
         "label": "Unpaused",
         "module_path": "tusdt_vault::vault",
         "signature_topic": "0x653e02ba17d9461415af0142fe0b7aafa9aac6f207b5f1479c13eb1883fc92b0"
@@ -768,7 +930,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -777,7 +941,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -786,7 +952,9 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -795,7 +963,9 @@
             "indexed": false,
             "label": "transaction_fee",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -814,7 +984,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -823,7 +995,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -832,12 +1006,16 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
         ],
-        "docs": ["Emitted when a new vault is opened with initial collateral."],
+        "docs": [
+          "Emitted when a new vault is opened with initial collateral."
+        ],
         "label": "VaultCreated",
         "module_path": "tusdt_vault::vault",
         "signature_topic": "0x13794296202f378ae6aa03f74fb62ebc0d311a18024138e7803c2454c874e0b5"
@@ -849,7 +1027,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -858,7 +1038,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -867,7 +1049,9 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -876,7 +1060,9 @@
             "indexed": false,
             "label": "transaction_fee",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -895,7 +1081,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -904,7 +1092,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -913,12 +1103,16 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
         ],
-        "docs": ["Emitted when collateral is added to an existing vault."],
+        "docs": [
+          "Emitted when collateral is added to an existing vault."
+        ],
         "label": "CollateralAdded",
         "module_path": "tusdt_vault::vault",
         "signature_topic": "0xd2baf654d21478b4b14e965ed7450712fe5e68eca1c409f7d3e5855720c235aa"
@@ -930,7 +1124,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -939,7 +1135,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -948,7 +1146,9 @@
             "indexed": false,
             "label": "previous_debt_balance",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -957,7 +1157,9 @@
             "indexed": false,
             "label": "debt_balance",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -966,7 +1168,9 @@
             "indexed": false,
             "label": "accrued_at",
             "type": {
-              "displayName": ["u64"],
+              "displayName": [
+                "u64"
+              ],
               "type": 4
             }
           }
@@ -985,7 +1189,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -994,7 +1200,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -1003,7 +1211,9 @@
             "indexed": true,
             "label": "auction_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -1012,8 +1222,10 @@
             "indexed": false,
             "label": "winner",
             "type": {
-              "displayName": ["Option"],
-              "type": 65
+              "displayName": [
+                "Option"
+              ],
+              "type": 66
             }
           },
           {
@@ -1021,7 +1233,9 @@
             "indexed": false,
             "label": "winning_bid",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -1030,7 +1244,9 @@
             "indexed": false,
             "label": "collateral_sold",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -1039,7 +1255,9 @@
             "indexed": false,
             "label": "transaction_fee",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           },
@@ -1048,7 +1266,9 @@
             "indexed": false,
             "label": "debt_cleared",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -1067,7 +1287,9 @@
             "indexed": true,
             "label": "recipient",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -1076,7 +1298,9 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -1095,7 +1319,9 @@
             "indexed": true,
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -1104,7 +1330,9 @@
             "indexed": true,
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
@@ -1113,12 +1341,16 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
         ],
-        "docs": ["Emitted when collateral is withdrawn from a vault."],
+        "docs": [
+          "Emitted when collateral is withdrawn from a vault."
+        ],
         "label": "CollateralReleased",
         "module_path": "tusdt_vault::vault",
         "signature_topic": "0x124f623214cb876f7536a45c6f5558a4b3d8dbf610014d1b6b1204f5ccbf4d13"
@@ -1130,7 +1362,9 @@
             "indexed": true,
             "label": "recipient",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -1139,7 +1373,9 @@
             "indexed": false,
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -1158,7 +1394,9 @@
             "indexed": true,
             "label": "previous_platform",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -1167,12 +1405,16 @@
             "indexed": true,
             "label": "new_platform",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
         ],
-        "docs": ["Emitted when the platform account is updated."],
+        "docs": [
+          "Emitted when the platform account is updated."
+        ],
         "label": "VaultPlatformUpdated",
         "module_path": "tusdt_vault::vault",
         "signature_topic": "0x968c8e8d6f99c403be206758aadc258fd0abf2dc43f439545cb6ab8508461735"
@@ -1184,7 +1426,9 @@
             "indexed": true,
             "label": "previous_treasury",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
@@ -1193,13 +1437,17 @@
             "indexed": true,
             "label": "new_treasury",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
         ],
-        "docs": [],
-        "label": "VaultPlatformUpdated",
+        "docs": [
+          "Emitted when the treasury (fee recipient) account is updated."
+        ],
+        "label": "VaultTreasuryUpdated",
         "module_path": "tusdt_vault::vault",
         "signature_topic": "0xd34584c457f532628ef734e5b447fbc50c4136ba85427857901443728394600f"
       },
@@ -1210,7 +1458,9 @@
             "indexed": false,
             "label": "params",
             "type": {
-              "displayName": ["VaultContractParamsConfig"],
+              "displayName": [
+                "VaultContractParamsConfig"
+              ],
               "type": 39
             }
           }
@@ -1224,8 +1474,11 @@
       }
     ],
     "lang_error": {
-      "displayName": ["ink", "LangError"],
-      "type": 42
+      "displayName": [
+        "ink",
+        "LangError"
+      ],
+      "type": 43
     },
     "messages": [
       {
@@ -1233,7 +1486,9 @@
           {
             "label": "params",
             "type": {
-              "displayName": ["VaultContractParamsConfig"],
+              "displayName": [
+                "VaultContractParamsConfig"
+              ],
               "type": 39
             }
           }
@@ -1246,8 +1501,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0x283617a8"
       },
@@ -1261,8 +1519,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0xec8897e2"
       },
@@ -1276,8 +1537,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0xcb1c0e93"
       },
@@ -1286,7 +1550,9 @@
           {
             "label": "new_governance",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
@@ -1299,8 +1565,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0xc33c8b6a"
       },
@@ -1309,19 +1578,54 @@
           {
             "label": "new_treasury",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
         ],
         "default": false,
-        "docs": [],
+        "docs": [
+          " Updates the treasury (fee recipient) account; governance-only."
+        ],
+        "label": "update_treasury",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
+        },
+        "selector": "0xef6ee141"
+      },
+      {
+        "args": [
+          {
+            "label": "new_platform",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          }
+        ],
+        "default": false,
+        "docs": [
+          " Updates the platform (pause-capable operator) account; callable by governance account"
+        ],
         "label": "update_platform",
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0xa59697ab"
       },
@@ -1335,8 +1639,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0x81e0c604"
       },
@@ -1350,8 +1657,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0x67616649"
       },
@@ -1360,7 +1670,9 @@
           {
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -1376,8 +1688,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0x3b645db8"
       },
@@ -1386,7 +1701,9 @@
           {
             "label": "recipient",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
@@ -1404,8 +1721,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 46
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 47
         },
         "selector": "0x78a5f8d5"
       },
@@ -1419,8 +1739,11 @@
         "mutates": true,
         "payable": true,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 48
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 49
         },
         "selector": "0x17ff6720"
       },
@@ -1429,7 +1752,9 @@
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1442,8 +1767,11 @@
         "mutates": true,
         "payable": true,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0xe3d1fc1b"
       },
@@ -1452,14 +1780,18 @@
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
           {
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -1474,8 +1806,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0x0976540b"
       },
@@ -1484,14 +1819,18 @@
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
           {
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -1505,8 +1844,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0xddbf65cb"
       },
@@ -1515,14 +1857,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1535,8 +1881,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 46
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 47
         },
         "selector": "0xde62814a"
       },
@@ -1545,14 +1894,18 @@
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           },
           {
             "label": "amount",
             "type": {
-              "displayName": ["Balance"],
+              "displayName": [
+                "Balance"
+              ],
               "type": 4
             }
           }
@@ -1565,8 +1918,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0x9ca723e0"
       },
@@ -1575,14 +1931,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1595,8 +1955,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 48
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 49
         },
         "selector": "0xec6bd9f2"
       },
@@ -1605,14 +1968,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1629,8 +1996,11 @@
         "mutates": true,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 43
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 44
         },
         "selector": "0x18f62fe6"
       },
@@ -1639,14 +2009,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1659,8 +2033,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 50
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 51
         },
         "selector": "0x4f96cf6c"
       },
@@ -1674,73 +2051,119 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 52
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 53
         },
         "selector": "0xc004fc23"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the account ID of the deployed auction contract."],
+        "docs": [
+          " Returns the account ID of the deployed auction contract."
+        ],
         "label": "get_auction_address",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 52
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 53
         },
         "selector": "0x3518b48d"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the account ID of the oracle contract."],
+        "docs": [
+          " Returns the account ID of the oracle contract."
+        ],
         "label": "get_oracle_address",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 52
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 53
         },
         "selector": "0xdc4c0ffe"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the current governance account."],
+        "docs": [
+          " Returns the current governance account."
+        ],
         "label": "governance",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 52
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 53
         },
         "selector": "0x9f90cf17"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the current platform account."],
+        "docs": [
+          " Returns the current treasury (fee recipient) account."
+        ],
+        "label": "treasury",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 53
+        },
+        "selector": "0xa9b78461"
+      },
+      {
+        "args": [],
+        "default": false,
+        "docs": [
+          " Returns the current platform (pause-capable operator) account."
+        ],
         "label": "platform",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 52
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 53
         },
         "selector": "0x2b86e96a"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns whether the contract is paused by governance."],
+        "docs": [
+          " Returns whether the contract is paused by governance."
+        ],
         "label": "paused",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 53
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 54
         },
         "selector": "0xd8fea916"
       },
@@ -1754,21 +2177,29 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 54
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 55
         },
         "selector": "0xb89cc086"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the currently scheduled parameter update, if any."],
+        "docs": [
+          " Returns the currently scheduled parameter update, if any."
+        ],
         "label": "get_pending_contract_params_update",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 55
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 56
         },
         "selector": "0xacf1f313"
       },
@@ -1777,14 +2208,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1797,21 +2232,29 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 56
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 57
         },
         "selector": "0x69aef621"
       },
       {
         "args": [],
         "default": false,
-        "docs": [" Returns the total collateral balance across all vaults."],
+        "docs": [
+          " Returns the total collateral balance across all vaults."
+        ],
         "label": "get_total_collateral_balance",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 58
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 59
         },
         "selector": "0x3452f0c5"
       },
@@ -1820,7 +2263,9 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
@@ -1833,8 +2278,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 58
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 59
         },
         "selector": "0x5a81c550"
       },
@@ -1843,14 +2291,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1863,8 +2315,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 46
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 47
         },
         "selector": "0x26fc3175"
       },
@@ -1873,14 +2328,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1893,8 +2352,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 46
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 47
         },
         "selector": "0x378eeec9"
       },
@@ -1903,14 +2365,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "vault_id",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1923,8 +2389,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 59
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 60
         },
         "selector": "0x6109b5e5"
       },
@@ -1938,8 +2407,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 61
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 62
         },
         "selector": "0xf5da31f6"
       },
@@ -1948,19 +2420,26 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           }
         ],
         "default": false,
-        "docs": [" Returns the number of vaults owned by a specific account."],
+        "docs": [
+          " Returns the number of vaults owned by a specific account."
+        ],
         "label": "get_vaults_count",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 61
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 62
         },
         "selector": "0x825fc5ea"
       },
@@ -1969,14 +2448,18 @@
           {
             "label": "owner",
             "type": {
-              "displayName": ["AccountId"],
+              "displayName": [
+                "AccountId"
+              ],
               "type": 0
             }
           },
           {
             "label": "page",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
@@ -1989,8 +2472,11 @@
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 62
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 63
         },
         "selector": "0xfe77349c"
       },
@@ -1999,19 +2485,26 @@
           {
             "label": "page",
             "type": {
-              "displayName": ["u32"],
+              "displayName": [
+                "u32"
+              ],
               "type": 6
             }
           }
         ],
         "default": false,
-        "docs": [" Returns a paginated list of all vaults across all owners."],
+        "docs": [
+          " Returns a paginated list of all vaults across all owners."
+        ],
         "label": "get_all_vaults",
         "mutates": false,
         "payable": false,
         "returnType": {
-          "displayName": ["ink", "MessageResult"],
-          "type": 62
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 63
         },
         "selector": "0x64ed974f"
       }
@@ -2650,7 +3143,11 @@
             ]
           }
         },
-        "path": ["ink_primitives", "types", "AccountId"]
+        "path": [
+          "ink_primitives",
+          "types",
+          "AccountId"
+        ]
       }
     },
     {
@@ -2724,14 +3221,22 @@
             "type": 10
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
       "id": 8,
       "type": {
         "def": {
-          "tuple": [0, 6]
+          "tuple": [
+            0,
+            6
+          ]
         }
       }
     },
@@ -2784,7 +3289,11 @@
             ]
           }
         },
-        "path": ["tusdt_vault", "vault", "Vault"]
+        "path": [
+          "tusdt_vault",
+          "vault",
+          "Vault"
+        ]
       }
     },
     {
@@ -2803,7 +3312,11 @@
             "type": 12
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -2812,7 +3325,11 @@
         "def": {
           "composite": {}
         },
-        "path": ["ink_storage_traits", "impls", "AutoKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "AutoKey"
+        ]
       }
     },
     {
@@ -2827,7 +3344,11 @@
             "type": 13
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -2858,7 +3379,12 @@
             "type": 15
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
@@ -2877,7 +3403,11 @@
             "type": 16
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -2892,7 +3422,11 @@
             "type": 13
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -2915,7 +3449,12 @@
             "type": 18
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
@@ -2934,7 +3473,11 @@
             "type": 19
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -2949,7 +3492,11 @@
             "type": 13
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -2981,7 +3528,12 @@
             "type": 21
           }
         ],
-        "path": ["ink_storage", "lazy", "vec", "StorageVec"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "vec",
+          "StorageVec"
+        ]
       }
     },
     {
@@ -3000,7 +3552,11 @@
             "type": 22
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -3015,7 +3571,11 @@
             "type": 13
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -3034,7 +3594,11 @@
             "type": 21
           }
         ],
-        "path": ["ink_storage", "lazy", "Lazy"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "Lazy"
+        ]
       }
     },
     {
@@ -3057,7 +3621,12 @@
             "type": 21
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
@@ -3080,7 +3649,12 @@
             "type": 26
           }
         ],
-        "path": ["ink_storage", "lazy", "mapping", "Mapping"]
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
       }
     },
     {
@@ -3099,7 +3673,11 @@
             "type": 27
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ResolverKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
       }
     },
     {
@@ -3114,7 +3692,11 @@
             "type": 13
           }
         ],
-        "path": ["ink_storage_traits", "impls", "ManualKey"]
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
       }
     },
     {
@@ -3201,7 +3783,11 @@
             ]
           }
         },
-        "path": ["tusdt_vault", "vault", "TusdtVault"]
+        "path": [
+          "tusdt_vault",
+          "vault",
+          "TusdtVault"
+        ]
       }
     },
     {
@@ -3218,7 +3804,11 @@
             ]
           }
         },
-        "path": ["tusdt_erc20", "tusdt", "TusdtErc20Ref"]
+        "path": [
+          "tusdt_erc20",
+          "tusdt",
+          "TusdtErc20Ref"
+        ]
       }
     },
     {
@@ -3235,7 +3825,11 @@
             ]
           }
         },
-        "path": ["tusdt_erc20", "tusdt", "CallBuilder"]
+        "path": [
+          "tusdt_erc20",
+          "tusdt",
+          "CallBuilder"
+        ]
       }
     },
     {
@@ -3252,7 +3846,11 @@
             ]
           }
         },
-        "path": ["tusdt_auction", "auction", "TusdtAuctionRef"]
+        "path": [
+          "tusdt_auction",
+          "auction",
+          "TusdtAuctionRef"
+        ]
       }
     },
     {
@@ -3269,7 +3867,11 @@
             ]
           }
         },
-        "path": ["tusdt_auction", "auction", "CallBuilder"]
+        "path": [
+          "tusdt_auction",
+          "auction",
+          "CallBuilder"
+        ]
       }
     },
     {
@@ -3286,7 +3888,11 @@
             ]
           }
         },
-        "path": ["tusdt_oracle", "oracle", "TusdtOracleRef"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "TusdtOracleRef"
+        ]
       }
     },
     {
@@ -3303,7 +3909,11 @@
             ]
           }
         },
-        "path": ["tusdt_oracle", "oracle", "CallBuilder"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "CallBuilder"
+        ]
       }
     },
     {
@@ -3370,7 +3980,11 @@
             ]
           }
         },
-        "path": ["tusdt_vault", "vault", "VaultContractParams"]
+        "path": [
+          "tusdt_vault",
+          "vault",
+          "VaultContractParams"
+        ]
       }
     },
     {
@@ -3386,7 +4000,10 @@
             ]
           }
         },
-        "path": ["tusdt_primitives", "Ratio"]
+        "path": [
+          "tusdt_primitives",
+          "Ratio"
+        ]
       }
     },
     {
@@ -3417,7 +4034,9 @@
             "type": 38
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -3439,7 +4058,11 @@
             ]
           }
         },
-        "path": ["tusdt_vault", "vault", "PendingContractParamsUpdate"]
+        "path": [
+          "tusdt_vault",
+          "vault",
+          "PendingContractParamsUpdate"
+        ]
       }
     },
     {
@@ -3506,7 +4129,11 @@
             ]
           }
         },
-        "path": ["tusdt_vault", "vault", "VaultContractParamsConfig"]
+        "path": [
+          "tusdt_vault",
+          "vault",
+          "VaultContractParamsConfig"
+        ]
       }
     },
     {
@@ -3522,7 +4149,11 @@
             ]
           }
         },
-        "path": ["ink_primitives", "types", "Hash"]
+        "path": [
+          "ink_primitives",
+          "types",
+          "Hash"
+        ]
       }
     },
     {
@@ -3570,7 +4201,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -3586,7 +4219,10 @@
             ]
           }
         },
-        "path": ["ink_primitives", "LangError"]
+        "path": [
+          "ink_primitives",
+          "LangError"
+        ]
       }
     },
     {
@@ -3626,7 +4262,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -3666,7 +4304,9 @@
             "type": 46
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -3798,7 +4438,11 @@
             ]
           }
         },
-        "path": ["tusdt_vault", "vault", "Error"]
+        "path": [
+          "tusdt_vault",
+          "vault",
+          "Error"
+        ]
       }
     },
     {
@@ -3838,7 +4482,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -3878,7 +4524,9 @@
             "type": 46
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -3918,7 +4566,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -3958,7 +4608,9 @@
             "type": 46
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -3998,7 +4650,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4029,7 +4683,9 @@
             "type": 9
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -4069,7 +4725,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4109,7 +4767,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4149,7 +4809,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4189,7 +4851,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4229,7 +4893,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4260,7 +4926,9 @@
             "type": 4
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -4300,7 +4968,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4340,7 +5010,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4371,7 +5043,9 @@
             "type": 6
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -4411,7 +5085,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4451,7 +5127,9 @@
             "type": 43
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4491,7 +5169,9 @@
             "type": 46
           }
         ],
-        "path": ["Result"]
+        "path": [
+          "Result"
+        ]
       }
     },
     {
@@ -4532,7 +5212,9 @@
             "type": 0
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -4563,11 +5245,34 @@
             "type": 68
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
-      "id": 67,
+      "id": 68,
+      "type": {
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "name": "hot_key",
+                "type": 0,
+                "typeName": "AccountId"
+              }
+            ]
+          }
+        },
+        "path": [
+          "tusdt_auction",
+          "auction",
+          "BidMetadata"
+        ]
+      }
+    },
+    {
+      "id": 69,
       "type": {
         "def": {
           "composite": {
@@ -4585,11 +5290,15 @@
             ]
           }
         },
-        "path": ["tusdt_auction", "auction", "BidMetadata"]
+        "path": [
+          "tusdt_oracle",
+          "oracle",
+          "PriceSubmissionMetadata"
+        ]
       }
     },
     {
-      "id": 68,
+      "id": 70,
       "type": {
         "def": {
           "variant": {
@@ -4616,7 +5325,9 @@
             "type": 71
           }
         ],
-        "path": ["Option"]
+        "path": [
+          "Option"
+        ]
       }
     },
     {
@@ -4626,8 +5337,7 @@
           "sequence": {
             "type": 2
           }
-        },
-        "path": ["tusdt_oracle", "oracle", "PriceSubmissionMetadata"]
+        }
       }
     },
     {
@@ -4636,7 +5346,10 @@
         "def": {
           "variant": {}
         },
-        "path": ["tusdt_env", "RuntimeReadWrite"]
+        "path": [
+          "tusdt_env",
+          "RuntimeReadWrite"
+        ]
       }
     }
   ],
