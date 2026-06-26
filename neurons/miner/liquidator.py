@@ -23,9 +23,9 @@ import typing
 import bittensor as bt
 
 # Bittensor Miner tensorusd:
-import tensorusd
 
 # import base miner class which takes care of most of the boilerplate
+from tensorusd import protocol
 from tensorusd.liquidator import AuctionUnionEvent, AuctionEventType
 from tensorusd.base.miner import BaseMinerNeuron
 
@@ -195,9 +195,7 @@ class LiquidationMiner(BaseMinerNeuron):
 
         super().__exit__(exc_type, exc_value, traceback)
 
-    async def blacklist(
-        self, synapse: tensorusd.protocol.Dummy
-    ) -> typing.Tuple[bool, str]:
+    async def blacklist(self, synapse: protocol.Dummy) -> typing.Tuple[bool, str]:
         """
         Determines whether an incoming request should be blacklisted and thus ignored. Your implementation should
         define the logic for blacklisting requests based on your needs and desired security parameters.
@@ -257,7 +255,7 @@ class LiquidationMiner(BaseMinerNeuron):
         )
         return False, "Hotkey recognized!"
 
-    async def priority(self, synapse: tensorusd.protocol.Dummy) -> float:
+    async def priority(self, synapse: protocol.Dummy) -> float:
         """
         The priority function determines the order in which requests are handled. More valuable or higher-priority
         requests are processed before others. You should design your own priority mechanism with care.
