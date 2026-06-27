@@ -88,6 +88,7 @@ class PriceOracleMiner:
         if self.oracle_price is None:
             bt.logging.warning("reconnecting substrate...")
             self.miner.setup()
+            time.sleep(5)
             self.oracle_price = self.oracle_contract.get_latest_price()
 
         bt.logging.info(
@@ -181,6 +182,7 @@ class PriceOracleMiner:
             except Exception as e:
                 bt.logging.error(f"Unexpected error in price oracle loop: {e}")
                 bt.logging.info("Retrying after 60 seconds...")
+                self.miner.setup()
 
                 if self.wait_or_stop(60):
                     break

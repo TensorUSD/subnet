@@ -55,14 +55,19 @@ class OracleMiner(BaseMinerNeuron):
 
     def __init__(self, config=None):
         super(OracleMiner, self).__init__(config=config, mech_id=1)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
         self.setup()
 
     def setup(self):
+        try:
+            self.oracle_substrate.close()
+        except Exception as e:
+            bt.logging.debug(f"Error closing oracle substrate: {e}")
+
         self.oracle_substrate = create_substrate_interface(
             bt.settings.LATENT_LITE_ENTRYPOINT
         )
 
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
         self.oracle_contract = TensorUSDPriceOracleContract(
             substrate=self.oracle_substrate,
             contract_address=self.config.oracle_contract.address,
