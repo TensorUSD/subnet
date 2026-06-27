@@ -55,6 +55,9 @@ class OracleMiner(BaseMinerNeuron):
 
     def __init__(self, config=None):
         super(OracleMiner, self).__init__(config=config, mech_id=1)
+        self.setup()
+
+    def setup(self):
         self.oracle_substrate = create_substrate_interface(
             self.subtensor.chain_endpoint
         )

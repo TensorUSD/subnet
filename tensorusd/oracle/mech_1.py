@@ -85,6 +85,11 @@ class PriceOracleMiner:
     def should_submit_price(self, current_price: float) -> tuple[bool, str]:
         now = time.time()
         self.oracle_price = self.oracle_contract.get_latest_price()
+        if self.oracle_price is None:
+            bt.logging.warning("reconnecting substrate...")
+            self.miner.setup()
+            self.oracle_price = self.oracle_contract.get_latest_price()
+
         bt.logging.info(
             f"Fetched latest price from chain : {self.oracle_price/PRICE_DECIMALS} TAO"
         )
