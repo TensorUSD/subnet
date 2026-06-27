@@ -8,7 +8,7 @@ import numpy as np
 if TYPE_CHECKING:
     from neurons.validator import OracleValidator
 
-SLEEP_TIME = 300  # Sleep for 5 minutes between mech1 validations, adjust as needed
+SLEEP_TIME = 1500  # Sleep for 5 minutes between mech1 validations, adjust as needed
 
 
 async def forward_mech1(self: "OracleValidator"):

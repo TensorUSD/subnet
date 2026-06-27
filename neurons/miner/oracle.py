@@ -59,7 +59,7 @@ class OracleMiner(BaseMinerNeuron):
 
     def setup(self):
         self.oracle_substrate = create_substrate_interface(
-            self.subtensor.chain_endpoint
+            bt.settings.LATENT_LITE_ENTRYPOINT
         )
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
