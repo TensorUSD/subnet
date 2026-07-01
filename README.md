@@ -67,11 +67,12 @@ uv run neurons/miner/liquidator.py \
   --tusdt.address 5DAAnrj7VKbSBAiC3R9YJY4g8eZN8DLqr3gZJvJT8qYgL3Nq \
   --coldkey.password YOUR_COLDKEY_PASSWORD
 ```
-
+ 
 ### Option 2: Price Oracle Only (Mechanism 1)
 
-[!NOTE]
-Miner should have at least 10 alpha staked to their own hotkey to participate in this mechanism.
+```diff
+! Miner should have at least 10 alpha staked to their own hotkey to participate in this mechanism.
+```
 
 ```bash
 uv run neurons/miner/oracle.py \
@@ -93,23 +94,28 @@ uv run neurons/miner/oracle.py \
 Create a `.env` file to avoid passing secrets via CLI:
 
 ```bash
-# Required for all miners
-WALLET_NAME=my_wallet
-WALLET_HOTKEY=my_hotkey
+# Miner and validator related env
+VAULT_CONTRACT_ADDRESS=5F8ykW4bse6kUHi65XqAzSfrrgKHDXXEBoReUZmUVc7r8q3A
+AUCTION_CONTRACT_ADDRESS=5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a
+TOKEN_CONTRACT_ADDRESS=5GjL2MKErF9ocXZBZZFueoWgf8wAnY1gcgLkDMj2bTsAsg6g
+ORACLE_CONTRACT_ADDRESS=5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB
 
-# Mechanism 0: Liquidation auctions
-AUCTION_CONTRACT_ADDRESS=5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty
-VAULT_CONTRACT_ADDRESS=5CiPPseXPECbkjWca6MnjNokrgYjMqmKndv2rSnekmSK2DjL
-TOKEN_CONTRACT_ADDRESS=5DAAnrj7VKbSBAiC3R9YJY4g8eZN8DLqr3gZJvJT8qYgL3Nq
-COLDKEY_PASSWORD=your_secure_password
-
-# Mechanism 1: Price oracle
-ORACLE_CONTRACT_ADDRESS=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+# only miner related env
+COLDKEY_PASSWORD=your_coldkey_password
 CMC_API_KEY=your_coinmarketcap_api_key
-PRICE_SUBMISSION_INTERVAL=1800 # 30 mins
-PRICE_MONITOR_INTERVAL=300 # 5 mins
+PRICE_SUBMISSION_INTERVAL=21600 # 6 hours
+PRICE_MONITOR_INTERVAL=60 # 1 min
 PRICE_CHANGE_THRESHOLD=0.017 # 1.7%
 PRICE_PROVIDER=coinmarketcap
+
+# only validator env
+DATABASE_URL=sqlite:///tensorusd.db
+
+
+## AGENT ENVs (ignore for now)
+TENSORUSD_SN_BACKEND_URL=
+TENSORUSD_NETUID=113
+BITTENSOR_NETWORK=
 
 ```
 
