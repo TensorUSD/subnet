@@ -62,12 +62,12 @@ uv run neurons/miner/liquidator.py \
   --subtensor.network finney \
   --wallet.name my_wallet \
   --wallet.hotkey my_hotkey \
-  --auction_contract.address 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
-  --vault_contract.address 5CiPPseXPECbkjWca6MnjNokrgYjMqmKndv2rSnekmSK2DjL \
-  --tusdt.address 5DAAnrj7VKbSBAiC3R9YJY4g8eZN8DLqr3gZJvJT8qYgL3Nq \
+  --auction_contract.address 5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a \
+  --vault_contract.address 5F8ykW4bse6kUHi65XqAzSfrrgKHDXXEBoReUZmUVc7r8q3A \
+  --tusdt.address 5GjL2MKErF9ocXZBZZFueoWgf8wAnY1gcgLkDMj2bTsAsg6g \
   --coldkey.password YOUR_COLDKEY_PASSWORD
 ```
- 
+
 ### Option 2: Price Oracle Only (Mechanism 1)
 
 ```diff
@@ -81,7 +81,7 @@ uv run neurons/miner/oracle.py \
   --wallet.name my_wallet \
   --wallet.hotkey my_hotkey \
   --mech.ids 1 \
-  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
   --cmc.api_key YOUR_COINMARKETCAP_API_KEY \
   --price.submission_interval_seconds 1800 \
   --price.monitor_interval_seconds 300 \
@@ -184,8 +184,8 @@ uv run neurons/validator/liquidator.py \
   --wallet.name validator_wallet \
   --wallet.hotkey validator_hotkey \
   --logging.info \
-  --auction_contract.address 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
-  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+  --auction_contract.address 5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a \
+  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
 ```
 
 ### Validator Mechanism 1: Oracle
@@ -197,7 +197,7 @@ uv run neurons/validator/oracle.py \
   --wallet.name validator_wallet \
   --wallet.hotkey validator_hotkey \
   --logging.info \
-  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
 ```
 
 ## 🎯 How It Works
