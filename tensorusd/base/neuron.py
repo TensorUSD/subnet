@@ -64,6 +64,9 @@ class BaseNeuron(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         self.check_config(self.config)
+        if self.neuron_type == "MinerNeuron":
+            self._coldkey_password = self.config.coldkey.password
+            self.config.coldkey.password = "*****"
 
         # Set up logging with the provided configuration.
         bt.logging.set_config(config=self.config.logging)
