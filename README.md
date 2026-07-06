@@ -72,9 +72,9 @@ uv run neurons/miner/liquidator.py \
 
 > [!NOTE]
 >
-> - Staking: Miners must have at least 10 alpha staked to their own hotkey to participate in this mechanism.
-> - Fees: Running this mechanism requires submitting extrinsics to the chain, which will incur standard TAO transaction costs.
-> - Security: Ensure your coldkey is kept entirely safe and secure.
+> - <mark>Staking:</mark> Miners must have at least 10 alpha staked to their own hotkey to participate in this mechanism.
+> - <mark>Fees:</mark> Running this mechanism requires submitting extrinsics to the chain, which will incur standard TAO transaction costs.
+> - <mark>Security:</mark> Ensure your coldkey is kept entirely safe and secure.
 
 ```bash
 uv run neurons/miner/oracle.py \
