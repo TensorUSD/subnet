@@ -70,9 +70,11 @@ uv run neurons/miner/liquidator.py \
 
 ### Option 2: Price Oracle Only (Mechanism 1)
 
-```diff
-! Miner should have at least 10 alpha staked to their own hotkey to participate in this mechanism.
-```
+> [!NOTE]
+>
+> - Staking: Miners must have at least 10 alpha staked to their own hotkey to participate in this mechanism.
+> - Fees: Running this mechanism requires submitting extrinsics to the chain, which will incur standard TAO transaction costs.
+> - Security: Ensure your coldkey is kept entirely safe and secure.
 
 ```bash
 uv run neurons/miner/oracle.py \
