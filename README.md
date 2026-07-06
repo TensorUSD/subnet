@@ -70,11 +70,11 @@ uv run neurons/miner/liquidator.py \
 
 ### Option 2: Price Oracle Only (Mechanism 1)
 
-> [!NOTE]
+> [!Note]
 >
-> - <mark>Staking:</mark> Miners must have at least 10 alpha staked to their own hotkey to participate in this mechanism.
-> - <mark>Fees:</mark> Running this mechanism requires submitting extrinsics to the chain, which will incur standard TAO transaction costs.
-> - <mark>Security:</mark> Ensure your coldkey is kept entirely safe and secure.
+> - $${\color{yellow}Staking: Miners \space must \space have \space at \space least \space 10 \space alpha \space staked \space to \space their \space own \space hotkey \space to \space participate \space in \space this \space mechanism.}$$
+> - $${\color{yellow}Fees: Running \space this \space mechanism \space requires \space submitting \space extrinsics \space to \space the \space chain, \space which \space will \space incur \space standard \space TAO \space transaction \space costs.}$$
+> - $${\color{yellow}Security: Ensure \space your \space coldkey \space is \space kept \space entirely \space safe \space and \space secure.}$$
 
 ```bash
 uv run neurons/miner/oracle.py \
