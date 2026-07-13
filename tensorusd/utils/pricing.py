@@ -19,13 +19,16 @@ class ModelPricing:
 
 
 DEFAULT_MODEL_PRICING: tuple[ModelPricing, ...] = (
+    ModelPricing("gpt-5.6-terra", 2.5, 15.00),
+    ModelPricing("gpt-5.6-luna", 1.00, 6.00),
+    ModelPricing("gpt-5.4", 2.50, 15.00),
+    ModelPricing("gpt-5.4-mini", 0.75, 4.50),
+    ModelPricing("gpt-5.4-nano", 0.20, 1.25),
+    ModelPricing("gpt-5-mini", 0.25, 2),
+    ModelPricing("gpt-5-nano", 0.05, 0.40),
     ModelPricing("gpt-4.1", 2.00, 8.00),
-    ModelPricing("gpt-4o", 2.50, 10.00),
-    ModelPricing("gpt-4.1-turbo", 1.00, 3.00),
-    ModelPricing("gpt-4o-2024-08-06", 2.50, 10.00),
     ModelPricing("gpt-4.1-mini", 0.40, 1.60),
     ModelPricing("gpt-4o-mini", 0.15, 0.60),
-    ModelPricing("gpt-4.1-nano", 0.10, 0.40),
 )
 
 
@@ -101,4 +104,4 @@ def fetch_tao_price_usd_coingecko() -> float:
 def dollars_to_tao(amount_usd: float, tao_price_usd: float) -> float:
     if tao_price_usd <= 0:
         raise ValueError("TAO price must be greater than zero.")
-    return amount_usd / tao_price_usd
+    return round(amount_usd / tao_price_usd, 8)

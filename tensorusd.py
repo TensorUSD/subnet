@@ -118,7 +118,7 @@ def _prompt_int(label: str, default: int | None = None) -> int:
 def _prompt_model() -> str:
     available_models = [pricing.model for pricing in get_known_model_pricing()]
     selected = choice(
-        message="TensorUSD model selection",
+        message="TensorUSD Agent model selection",
         options=[(model, model) for model in available_models],
         default="salad",
             style=Style.from_dict(
@@ -235,7 +235,7 @@ def submit(
     )
 
     payment_info = _request_payment_info(backend_url, hotkey_ss58)
-    fee_target_hotkey = payment_info["fee_target_hotkey"]
+    fee_target_coldkey = payment_info["fee_target_coldkey"]
 
     confirm = click.confirm("  Continue with TAO transfer and submission?", default=True)
     if not confirm:
@@ -247,14 +247,15 @@ def submit(
         subtensor = bt.Subtensor(network=settings.network)
         result = subtensor.transfer(
             wallet=wallet,
-            destination_ss58=fee_target_hotkey,
+            destination_ss58=fee_target_coldkey,
             amount=bt.Balance.from_tao(amount=Decimal(str(estimated_cost_tao))),
         )
         tx_id = str(result.extrinsic_receipt.extrinsic_hash)
+        block_hash = result.extrinsic_receipt.block_hash
         bar.update(1)
 
     if tx_id:
-        click.echo(f"        {click.style('✓', fg='green')} tx {tx_id[:32]}…")
+        click.echo(f"        {click.style('✓', fg='green')} tx {tx_id}")
     else:
         click.echo(f"        {click.style('✓', fg='green')} no fee required")
 
@@ -271,8 +272,11 @@ def submit(
                     "signature": signature_hex,
                     "est_input_tokens": estimated_input_tokens,
                     "est_output_tokens": estimated_output_tokens,
-                    "submission_fees_tao":estimated_cost_tao, 
+                    "submission_fees_tao":estimated_cost_tao,
+                    "submission_fees_usd": estimated_cost_usd,
+                    "model_id": selected_model,
                     "txn_hash": tx_id,
+                    "block_hash": block_hash,
                 },
                 files={
                     "file": (os.path.basename(agent_file), fh, "text/x-python"),

@@ -28,6 +28,7 @@ from tensorusd.validator.delayed_evaluation import (
     DelayedEvaluator,
 )
 from tensorusd.validator.ground_truth_collector import GroundTruthCollector
+from tensorusd.utils.pricing import get_most_expensive_allowed_model
 
 log = get_logger(__name__)
 
@@ -185,13 +186,34 @@ class ValidatorCore:
         miner_hotkey: str | None = (
             submission.get("miner_hotkey") or submission.get("hotkey") or None
         )
-        score_count: int = submission.get("score_count", 0)
+        model_id: str | None = submission.get("model_id") or None
+        est_input_tokens: int = int(submission.get("est_input_tokens") or 0)
+        est_output_tokens: int = int(submission.get("est_output_tokens") or 0)
+        budget_usd: float = float(submission.get("budget_usd") or 0.0)
+        run_budget_usd: float = budget_usd / 2.0 if budget_usd > 0 else 0.0
         log.info(
-            "Evaluating submission %s from %s (scores so far: %d/20)",
+            "Evaluating submission %s from %s (model=%s, est_tokens=%d/%d, budget_usd=%.6f, run_budget_usd=%.6f)",
             sub_id,
             miner_hotkey or "unknown",
-            score_count,
+            model_id or "unknown",
+            est_input_tokens,
+            est_output_tokens,
+            budget_usd,
+            run_budget_usd,
         )
+
+        token_budget = est_input_tokens + est_output_tokens
+        if token_budget <= 0 and budget_usd > 0:
+            try:
+                pricing = get_most_expensive_allowed_model(self._sandbox.allowed_models)
+                token_budget = int(
+                    ((run_budget_usd * 1_000_000.0) / max(pricing.output_usd_per_million_tokens, 1e-9))
+                )
+            except Exception as exc:
+                log.warning("Could not derive token budget for %s: %s", sub_id, exc)
+                token_budget = None
+        if token_budget is not None and token_budget <= 0:
+            token_budget = None
 
         agent_filename: str = (
             submission.get("agent_filename")
@@ -262,13 +284,19 @@ class ValidatorCore:
 
         # Sandbox evaluation
         log.info("Running sandbox for submission %s", sub_id)
-        sandbox_result = self._sandbox.run(agent_bytes)
+        sandbox_result = self._sandbox.run(
+            agent_bytes,
+            model_id=model_id,
+            token_budget=token_budget,
+            cost_budget_usd=run_budget_usd if run_budget_usd > 0 else None,
+        )
 
         if not sandbox_result.success or sandbox_result.output_csv_bytes is None:
             log.warning(
-                "Sandbox failed for %s (exit=%s): %s",
+                "Sandbox failed for %s (exit=%s, sandbox_log=%s): %s",
                 sub_id,
                 sandbox_result.exit_code,
+                sandbox_result.log_path,
                 sandbox_result.stderr[:300],
             )
             self._upload_fallback_empty_csv_and_record(
@@ -300,6 +328,7 @@ class ValidatorCore:
             upload_meta = self._client.upload_agent_output(
                 csv_bytes=output_csv_bytes,
                 agent_filename=agent_filename,
+                submission_id=sub_id,
             )
             log.info(
                 "Output CSV uploaded for %s — file_id=%s  eval_date=%s",
@@ -483,6 +512,7 @@ class ValidatorCore:
             upload_meta = self._client.upload_agent_output(
                 csv_bytes=empty_csv,
                 agent_filename=agent_filename,
+                submission_id=submission_id,
             )
             log.info(
                 "Uploaded fallback empty CSV for %s — file_id=%s  eval_date=%s",

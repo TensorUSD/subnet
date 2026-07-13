@@ -27,11 +27,19 @@ __spec_version__ = (
     + (1 * int(version_split[2]))
 )
 
-# Import all submodules.
-from . import protocol
-from . import base
-from . import validator
-from . import api
-from . import liquidator
-from . import oracle
-from .subnet_links import SUBNET_LINKS
+# Keep package import side-effect free.
+#
+# Importing ``tensorusd`` should not automatically import validator/miner/chain
+# modules, because lightweight sandbox code may only need a narrow helper such
+# as ``tensorusd.utils.openai_runtime``. Eager imports here would pull in
+# bittensor and other heavyweight optional dependencies during package import.
+
+__all__ = [
+    "protocol",
+    "base",
+    "validator",
+    "api",
+    "liquidator",
+    "oracle",
+    "SUBNET_LINKS",
+]

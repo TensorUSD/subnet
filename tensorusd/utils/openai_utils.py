@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from tensorusd.utils.pricing import ModelPricing, estimate_openai_cost_usd
+
 
 @dataclass(slots=True)
 class OpenAIUsage:
@@ -45,11 +47,15 @@ class TrackedOpenAIClient:
         *,
         request_fn: Callable[..., Any],
         allowed_models: tuple[str, ...],
-        token_budget: int,
+        token_budget: int | None = None,
+        cost_budget_usd: float | None = None,
+        pricing: ModelPricing | None = None,
     ) -> None:
         self._request_fn = request_fn
         self.allowed_models = allowed_models
-        self.token_budget = int(token_budget)
+        self.token_budget = int(token_budget) if token_budget is not None else None
+        self.cost_budget_usd = float(cost_budget_usd) if cost_budget_usd is not None else None
+        self.pricing = pricing
         self._usage = OpenAIUsage()
 
     def reset_usage(self) -> None:
@@ -77,7 +83,22 @@ class TrackedOpenAIClient:
         return self._usage.total_tokens
 
     def remaining_tokens(self) -> int:
+        if self.token_budget is None:
+            return 2**31 - 1
         return max(0, self.token_budget - self._usage.total_tokens)
+
+    def remaining_cost_usd(self) -> float:
+        if self.cost_budget_usd is None:
+            return float("inf")
+        if self.pricing is None:
+            return max(0.0, self.cost_budget_usd)
+        used_cost = estimate_openai_cost_usd(
+            input_tokens=self._usage.prompt_tokens,
+            output_tokens=self._usage.completion_tokens,
+            pricing=self.pricing,
+            safety_multiplier=1.0,
+        )
+        return max(0.0, self.cost_budget_usd - used_cost)
 
     def available_models(self) -> tuple[str, ...]:
         return self.allowed_models
@@ -95,14 +116,43 @@ class TrackedOpenAIClient:
                 f"Model '{model}' is not allowed. Allowed models: {', '.join(self.allowed_models)}"
             )
 
+        if self.token_budget is not None and self._usage.total_tokens >= self.token_budget:
+            raise OpenAIBudgetExceeded(
+                f"OpenAI token budget exceeded: {self._usage.total_tokens:,} >= {self.token_budget:,}"
+            )
+
+        if self.cost_budget_usd is not None and self.pricing is not None:
+            projected_cost = estimate_openai_cost_usd(
+                input_tokens=self._usage.prompt_tokens,
+                output_tokens=self._usage.completion_tokens,
+                pricing=self.pricing,
+                safety_multiplier=1.0,
+            )
+            if projected_cost >= self.cost_budget_usd:
+                raise OpenAIBudgetExceeded(
+                    f"OpenAI cost budget exceeded: {projected_cost:.6f} >= {self.cost_budget_usd:.6f}"
+                )
+
         response = self._request_fn(endpoint=endpoint, model=model, **kwargs)
         usage = _extract_usage(response)
 
         projected_total = self._usage.total_tokens + usage.total_tokens
-        if projected_total > self.token_budget:
+        if self.token_budget is not None and projected_total > self.token_budget:
             raise OpenAIBudgetExceeded(
                 f"OpenAI token budget exceeded: {projected_total:,} > {self.token_budget:,}"
             )
+
+        if self.cost_budget_usd is not None and self.pricing is not None:
+            projected_cost = estimate_openai_cost_usd(
+                input_tokens=self._usage.prompt_tokens + usage.prompt_tokens,
+                output_tokens=self._usage.completion_tokens + usage.completion_tokens,
+                pricing=self.pricing,
+                safety_multiplier=1.0,
+            )
+            if projected_cost > self.cost_budget_usd:
+                raise OpenAIBudgetExceeded(
+                    f"OpenAI cost budget exceeded: {projected_cost:.6f} > {self.cost_budget_usd:.6f}"
+                )
 
         self.record_usage(
             prompt_tokens=usage.prompt_tokens,
@@ -137,13 +187,22 @@ def _extract_usage(response: Any) -> OpenAIUsage:
 
     if isinstance(usage, dict):
         return OpenAIUsage(
-            prompt_tokens=int(usage.get("prompt_tokens", 0) or 0),
-            completion_tokens=int(usage.get("completion_tokens", 0) or 0),
+            prompt_tokens=int(
+                usage.get("prompt_tokens", usage.get("input_tokens", 0)) or 0
+            ),
+            completion_tokens=int(
+                usage.get("completion_tokens", usage.get("output_tokens", 0)) or 0
+            ),
         )
 
     return OpenAIUsage(
-        prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
-        completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+        prompt_tokens=int(
+            getattr(usage, "prompt_tokens", getattr(usage, "input_tokens", 0)) or 0
+        ),
+        completion_tokens=int(
+            getattr(usage, "completion_tokens", getattr(usage, "output_tokens", 0))
+            or 0
+        ),
     )
 
 
@@ -151,13 +210,17 @@ def create_tracked_openai_client(
     *,
     request_fn: Callable[..., Any],
     allowed_models: tuple[str, ...],
-    token_budget: int,
+    token_budget: int | None = None,
+    cost_budget_usd: float | None = None,
+    pricing: ModelPricing | None = None,
 ) -> TrackedOpenAIClient:
     """Factory for creating a tracked OpenAI wrapper."""
     return TrackedOpenAIClient(
         request_fn=request_fn,
         allowed_models=allowed_models,
         token_budget=token_budget,
+        cost_budget_usd=cost_budget_usd,
+        pricing=pricing,
     )
 
 
