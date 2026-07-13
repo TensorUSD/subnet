@@ -220,7 +220,7 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         "--bid.max_percentage",
         type=float,
         help="Maximum bid as percentage of collateral value (0.0-1.0).",
-        default=0.95,
+        default=0.3,
     )
 
     parser.add_argument(
@@ -287,6 +287,13 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         help="Change threshold for force price submission",
         default=os.getenv("PRICE_CHANGE_THRESHOLD", 0.017),  # default 1.7%
         required=is_required_arg("PRICE_CHANGE_THRESHOLD", False, 1, mech_id),
+    )
+    parser.add_argument(
+        "--price.provider",
+        type=str,
+        help="Price provider",
+        default=os.getenv("PRICE_PROVIDER", None),  # default 1.7%
+        required=is_required_arg("PRICE_PROVIDER", False, 1, mech_id),
     )
 
 

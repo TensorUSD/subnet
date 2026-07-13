@@ -64,6 +64,9 @@ class BaseNeuron(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         self.check_config(self.config)
+        if self.neuron_type == "MinerNeuron":
+            self._coldkey_password = self.config.coldkey.password
+            self.config.coldkey.password = "*****"
 
         # Set up logging with the provided configuration.
         bt.logging.set_config(config=self.config.logging)
@@ -115,7 +118,7 @@ class BaseNeuron(ABC):
         self.check_registered()
 
         if self.should_sync_mechagraph():
-            self.resync_mechagraph(mechid=mechid)
+            self.resync_mechagraph()
 
         if self.should_set_weights():
             self.set_weights(mechid)  # or 1 for mech1

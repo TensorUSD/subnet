@@ -2,7 +2,7 @@
 
 > **Decentralized liquidation auctions and price oracle for TensorUSD stablecoin on Bittensor**
 
-Miners earn TAO by participating in liquidation auctions and contributing to the price oracle. Validators track on-chain activity and distribute rewards.
+Miners earn TAO by participating in liquidation auctionsand contributing to the price oracle. Validators track on-chain activity and distribute rewards.
 
 📚 **[Documentation](https://docs.tensorusd.com/components/subnet)**
 
@@ -36,6 +36,17 @@ uv run alembic upgrade head
 
 ---
 
+## 📋 Contract Addresses (Mainnet)
+
+| Contract      | Address                                            |
+| ------------- | -------------------------------------------------- |
+| Vault         | `5F8ykW4bse6kUHi65XqAzSfrrgKHDXXEBoReUZmUVc7r8q3A` |
+| Auction       | `5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a` |
+| Token (TUSDT) | `5GjL2MKErF9ocXZBZZFueoWgf8wAnY1gcgLkDMj2bTsAsg6g` |
+| Oracle        | `5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB` |
+
+---
+
 ## ⚡ Running a Miner
 
 Miners can participate in **two mechanisms** to earn rewards:
@@ -51,14 +62,19 @@ uv run neurons/miner/liquidator.py \
   --subtensor.network finney \
   --wallet.name my_wallet \
   --wallet.hotkey my_hotkey \
-  --mech.ids 0 \
-  --auction_contract.address 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
-  --vault_contract.address 5CiPPseXPECbkjWca6MnjNokrgYjMqmKndv2rSnekmSK2DjL \
-  --tusdt.address 5DAAnrj7VKbSBAiC3R9YJY4g8eZN8DLqr3gZJvJT8qYgL3Nq \
+  --auction_contract.address 5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a \
+  --vault_contract.address 5F8ykW4bse6kUHi65XqAzSfrrgKHDXXEBoReUZmUVc7r8q3A \
+  --tusdt.address 5GjL2MKErF9ocXZBZZFueoWgf8wAnY1gcgLkDMj2bTsAsg6g \
   --coldkey.password YOUR_COLDKEY_PASSWORD
 ```
 
 ### Option 2: Price Oracle Only (Mechanism 1)
+
+> [!Note]
+>
+> - $${\color{yellow}Staking: Miners \space must \space have \space at \space least \space 10 \space alpha \space staked \space to \space their \space own \space hotkey \space to \space participate \space in \space this \space mechanism.}$$
+> - $${\color{yellow}Fees: Running \space this \space mechanism \space requires \space submitting \space extrinsics \space to \space the \space chain, \space which \space will \space incur \space standard \space TAO \space transaction \space costs.}$$
+> - $${\color{yellow}Security: Ensure \space your \space coldkey \space is \space kept \space entirely \space safe \space and \space secure.}$$
 
 ```bash
 uv run neurons/miner/oracle.py \
@@ -67,9 +83,12 @@ uv run neurons/miner/oracle.py \
   --wallet.name my_wallet \
   --wallet.hotkey my_hotkey \
   --mech.ids 1 \
-  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
   --cmc.api_key YOUR_COINMARKETCAP_API_KEY \
-  --price.submission_interval_seconds 300
+  --price.submission_interval_seconds 1800 \
+  --price.monitor_interval_seconds 300 \
+  --price.change_threshold 0.017 \
+  --price.provider coinmarketcap
 ```
 
 ### Using Environment Variables
@@ -77,20 +96,28 @@ uv run neurons/miner/oracle.py \
 Create a `.env` file to avoid passing secrets via CLI:
 
 ```bash
-# Required for all miners
-WALLET_NAME=my_wallet
-WALLET_HOTKEY=my_hotkey
+# Miner and validator related env
+VAULT_CONTRACT_ADDRESS=5F8ykW4bse6kUHi65XqAzSfrrgKHDXXEBoReUZmUVc7r8q3A
+AUCTION_CONTRACT_ADDRESS=5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a
+TOKEN_CONTRACT_ADDRESS=5GjL2MKErF9ocXZBZZFueoWgf8wAnY1gcgLkDMj2bTsAsg6g
+ORACLE_CONTRACT_ADDRESS=5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB
 
-# Mechanism 0: Liquidation auctions
-AUCTION_CONTRACT_ADDRESS=5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty
-VAULT_CONTRACT_ADDRESS=5CiPPseXPECbkjWca6MnjNokrgYjMqmKndv2rSnekmSK2DjL
-TOKEN_CONTRACT_ADDRESS=5DAAnrj7VKbSBAiC3R9YJY4g8eZN8DLqr3gZJvJT8qYgL3Nq
-COLDKEY_PASSWORD=your_secure_password
-
-# Mechanism 1: Price oracle
-ORACLE_CONTRACT_ADDRESS=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+# only miner related env
+COLDKEY_PASSWORD=your_coldkey_password
 CMC_API_KEY=your_coinmarketcap_api_key
-PRICE_SUBMISSION_INTERVAL=300
+PRICE_SUBMISSION_INTERVAL=21600 # 6 hours
+PRICE_MONITOR_INTERVAL=60 # 1 min
+PRICE_CHANGE_THRESHOLD=0.017 # 1.7%
+PRICE_PROVIDER=coinmarketcap
+
+# only validator env
+DATABASE_URL=sqlite:///tensorusd.db
+
+
+## AGENT ENVs (ignore for now)
+TENSORUSD_SN_BACKEND_URL=
+TENSORUSD_NETUID=113
+BITTENSOR_NETWORK=
 
 ```
 
@@ -114,12 +141,12 @@ uv run neurons/miner/oracle.py --netuid 113 \
 
 #### Mechanism 0: Liquidation Bidding Strategy
 
-| Option                     | Default | Description                                                |
-| -------------------------- | ------- | ---------------------------------------------------------- |
-| `--bid.initial_percentage` | 0.0005  | Initial bid as % above debt (e.g., 0.0005 = debt × 1.0005) |
-| `--bid.increment_rate`     | 0.0005  | Increase bid by % when outbid (e.g., 0.005 = +0.5%)        |
-| `--bid.max_percentage`     | 0.95    | Maximum bid as % of collateral value (safety limit)        |
-| `--bid.min_profit_margin`  | 0.0002  | Minimum profit margin to place bid (e.g., 0.02%)           |
+| Option                     | Default | Description                                                                                                             |
+| -------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `--bid.initial_percentage` | 0.11    | Initial bid as % above debt (e.g., 0.11 = debt × 1.11) (Remember contract accepts auction with at least 11% above debt) |
+| `--bid.increment_rate`     | 0.0005  | Increase bid by % when outbid (e.g., 0.005 = +0.5%)                                                                     |
+| `--bid.max_percentage`     | 0.3     | Maximum bid as % of collateral value (safety limit)                                                                     |
+| `--bid.min_profit_margin`  | 0.0002  | Minimum profit margin to place bid (e.g., 0.02%)                                                                        |
 
 **Example: Aggressive bidding strategy**
 
@@ -135,11 +162,14 @@ uv run neurons/miner.py \
 
 #### Mechanism 1: Price Oracle Configuration
 
-| Option                                | Default | Description                                           |
-| ------------------------------------- | ------- | ----------------------------------------------------- |
-| `--oracle_contract.address`           | env     | Oracle contract SS58 address                          |
-| `--cmc.api_key`                       | env     | CoinMarketCap API key                                 |
-| `--price.submission_interval_seconds` | env     | Seconds between price submissions (e.g., 300 = 5 min) |
+| Option                                | Default | Description                                                                   |
+| ------------------------------------- | ------- | ----------------------------------------------------------------------------- |
+| `--oracle_contract.address`           | env     | Oracle contract SS58 address                                                  |
+| `--cmc.api_key`                       | env     | CoinMarketCap API key                                                         |
+| `--price.submission_interval_seconds` | env     | Seconds between price submissions (e.g., 1800 = 30 mins)                      |
+| `--price.monitor_interval_seconds`    | env     | Interval in seconds between price monitors from the api. (e.g., 300 = 5 mins) |
+| `--price.change_threshold`            | env     | Change threshold for force price submission (e.g., 0.017 = 1.7 %)             |
+| `--price.provider`                    | env     | Price provider (e.g., coinmarketcap)                                          |
 
 ---
 
@@ -147,17 +177,17 @@ uv run neurons/miner.py \
 
 Validators monitor on-chain events and distribute rewards for both mechanisms.
 
-### Validator Mechanism 0: Liquidation And Agent
+### Validator Mechanism 0: Liquidation
 
 ```bash
-uv run neurons/validator/liquidator_and_agent.py \
+uv run neurons/validator/liquidator.py \
   --netuid 113 \
   --subtensor.network finney \
   --wallet.name validator_wallet \
   --wallet.hotkey validator_hotkey \
   --logging.info \
-  --auction_contract.address 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
-  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+  --auction_contract.address 5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a \
+  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
 ```
 
 ### Validator Mechanism 1: Oracle
@@ -169,7 +199,7 @@ uv run neurons/validator/oracle.py \
   --wallet.name validator_wallet \
   --wallet.hotkey validator_hotkey \
   --logging.info \
-  --oracle_contract.address 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
 ```
 
 ## 🎯 How It Works

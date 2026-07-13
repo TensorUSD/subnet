@@ -56,7 +56,7 @@ class BaseMinerNeuron(BaseNeuron):
         self.lock = asyncio.Lock()
 
     def unlock_wallet(self):
-        self.wallet.coldkey_file.save_password_to_env(self.config.coldkey.password)
+        self.wallet.coldkey_file.save_password_to_env(self._coldkey_password)
         self.wallet.unlock_coldkey()
         bt.logging.info("Wallet unlocked successfully")
 

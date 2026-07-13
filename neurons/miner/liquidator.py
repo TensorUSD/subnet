@@ -23,9 +23,9 @@ import typing
 import bittensor as bt
 
 # Bittensor Miner tensorusd:
-import tensorusd
 
 # import base miner class which takes care of most of the boilerplate
+from tensorusd import protocol
 from tensorusd.liquidator import AuctionUnionEvent, AuctionEventType
 from tensorusd.base.miner import BaseMinerNeuron
 
@@ -138,14 +138,18 @@ class LiquidationMiner(BaseMinerNeuron):
             callback=self._handle_auction_event,
         )
 
-    def _handle_auction_event(self, event: AuctionUnionEvent):
+    def _handle_auction_event(self, event: AuctionUnionEvent | None, block_number: int):
         """
         Callback from event listener - runs in listener thread.
 
         Args:
             event: Decoded auction event
         """
-        bt.logging.info(f"Auction event: {event.event_type.value} - {event.auction_id}")
+        if not event:
+            return
+        bt.logging.info(
+            f"Auction event: {event.event_type.value} - Auction ID: {event.auction_id} - Block: {block_number}"
+        )
         self.executor.submit(self._process_event, event)
 
     def _process_event(self, event: AuctionUnionEvent):
@@ -169,14 +173,13 @@ class LiquidationMiner(BaseMinerNeuron):
         bt.logging.info("Catching up on active auctions...")
         self.executor.submit(self.auction_manager.sync_active_auctions)
         # Start listening for new events
-        self.event_listener.run_in_background_thread()
+        self.event_listener.run_in_executor(self.executor)
 
         # Run normal miner operation (axon serving, metagraph sync)
         super().run(mech_id=0)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        """Override to also stop event listener and cleanup substrate connections."""
-        self.event_listener.stop_run_thread()
+        self.event_listener.stop()
         self.executor.shutdown(wait=True, cancel_futures=False)
 
         # Close substrate connections
@@ -192,9 +195,7 @@ class LiquidationMiner(BaseMinerNeuron):
 
         super().__exit__(exc_type, exc_value, traceback)
 
-    async def blacklist(
-        self, synapse: tensorusd.protocol.Dummy
-    ) -> typing.Tuple[bool, str]:
+    async def blacklist(self, synapse: protocol.Dummy) -> typing.Tuple[bool, str]:
         """
         Determines whether an incoming request should be blacklisted and thus ignored. Your implementation should
         define the logic for blacklisting requests based on your needs and desired security parameters.
@@ -254,7 +255,7 @@ class LiquidationMiner(BaseMinerNeuron):
         )
         return False, "Hotkey recognized!"
 
-    async def priority(self, synapse: tensorusd.protocol.Dummy) -> float:
+    async def priority(self, synapse: protocol.Dummy) -> float:
         """
         The priority function determines the order in which requests are handled. More valuable or higher-priority
         requests are processed before others. You should design your own priority mechanism with care.

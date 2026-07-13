@@ -55,11 +55,19 @@ class OracleMiner(BaseMinerNeuron):
 
     def __init__(self, config=None):
         super(OracleMiner, self).__init__(config=config, mech_id=1)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+        self.setup()
+
+    def setup(self):
+        try:
+            self.oracle_substrate.close()
+        except Exception as e:
+            bt.logging.debug(f"Error closing oracle substrate: {e}")
+
         self.oracle_substrate = create_substrate_interface(
-            self.subtensor.chain_endpoint
+            bt.settings.LATENT_LITE_ENTRYPOINT
         )
 
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
         self.oracle_contract = TensorUSDPriceOracleContract(
             substrate=self.oracle_substrate,
             contract_address=self.config.oracle_contract.address,
@@ -78,9 +86,7 @@ class OracleMiner(BaseMinerNeuron):
         super().run(mech_id=1)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        """Override to also stop event listener and cleanup substrate connections."""
-        self.price_oracle_miner.stop_run_thread()
-
+        self.price_oracle_miner.stop()
         self.executor.shutdown(wait=True, cancel_futures=False)
 
         try:

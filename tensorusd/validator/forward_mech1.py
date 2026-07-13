@@ -8,11 +8,18 @@ import numpy as np
 if TYPE_CHECKING:
     from neurons.validator import OracleValidator
 
-SLEEP_TIME = 300  # Sleep for 5 minutes between mech1 validations, adjust as needed
+SLEEP_TIME = 1500  # Sleep for 5 minutes between mech1 validations, adjust as needed
 
 
 async def forward_mech1(self: "OracleValidator"):
     current_round_id = self.oracle_contract.get_current_round_id()
+    if current_round_id is None:
+        bt.logging.warning(
+            "get_current_round_id() returned None, reconnecting substrate..."
+        )
+        self.setup()
+        await asyncio.sleep(5)
+        return
     to_validate_round_id = current_round_id - 1
     if to_validate_round_id == 0:
         bt.logging.info("No rounds to validate yet, burning reward to UID 0")
