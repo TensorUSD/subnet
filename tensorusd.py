@@ -110,7 +110,7 @@ def _request_payment_info(backend_url: str, hotkey: str) -> dict:
 
 def _prompt_int(label: str, default: int | None = None) -> int:
     value = click.prompt(click.style(label, fg="yellow"), default=default, type=int)
-    if value < 0:
+    if value <= 0:
         raise click.ClickException(f"{label} must be >= 0")
     return value
 
@@ -215,6 +215,7 @@ def submit(
     )
     tao_price_usd = fetch_tao_price_usd_coingecko()
     estimated_cost_tao = dollars_to_tao(estimated_cost_usd, tao_price_usd)
+    
 
     click.echo()
     click.echo(
