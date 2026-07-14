@@ -28,6 +28,11 @@ from tensorusd.validator.delayed_evaluation import (
     DelayedEvaluator,
 )
 from tensorusd.validator.ground_truth_collector import GroundTruthCollector
+from tensorusd.utils.pricing import get_most_expensive_allowed_model
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from neurons.validator import Validator
 
 log = get_logger(__name__)
 
@@ -37,12 +42,14 @@ class ValidatorCore:
     Orchestrates the full validator evaluation loop.
     """
 
-    def __init__(self, wallet: bt.Wallet) -> None:
+    def __init__(self, wallet: bt.Wallet, validator: "Validator",mechid: int = 1) -> None:
         self._wallet = wallet
+        self._mechid = mechid
+        self._validator = validator
 
         # Bittensor chain connections
         self._subtensor = bt.Subtensor(network=settings.network)
-        self._metagraph = bt.Metagraph(netuid=settings.netuid, network=settings.network)
+        self._metagraph = bt.Metagraph(netuid=settings.netuid, network=settings.network, mechid=self._mechid)
 
         # Core components
         self._client = BackendClient(wallet)
@@ -105,10 +112,13 @@ class ValidatorCore:
         while True:
             try:
                 # Phase 1: Agent execution
-                had_work = self._evaluation_cycle()
+                winner_hk,weight = self._evaluation_cycle()
 
-                if not had_work:
+                if not winner_hk:
+                    self._maybe_set_weights(self._wallet.hotkey.ss58_address)
                     self._run_scoring_cycle()
+                else:
+                    self._maybe_set_weights(winner_hk)
             except requests.HTTPError as exc:
                 if exc.response is not None and exc.response.status_code == 403:
                     log.error(
@@ -160,9 +170,8 @@ class ValidatorCore:
                 "No unevaluated submissions.  Sleeping %ds.",
                 settings.validator_poll_interval,
             )
-            self._maybe_set_weights()
-            time.sleep(settings.validator_poll_interval)
-            return False
+
+            return "",1
 
         log.debug("Raw submission response: %s", submission)
         sub_id: str = submission.get("submission_id") or submission.get("id")
@@ -171,7 +180,7 @@ class ValidatorCore:
                 "Submission response missing id field. Keys received: %s",
                 list(submission.keys()),
             )
-            return True
+            return "",1
 
         # Check persistent scored cache — survives restarts
         if sub_id in self._scored:
@@ -179,19 +188,41 @@ class ValidatorCore:
                 "Submission %s already scored by this validator — skipping.",
                 sub_id,
             )
-            time.sleep(settings.validator_poll_interval)
-            return True
+            return "",1
+            # time.sleep(settings.validator_poll_interval) #TODO:: keep it at the end
+            # return True
 
         miner_hotkey: str | None = (
             submission.get("miner_hotkey") or submission.get("hotkey") or None
         )
-        score_count: int = submission.get("score_count", 0)
+        model_id: str | None = submission.get("model_id") or None
+        est_input_tokens: int = int(submission.get("est_input_tokens") or 0)
+        est_output_tokens: int = int(submission.get("est_output_tokens") or 0)
+        budget_usd: float = float(submission.get("budget_usd") or 0.0)
+        run_budget_usd: float = budget_usd / 2.0 if budget_usd > 0 else 0.0
         log.info(
-            "Evaluating submission %s from %s (scores so far: %d/20)",
+            "Evaluating submission %s from %s (model=%s, est_tokens=%d/%d, budget_usd=%.6f, run_budget_usd=%.6f)",
             sub_id,
             miner_hotkey or "unknown",
-            score_count,
+            model_id or "unknown",
+            est_input_tokens,
+            est_output_tokens,
+            budget_usd,
+            run_budget_usd,
         )
+
+        token_budget = est_input_tokens + est_output_tokens
+        if token_budget <= 0 and budget_usd > 0:
+            try:
+                pricing = get_most_expensive_allowed_model(self._sandbox.allowed_models)
+                token_budget = int(
+                    ((run_budget_usd * 1_000_000.0) / max(pricing.output_usd_per_million_tokens, 1e-9))
+                )
+            except Exception as exc:
+                log.warning("Could not derive token budget for %s: %s", sub_id, exc)
+                token_budget = None
+        if token_budget is not None and token_budget <= 0:
+            token_budget = None
 
         agent_filename: str = (
             submission.get("agent_filename")
@@ -208,8 +239,8 @@ class ValidatorCore:
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
-            self._maybe_set_weights()
-            return True
+            return "",1
+        
 
         # Security validation — pure Python, binary check, AST scan, token scan.
         # This replaces the old regex-based _detect_malware().
@@ -226,8 +257,8 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
-            return True
+            return "",1
+           
 
         format_reason = validate_agent_format(agent_bytes)
         if format_reason:
@@ -236,8 +267,8 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
-            return True
+            return "",1
+           
 
         # Plagiarism check
         #    validate_agent_file guarantees the file is valid Python, so we can
@@ -257,26 +288,31 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
-            return True
+            # self._maybe_set_weights()
+            return "",1
 
         # Sandbox evaluation
         log.info("Running sandbox for submission %s", sub_id)
-        sandbox_result = self._sandbox.run(agent_bytes)
+        sandbox_result = self._sandbox.run(
+            agent_bytes,
+            model_id=model_id,
+            token_budget=token_budget,
+            cost_budget_usd=run_budget_usd if run_budget_usd > 0 else None,
+        )
 
         if not sandbox_result.success or sandbox_result.output_csv_bytes is None:
             log.warning(
-                "Sandbox failed for %s (exit=%s): %s",
+                "Sandbox failed for %s (exit=%s, sandbox_log=%s): %s",
                 sub_id,
                 sandbox_result.exit_code,
+                sandbox_result.log_path,
                 sandbox_result.stderr[:300],
             )
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
-            return True
+            return "",1
 
         output_csv_bytes = sandbox_result.output_csv_bytes
 
@@ -300,6 +336,7 @@ class ValidatorCore:
             upload_meta = self._client.upload_agent_output(
                 csv_bytes=output_csv_bytes,
                 agent_filename=agent_filename,
+                submission_id=sub_id,
             )
             log.info(
                 "Output CSV uploaded for %s — file_id=%s  eval_date=%s",
@@ -318,8 +355,7 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
-            return True
+            return "",1
 
         # Record evaluation metadata for future delayed-scoring stage
         self._record_evaluation(
@@ -345,9 +381,9 @@ class ValidatorCore:
             sub_id,
         )
 
-        # Set weights
-        self._maybe_set_weights(hint_hotkey=miner_hotkey)
-        return True
+    
+        return (miner_hotkey,1) 
+    
 
     # Helpers
 
@@ -483,6 +519,7 @@ class ValidatorCore:
             upload_meta = self._client.upload_agent_output(
                 csv_bytes=empty_csv,
                 agent_filename=agent_filename,
+                submission_id=submission_id,
             )
             log.info(
                 "Uploaded fallback empty CSV for %s — file_id=%s  eval_date=%s",

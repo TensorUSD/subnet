@@ -10,16 +10,15 @@ Each row contains:
     snapshot_hour, snapshot_time_utc, block_number, vault_owner, vault_id,
     vault_health, tokens_minted
 
-If a real ground-truth file exists (built by build_ground_truth.py), it is
-returned as-is. Otherwise synthetic placeholder data is generated.
+The ground-truth CSV is derived from ``data.csv`` produced by the
+``GroundTruthCollectator``, which collects 24 hourly on-chain vault
+snapshots incrementally.
 """
 
 from __future__ import annotations
 
 import csv
 import io
-import os
-import random
 from pathlib import Path
 
 from tensorusd.auth.config import settings
@@ -27,20 +26,35 @@ from tensorusd.utils.logging import get_logger
 
 log = get_logger(__name__)
 
+# Columns expected in the ground-truth CSV
+GT_FIELDNAMES = [
+    "snapshot_hour",
+    "snapshot_time_utc",
+    "block_number",
+    "vault_owner",
+    "vault_id",
+    "vault_health",
+    "tokens_minted",
+]
+
 
 def generate_ground_truth(eval_date: str) -> bytes:
     """
     Generate a ground-truth CSV for the given *eval_date* (ISO-8601 date string).
 
-    The generated CSV contains seven columns:
-        snapshot_hour, snapshot_time_utc, block_number, vault_owner, vault_id,
-        vault_health, tokens_minted
+    The ground truth is derived from the real on-chain vault snapshot data
+    collected by the ``GroundTruthCollector`` into
+    ``ground-truth/<eval_date>/data.csv``.
 
-    If a ground-truth file already exists at
-    ``ground-truth/<eval_date>/ground-truth.csv``, it is returned as-is.
+    Two derived columns are computed from the raw snapshot data:
 
-    This is a **placeholder** implementation. It generates synthetic data.
-    Replace the inner logic with real on-chain vault queries for production.
+        - ``vault_health``        = collateral_balance / borrowed_token_balance
+                                  (0.0 when borrowed_token_balance is 0)
+        - ``tokens_minted``       = borrowed_token_balance
+
+    If ``data.csv`` does not exist for the given date, a warning is logged
+    and an empty CSV (headers only) is returned.  If ``ground-truth.csv``
+    already exists it is returned as-is.
     """
     gt_dir = settings.ground_truth_dir / eval_date
     gt_path = gt_dir / "ground-truth.csv"
@@ -50,48 +64,65 @@ def generate_ground_truth(eval_date: str) -> bytes:
         log.info("Ground-truth CSV already exists at %s — reusing.", gt_path)
         return gt_path.read_bytes()
 
-    # Create directory
-    gt_dir.mkdir(parents=True, exist_ok=True)
+    data_csv_path = gt_dir / "data.csv"
 
-    # ---- Placeholder: generate synthetic data ----
-    # In production this would query on-chain vault snapshots for the given date.
-    # The generation follows the expected schema:
-    #     snapshot_hour, snapshot_time_utc, block_number, vault_owner, vault_id,
-    #     vault_health, tokens_minted
-    #
-    # For the placeholder, we produce a small set of realistic-looking rows.
-    num_rows = _get_num_vaults_for_date(eval_date)
+    # Cannot generate ground truth without data
+    if not data_csv_path.exists():
+        log.warning(
+            "data.csv not found at %s — cannot generate ground truth for %s. "
+            "Returning empty CSV.",
+            data_csv_path,
+            eval_date,
+        )
+        empty_csv = b"snapshot_hour,snapshot_time_utc,block_number,vault_owner,vault_id,vault_health,tokens_minted\n"
+        gt_dir.mkdir(parents=True, exist_ok=True)
+        gt_path.write_bytes(empty_csv)
+        return empty_csv
+
+    # Read the raw on-chain snapshot data
+    with open(data_csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        raw_rows = list(reader)
+
+    if not raw_rows:
+        log.warning(
+            "data.csv at %s is empty — returning empty ground-truth CSV.",
+            data_csv_path,
+        )
+        empty_csv = b"snapshot_hour,snapshot_time_utc,block_number,vault_owner,vault_id,vault_health,tokens_minted\n"
+        gt_dir.mkdir(parents=True, exist_ok=True)
+        gt_path.write_bytes(empty_csv)
+        return empty_csv
+
+    # Derive ground-truth columns from raw snapshot data
     rows: list[dict[str, str | float | int]] = []
+    for raw in raw_rows:
+        try:
+            collateral = float(raw.get("collateral_balance", 0) or 0)
+            borrowed = float(raw.get("borrowed_token_balance", 0) or 0)
+        except (ValueError, TypeError):
+            collateral = 0.0
+            borrowed = 0.0
 
-    # Generate one row per simulated vault per hour (limited to 24 hours).
-    for i in range(min(num_rows, 24)):
-        hour = i
-        snapshot_time = f"{eval_date} {hour:02d}:00:00"
-        block = 1_000_000 + i * 100  # dummy block numbers
-        vault_owner = f"5Dummy{i}...ss58"  # placeholder SS58-like address
-        vault_id = i + 1
-        vault_health = round(random.uniform(0.8, 2.5), 6)
-        tokens_minted = round(random.uniform(1_000, 1_000_000), 4)
+        vault_health = collateral / borrowed if borrowed > 0 else 0.0
+
         rows.append({
-            "snapshot_hour": hour,
-            "snapshot_time_utc": snapshot_time,
-            "block_number": block,
-            "vault_owner": vault_owner,
-            "vault_id": vault_id,
-            "vault_health": vault_health,
-            "tokens_minted": tokens_minted,
+            "snapshot_hour": int(raw.get("snapshot_hour", 0) or 0),
+            "snapshot_time_utc": raw.get("snapshot_time_utc", ""),
+            "block_number": int(raw.get("block_number", 0) or 0),
+            "vault_owner": raw.get("vault_owner", ""),
+            "vault_id": int(raw.get("vault_id", 0) or 0),
+            "vault_health": round(vault_health, 6),
+            "tokens_minted": round(borrowed, 4),
         })
 
-    # Sort by block_number for consistency
-    rows.sort(key=lambda r: r["block_number"])
+    # Sort by snapshot_hour, block_number, vault_owner, vault_id for consistency
+    rows.sort(key=lambda r: (r["snapshot_hour"], r["block_number"], r["vault_owner"], r["vault_id"]))
 
     # Write CSV
-    fieldnames = [
-        "snapshot_hour", "snapshot_time_utc", "block_number",
-        "vault_owner", "vault_id", "vault_health", "tokens_minted",
-    ]
+    gt_dir.mkdir(parents=True, exist_ok=True)
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=fieldnames)
+    writer = csv.DictWriter(buf, fieldnames=GT_FIELDNAMES)
     writer.writeheader()
     writer.writerows(rows)
 
@@ -100,26 +131,14 @@ def generate_ground_truth(eval_date: str) -> bytes:
 
     gt_path.write_bytes(csv_bytes)
     log.info(
-        "Generated ground-truth CSV at %s (%d rows, %d bytes).",
+        "Generated ground-truth CSV at %s (%d rows, %d bytes) derived from %s",
         gt_path,
         len(rows),
         len(csv_bytes),
+        data_csv_path.name,
     )
 
     return csv_bytes
-
-
-def _get_num_vaults_for_date(eval_date: str) -> int:
-    """
-    Determine how many vault rows to generate for a given date.
-
-    Placeholder: returns a fixed small number.
-    In production this would query on-chain vault count for that block range.
-    """
-    # Use a deterministic seed based on the date so re-runs are consistent.
-    seed = hash(eval_date) & 0xFFFF_FFFF
-    rng = random.Random(seed)
-    return rng.randint(5, 20)
 
 
 def ground_truth_path(eval_date: str) -> Path:

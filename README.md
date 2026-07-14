@@ -2,7 +2,7 @@
 
 > **Decentralized liquidation auctions and price oracle for TensorUSD stablecoin on Bittensor**
 
-Miners earn TAO by participating in liquidation auctionsand contributing to the price oracle. Validators track on-chain activity and distribute rewards.
+Miners earn TAO by participating in liquidation auctions, contributing to the price oracle, and submitting prediction agents. Validators track on-chain activity and distribute rewards.
 
 📚 **[Documentation](https://docs.tensorusd.com/components/subnet)**
 
@@ -51,10 +51,10 @@ uv run alembic upgrade head
 
 Miners can participate in **two mechanisms** to earn rewards:
 
-- **Mechanism 0**: Liquidation auctions (bid on undercollateralized vaults)
-- **Mechanism 1**: Price oracle (submit TAO/USD prices)
+- **Mechanism 0**: Liquidation auctions and prediction agent (bid on undercollateralized vaults)
+- **Mechanism 1**: Prediction Agent (Predict vault health and minted tokens after exactly one week)
 
-### Option 1: Liquidation Only (Mechanism 0)
+### Option 1: Liquidation (Mechanism 0)
 
 ```bash
 uv run neurons/miner/liquidator.py \
@@ -68,28 +68,15 @@ uv run neurons/miner/liquidator.py \
   --coldkey.password YOUR_COLDKEY_PASSWORD
 ```
 
-### Option 2: Price Oracle Only (Mechanism 1)
+### Option 2: Prediction Agent (Mechanism 1)
 
-> [!Note]
->
-> - $${\color{yellow}Staking: Miners \space must \space have \space at \space least \space 10 \space alpha \space staked \space to \space their \space own \space hotkey \space to \space participate \space in \space this \space mechanism.}$$
-> - $${\color{yellow}Fees: Running \space this \space mechanism \space requires \space submitting \space extrinsics \space to \space the \space chain, \space which \space will \space incur \space standard \space TAO \space transaction \space costs.}$$
-> - $${\color{yellow}Security: Ensure \space your \space coldkey \space is \space kept \space entirely \space safe \space and \space secure.}$$
+Miners can also submit a **prediction agent** - a Python script that generates CSV predictions for vault health and number of tokens minted in a week time. The best agent winner takes all Mechanism 1 reward:
 
 ```bash
-uv run neurons/miner/oracle.py \
-  --netuid 113 \
-  --subtensor.network finney \
-  --wallet.name my_wallet \
-  --wallet.hotkey my_hotkey \
-  --mech.ids 1 \
-  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
-  --cmc.api_key YOUR_COINMARKETCAP_API_KEY \
-  --price.submission_interval_seconds 1800 \
-  --price.monitor_interval_seconds 300 \
-  --price.change_threshold 0.017 \
-  --price.provider coinmarketcap
+uv run tensorusd.py submit --agent <agent_location>
 ```
+Agent submission console will ask you to provide number of expected input and output tokens necessary to run agent, select a model of choice and pay the evaluation cost.
+
 
 ### Using Environment Variables
 
@@ -113,11 +100,11 @@ PRICE_PROVIDER=coinmarketcap
 # only validator env
 DATABASE_URL=sqlite:///tensorusd.db
 
-
-## AGENT ENVs (ignore for now)
-TENSORUSD_SN_BACKEND_URL=
+# only agent env
+TENSORUSD_SN_BACKEND_URL=https://agent-api.tensorusd.com
 TENSORUSD_NETUID=113
-BITTENSOR_NETWORK=
+
+OPENAI_API_KEY=your_openai_api_key # Fot agent validator only
 
 ```
 
@@ -130,11 +117,6 @@ uv run neurons/miner/liquidator.py --netuid 113 \
 --wallet.hotkey default \
 --logging.info
 
-uv run neurons/miner/oracle.py --netuid 113 \
---subtensor network <finney | test> \
---wallet.name miner \
---wallet.hotkey default \
---logging.info
 ```
 
 ### Miner Configuration Options
@@ -159,25 +141,15 @@ uv run neurons/miner.py \
   --bid.min_profit_margin 0.0001 \
   ... # other required args
 ```
-
-#### Mechanism 1: Price Oracle Configuration
-
-| Option                                | Default | Description                                                                   |
-| ------------------------------------- | ------- | ----------------------------------------------------------------------------- |
-| `--oracle_contract.address`           | env     | Oracle contract SS58 address                                                  |
-| `--cmc.api_key`                       | env     | CoinMarketCap API key                                                         |
-| `--price.submission_interval_seconds` | env     | Seconds between price submissions (e.g., 1800 = 30 mins)                      |
-| `--price.monitor_interval_seconds`    | env     | Interval in seconds between price monitors from the api. (e.g., 300 = 5 mins) |
-| `--price.change_threshold`            | env     | Change threshold for force price submission (e.g., 0.017 = 1.7 %)             |
-| `--price.provider`                    | env     | Price provider (e.g., coinmarketcap)                                          |
-
 ---
 
 ## 🔍 Running a Validator
 
-Validators monitor on-chain events and distribute rewards for both mechanisms.
+Validators monitor on-chain events, evaluate prediction agents, and distribute rewards for both mechanisms.
 
 ### Validator Mechanism 0: Liquidation
+
+#### Liquidation
 
 ```bash
 uv run neurons/validator/liquidator.py \
@@ -190,16 +162,22 @@ uv run neurons/validator/liquidator.py \
   --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
 ```
 
-### Validator Mechanism 1: Oracle
+#### Validator Meahcnism 1: Prediction Agent
 
+Before running Agent evaluation; validators should first create docker image for sandobox environment using:
 ```bash
-uv run neurons/validator/oracle.py \
-  --netuid 113 \
+docker build -f Dockerfile.sandbox -t tensorusd-sandbox:latest .
+```
+*[NOTE: Keep the name of docker image as it is, because it is referenced in the codebase.]*
+
+Then, run the validator
+```bash
+uv run neurons/validator/agent.py \
+  --mechid 1 \
   --subtensor.network finney \
   --wallet.name validator_wallet \
   --wallet.hotkey validator_hotkey \
   --logging.info \
-  --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
 ```
 
 ## 🎯 How It Works
@@ -213,43 +191,49 @@ uv run neurons/validator/oracle.py \
 3. Submit competitive bids if profit margin meets threshold
 4. Win auctions by having highest bid when auction ends
 
+### Mechanism 1: Prediction Agents
+
+**Prediction Agent:**
+
+Miners submit Python agents that predict vault health metrics and number of minted tokens in a week's time (meaning, the agent submitted this sunday will be evaluated on actual data of next sunday). Agents are:
+1. Downloaded and validated (security, format, plagiarism checks)
+2. Executed in a sandboxed environment with LLM agents(only openai is allowed for now)
+3. Output CSV predictions stored for delayed scoring
+
+The winner agent receives full reward of meahcnism 1.
+
 **Validators:**
 
 1. Listen to `AuctionFinalized` events
 2. Extract winner hotkey from bid metadata
 3. Calculate rewards (1.0 base + up to 1.0 bonus for overbidding)
-4. Set weights with `mechid=0`
+4. Optionally add agent bonus (+20% of total rewards) to the best agent winner
+5. Set weights with `mechid=0`
 
 **Reward Formula:**
 
 ```python
+# For liquidator 
 BASE_REWARD = 1.0
 BONUS_THRESHOLD = 0.20  # 20% overpay for max bonus
-bonus_ratio = min((winning_bid - debt_balance) /debt_balance, BONUS_THRESHOLD)
+bonus_ratio = min((winning_bid - debt_balance) / debt_balance, BONUS_THRESHOLD)
 reward = bonus_ratio + BASE_REWARD
-return reward
+
+# For Agent evalution:
+REWARD = 1.0 for the best agent
 ```
 
-### Mechanism 1: Price Oracle
+### Mechanism 1: Prediction Agent
 
 **Miners:**
 
-1. Fetch TAO/USD price from CoinMarketCap API every 5 minutes
-2. Convert to u128 ratio: `price_ratio = price_usd * 10^18`
-3. Submit to oracle contract with hotkey metadata
-4. Participate in consensus rounds
+1. Get the info of liquidators.
+2. Predict vault health of liquidators
 
 **Validators:**
 
-1. Query oracle for completed rounds
-2. Fetch all price submissions via `get_round_submissions(round_id)`
-3. Compare submissions to price
-4. Reward accuracy (submissions close to price get higher scores)
-5. Set weights with `mechid=1`
-
-**Reward Criteria:**
-
-- High accuracy (within 0.1% of median): 1.0 reward
-- Good accuracy (within 1% of median): 0.85 reward
-- Poor accuracy (>5% deviation): 0.0 reward
-- Non-participation: 0.0 reward
+1. Keep track of uploaded agents
+2. Run the agents in sandbox environment.
+2. Fetch vault information.
+3. Compare agent prediction to the collected vault information.
+4. Reward the best miner.

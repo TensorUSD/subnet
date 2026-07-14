@@ -30,6 +30,7 @@ from tensorusd.base.validator import BaseValidatorNeuron
 # Bittensor Validator Template:
 from tensorusd.utils.config import add_validator_args
 from tensorusd.utils.subnet import get_dynamic_info
+from tensorusd.utils.backend_client import BackendClient
 from tensorusd.validator import forward
 
 # Auction tracking components
@@ -93,6 +94,9 @@ class LiqValidator(BaseValidatorNeuron):
             db_session_factory=self.db_session_factory,
             auction_contract=self.auction_contract,
         )
+
+        # Initialize backend client for agent bonus
+        self.client = BackendClient(self.wallet)
 
         bt.logging.info(
             f"Auction tracking enabled for contract {self.config.auction_contract.address}"

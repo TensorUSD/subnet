@@ -8,6 +8,7 @@ import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003
+import os
 
 import docker
 import docker.errors
@@ -27,6 +28,9 @@ class SandboxResult:
     output_csv_bytes: bytes | None = None
     stderr: str = ""
     exit_code: int | None = None
+    token_budget: int | None = None
+    cost_budget_usd: float | None = None
+    log_path: Path | None = None
 
 
 class SandboxRunner:
@@ -38,8 +42,21 @@ class SandboxRunner:
 
     def __init__(self) -> None:
         self._client = docker.from_env()
+        self.allowed_hosts = settings.sandbox_allowed_hosts
+        self.allowed_models = settings.sandbox_allowed_models
+        self.token_budget = settings.sandbox_token_budget
+        self.cost_budget_usd = settings.sandbox_cost_budget_usd
+        self.log_dir = settings.sandbox_log_dir
+        self.log_dir.mkdir(parents=True, exist_ok=True)
 
-    def run(self, agent_bytes: bytes) -> SandboxResult:
+    def run(
+        self,
+        agent_bytes: bytes,
+        *,
+        model_id: str | None = None,
+        token_budget: int | None = None,
+        cost_budget_usd: float | None = None,
+    ) -> SandboxResult:
         """
         Execute the sandbox evaluation for the given agent source code.
         """
@@ -48,7 +65,14 @@ class SandboxRunner:
         work_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            return self._run_in_workdir(agent_bytes, work_dir, run_id)
+            return self._run_in_workdir(
+                agent_bytes,
+                work_dir,
+                run_id,
+                model_id=model_id,
+                token_budget=token_budget,
+                cost_budget_usd=cost_budget_usd,
+            )
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
             log.debug("Cleaned up sandbox workdir: %s", work_dir)
@@ -60,6 +84,10 @@ class SandboxRunner:
         agent_bytes: bytes,
         work_dir: Path,
         run_id: str,
+        *,
+        model_id: str | None = None,
+        token_budget: int | None = None,
+        cost_budget_usd: float | None = None,
     ) -> SandboxResult:
         # Prepare host directories
         agent_path = work_dir / "agent.py"
@@ -71,6 +99,8 @@ class SandboxRunner:
         output_dir.mkdir()
 
         # Create the sandbox network (bridge, internet access via NAT)
+        # NOTE: General internet access should be constrained by the host-level
+        # egress policy or proxy layer using settings.sandbox_allowed_hosts.
         network = self._create_sandbox_network(run_id)
 
         container: Container | None = None
@@ -82,6 +112,9 @@ class SandboxRunner:
                 cache_dir=cache_dir,
                 output_dir=output_dir,
                 network=network.name,
+                model_id=model_id,
+                token_budget=token_budget,
+                cost_budget_usd=cost_budget_usd,
             )
 
             # Block until done or timeout
@@ -90,17 +123,26 @@ class SandboxRunner:
                 exit_code: int = result.get("StatusCode", -1)
             except Exception:
                 last_logs = container.logs(tail=200).decode(errors="replace")
+                log_path = self._write_run_log(run_id, last_logs)
                 log.warning(
                     "[%s] Container timed out after %ds", run_id, settings.sandbox_timeout
                 )
-                log.warning("Container logs: %s", last_logs)
+                log.warning("Container logs saved to %s", log_path)
                 try:  # noqa: SIM105
                     container.kill()
                 except Exception:
                     pass
-                return SandboxResult(success=False, stderr="Timed out", exit_code=-1)
+                return SandboxResult(
+                    success=False,
+                    stderr="Timed out",
+                    exit_code=-1,
+                    token_budget=self.token_budget,
+                    cost_budget_usd=self.cost_budget_usd,
+                    log_path=log_path,
+                )
 
             logs = container.logs(stderr=True, stdout=True).decode(errors="replace")
+            log_path = self._write_run_log(run_id, logs)
             log.debug(
                 "[%s] Container exited %d (logs=%d chars)",
                 run_id,
@@ -109,29 +151,52 @@ class SandboxRunner:
             )
 
             if exit_code != 0:
-                log.warning("[%s] Container failed (exit=%d): %s", run_id, exit_code, logs[-500:])
+                log.warning(
+                    "[%s] Container failed (exit=%d). Logs saved to %s. Tail: %s",
+                    run_id,
+                    exit_code,
+                    log_path,
+                    logs[-500:],
+                )
                 return SandboxResult(
                     success=False,
                     stderr=logs,
                     exit_code=exit_code,
+                    token_budget=self.token_budget,
+                    cost_budget_usd=self.cost_budget_usd,
+                    log_path=log_path,
                 )
 
             output_csv = output_dir / "output.csv"
             if not output_csv.exists():
-                log.warning("[%s] Container succeeded but output.csv not found.", run_id)
+                log.warning(
+                    "[%s] Container succeeded but output.csv not found. Logs saved to %s",
+                    run_id,
+                    log_path,
+                )
                 return SandboxResult(
                     success=False,
                     stderr="output.csv not produced",
                     exit_code=exit_code,
+                    token_budget=self.token_budget,
+                    cost_budget_usd=self.cost_budget_usd,
+                    log_path=log_path,
                 )
 
             output_csv_bytes = output_csv.read_bytes()
-            log.info("[%s] Sandbox evaluation completed successfully.", run_id)
+            log.info(
+                "[%s] Sandbox evaluation completed successfully. Logs saved to %s",
+                run_id,
+                log_path,
+            )
             return SandboxResult(
                 success=True,
                 output_csv_bytes=output_csv_bytes,
                 stderr=logs,
                 exit_code=exit_code,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
+                log_path=log_path,
             )
 
         except docker.errors.ImageNotFound:
@@ -141,15 +206,33 @@ class SandboxRunner:
                 settings.sandbox_image,
                 settings.sandbox_image,
             )
-            return SandboxResult(success=False, stderr="Image not found", exit_code=-1)
+            return SandboxResult(
+                success=False,
+                stderr="Image not found",
+                exit_code=-1,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
+            )
 
         except docker.errors.APIError as exc:
             log.error("[%s] Docker API error: %s", run_id, exc)
-            return SandboxResult(success=False, stderr=str(exc), exit_code=-1)
+            return SandboxResult(
+                success=False,
+                stderr=str(exc),
+                exit_code=-1,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
+            )
 
         except Exception as exc:
             log.error("[%s] Unexpected error: %s", run_id, exc, exc_info=True)
-            return SandboxResult(success=False, stderr=str(exc), exit_code=-1)
+            return SandboxResult(
+                success=False,
+                stderr=str(exc),
+                exit_code=-1,
+                token_budget=self.token_budget,
+                cost_budget_usd=self.cost_budget_usd,
+            )
 
         finally:
             # Remove the container
@@ -194,6 +277,16 @@ class SandboxRunner:
         log.debug("[%s] Network created: %s (id=%s)", run_id, network_name, network.id[:12])
         return network
 
+    def is_allowed_model(self, model_name: str) -> bool:
+        """Return True when the requested model is within the configured allowlist."""
+        return model_name in self.allowed_models
+
+    def is_allowed_host(self, host: str) -> bool:
+        """Return True when the requested host is within the configured allowlist."""
+        if host in self.allowed_hosts:
+            return True
+        return any(pattern.startswith("*.") and host.endswith(pattern[1:]) for pattern in self.allowed_hosts)
+
     def _remove_network(self, network: Network, run_id: str) -> None:
         """Silently remove a network, logging any errors."""
         try:
@@ -210,6 +303,12 @@ class SandboxRunner:
         except Exception as exc:
             log.warning("[%s] Could not remove network %s: %s", run_id, network.name, exc)
 
+    def _write_run_log(self, run_id: str, logs: str) -> Path:
+        """Persist full sandbox stdout/stderr for later inspection."""
+        log_path = self.log_dir / f"{run_id}.log"
+        log_path.write_text(logs, encoding="utf-8")
+        return log_path
+
     # Container runner
 
     def _run_container(
@@ -220,6 +319,9 @@ class SandboxRunner:
         cache_dir: Path,
         output_dir: Path,
         network: str,
+        model_id: str | None = None,
+        token_budget: int | None = None,
+        cost_budget_usd: float | None = None,
     ) -> Container:
         """
         Spin up the sandbox container and return it (detached).
@@ -264,6 +366,16 @@ class SandboxRunner:
             nano_cpus=nano_cpus,
             device_requests=device_requests,
             volumes=volumes,
+            environment={
+                **({"OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", "")} if os.environ.get("OPENAI_API_KEY") else {}),
+                **({"TENSORUSD_MODEL_ID": model_id} if model_id else {}),
+                **({"TENSORUSD_SANDBOX_TOKEN_BUDGET": str(token_budget)} if token_budget is not None else {}),
+                **(
+                    {"TENSORUSD_SANDBOX_COST_BUDGET_USD": str(cost_budget_usd)}
+                    if cost_budget_usd is not None
+                    else {}
+                ),
+            },
         )
 
         log.debug("[%s] Container started: %s", run_id, container_name)

@@ -31,8 +31,8 @@ def _env_bool(key: str, default: bool) -> bool:
 @dataclass(frozen=True)
 class Settings:
     # Bittensor
-    network: str = field(default_factory=lambda: _env("BITTENSOR_NETWORK", "test"))
-    netuid: int = field(default_factory=lambda: _env_int("TENSORUSD_NETUID", 315))
+    network: str = field(default_factory=lambda: _env("BITTENSOR_NETWORK", "finney"))
+    netuid: int = field(default_factory=lambda: _env_int("TENSORUSD_NETUID", 113))
 
     # Backend
     backend_url: str = field(
@@ -79,6 +79,44 @@ class Settings:
             _env("TENSORUSD_SANDBOX_WORKDIR", "/tmp/TENSORUSD_sandbox")
         )
     )
+    sandbox_log_dir: Path = field(
+        default_factory=lambda: Path(
+            _env("TENSORUSD_SANDBOX_LOG_DIR", "logs/sandbox")
+        )
+    )
+
+    # Sandbox outbound policy
+    # Restrict sandbox egress to OpenAI endpoints only by default.
+    sandbox_allowed_hosts: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            host.strip()
+            for host in _env(
+                "TENSORUSD_SANDBOX_ALLOWED_HOSTS",
+                "api.openai.com,*.openai.com,openai.com",
+            ).split(",")
+            if host.strip()
+        )
+    )
+    sandbox_allowed_models: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            model.strip()
+            for model in _env(
+                "TENSORUSD_SANDBOX_ALLOWED_MODELS",
+                "gpt-5.6-terra, gpt-5.6-luna, gpt-5.4, gpt-5.4-mini, gpt-5.4-nano, gpt-5-mini, gpt-5-nano, gpt-4.1, gpt-4.1-mini, gpt-4o-mini",
+            ).split(",")
+            if model.strip()
+        )
+    )
+    sandbox_token_budget: int = field(
+        default_factory=lambda: _env_int("TENSORUSD_SANDBOX_TOKEN_BUDGET", 200_000)
+    )
+    sandbox_cost_budget_usd: float | None = field(
+        default_factory=lambda: (
+            float(os.environ["TENSORUSD_SANDBOX_COST_BUDGET_USD"])
+            if os.environ.get("TENSORUSD_SANDBOX_COST_BUDGET_USD")
+            else None
+        )
+    )
 
     # Logging
     log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
@@ -117,7 +155,7 @@ class Settings:
     )
 
     # Burn
-    burn_mode: bool = field(default_factory=lambda: _env_bool("BURN_MODE", True))
+    burn_mode: bool = field(default_factory=lambda: _env_bool("BURN_MODE", False))
 
     # Scored-submissions persistence
     scored_cache_path: Path = field(
@@ -131,12 +169,6 @@ class Settings:
     # Maximum number of submission IDs to retain in the scored cache.
     scored_cache_max_size: int = field(
         default_factory=lambda: _env_int("TENSORUSD_SCORED_CACHE_MAX_SIZE", 100)
-    )
-
-    # Allowed outbound hosts for the sandbox network (allowlist-only egress).
-    # Comma-separated list; overrides the built-in defaults.
-    sandbox_allowed_hosts: str = field(
-        default_factory=lambda: _env("TENSORUSD_SANDBOX_ALLOWED_HOSTS", "")
     )
 
     # Ground-truth generation
@@ -153,6 +185,14 @@ class Settings:
     )
     scoring_timeout: int = field(
         default_factory=lambda: _env_int("TENSORUSD_SCORING_TIMEOUT", 60)
+    )
+
+    # Agent bonus for liquidation rewards
+    agent_bonus_enabled: bool = field(
+        default_factory=lambda: _env_bool("AGENT_BONUS_ENABLED", False)
+    )
+    agent_bonus_percent: float = field(
+        default_factory=lambda: _env_float("AGENT_BONUS_PERCENT", 0.2)
     )
 
 

@@ -18,9 +18,11 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+import numpy as np
 import bittensor as bt
 
 from neurons.validator import Validator
+from tensorusd.auth.config import settings
 from tensorusd.utils.subnet import get_dynamic_info, get_synchroized_sleep_time
 from tensorusd.validator.reward import get_auction_rewards_from_db
 
@@ -48,6 +50,7 @@ async def forward(self: "Validator"):
         # TODO: get this from api
         burn_weight_percent=0,
     )
+
     bt.logging.info(f"Rewards: {rewards}, Uids: {uids}, Mechid: 0")
     self.update_scores(rewards, uids, 0)
     await asyncio.sleep(sleep_time)

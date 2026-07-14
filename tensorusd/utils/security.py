@@ -44,6 +44,8 @@ _FORBIDDEN_IMPORTS: frozenset[str] = frozenset(
         "asyncio",  # can open raw network connections
         "aiohttp",
         "httpx",
+        # Direct OpenAI SDK access is not allowed; miners must use our wrapper.
+        "openai",
         "paramiko",  # SSH
         "fabric",
         "scapy",  # packet crafting
@@ -375,7 +377,6 @@ def _format_check(tree: ast.Module) -> str | None:
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
 
-    # Only 'infer' is required — no setup() needed
     if "infer" not in class_method_names:
         return (
             "AgentMiner is missing required method 'infer'. "

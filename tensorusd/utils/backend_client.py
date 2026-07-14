@@ -164,6 +164,7 @@ class BackendClient:
         self,
         csv_bytes: bytes,
         agent_filename: str,
+        submission_id: str,
         csv_filename: str | None = None,
     ) -> dict:
         from pathlib import Path
@@ -177,6 +178,8 @@ class BackendClient:
         data = {
             **auth,
             "agent_filename": agent_filename,
+            "submission_id": submission_id,
+            "validator_hotkey": self._wallet.hotkey.ss58_address
         }
 
         try:

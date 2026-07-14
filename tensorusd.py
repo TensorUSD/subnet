@@ -7,10 +7,22 @@ For submitting agent file:
 
 import os
 import sys
+from decimal import Decimal
 
 import bittensor as bt
 import click
 import requests
+from prompt_toolkit.shortcuts import choice
+from prompt_toolkit.styles import Style
+
+from tensorusd.auth.config import settings
+from tensorusd.utils.pricing import (
+    dollars_to_tao,
+    estimate_openai_cost_usd_from_output_ceiling,
+    fetch_tao_price_usd_coingecko,
+    get_known_model_pricing,
+    get_model_pricing,
+)
 
 DEFAULT_BACKEND = os.environ.get("TENSORUSD_SN_BACKEND_URL", "http://localhost:8000")
 
@@ -75,6 +87,51 @@ def _request_nonce(backend_url: str, hotkey: str) -> dict:
         )
 
 
+def _request_payment_info(backend_url: str, hotkey: str) -> dict:
+    """Call GET /v1/submissions/payment-info and return the data payload."""
+    try:
+        r = requests.get(
+            f"{backend_url}/v1/submissions/payment-info",
+            params={"hotkey": hotkey},
+            timeout=15,
+        )
+        r.raise_for_status()
+        return r.json()["data"]
+    except requests.HTTPError as exc:
+        raise click.ClickException(  # noqa: B904
+            f"Failed to fetch payment info: {exc}\n{exc.response.text}"
+        )
+    except requests.ConnectionError:
+        raise click.ClickException(  # noqa: B904
+            f"Could not connect to backend at {backend_url}.\n"
+            "Is the server running?  Set --backend-url or $TENSORUSD_SN_BACKEND_URL."
+        )
+
+
+def _prompt_int(label: str, default: int | None = None) -> int:
+    value = click.prompt(click.style(label, fg="yellow"), default=default, type=int)
+    if value < 0:
+        raise click.ClickException(f"{label} must be >= 0")
+    return value
+
+
+def _prompt_model() -> str:
+    available_models = [pricing.model for pricing in get_known_model_pricing()]
+    selected = choice(
+        message="TensorUSD Agent model selection",
+        options=[(model, model) for model in available_models],
+        default="salad",
+            style=Style.from_dict(
+                {
+                    "selected-option": "bold green",
+                }
+            ),
+    )
+    if not selected:
+        raise click.ClickException("No model selected.")
+    return selected
+
+
 # submit
 @cli.command()
 @click.option(
@@ -121,7 +178,7 @@ def submit(
 
     click.echo()
 
-    with click.progressbar(length=1, label="  [1/4] Unlocking wallet   ") as bar:
+    with click.progressbar(length=1, label="  [1/5] Unlocking wallet   ") as bar:
         wallet = _load_wallet(wallet_name, hotkey_name, password)
         hotkey_ss58 = wallet.hotkey.ss58_address
         coldkey_ss58 = wallet.coldkey.ss58_address
@@ -130,7 +187,7 @@ def submit(
     click.echo(f"        {click.style('✓', fg='green')} hotkey  {hotkey_ss58}")
     click.echo(f"        {click.style('✓', fg='green')} coldkey {coldkey_ss58}")
 
-    with click.progressbar(length=1, label="  [2/4] Fetching nonce     ") as bar:
+    with click.progressbar(length=1, label="  [2/5] Fetching nonce     ") as bar:
         nonce_data = _request_nonce(backend_url, hotkey_ss58)
         nonce = nonce_data["nonce"]
         expires_at = nonce_data["expires_at"]
@@ -139,13 +196,70 @@ def submit(
 
     click.echo(f"        {click.style('✓', fg='green')} expires at {expires_at}")
 
-    with click.progressbar(length=1, label="  [3/4] Signing            ") as bar:
+    with click.progressbar(length=1, label="  [3/5] Signing            ") as bar:
         signature_hex = wallet.hotkey.sign(message_to_sign.encode()).hex()
         bar.update(1)
 
     click.echo(f"        {click.style('✓', fg='green')} {signature_hex[:32]}…")
 
-    click.echo("  [4/4] Uploading to backend…")
+    selected_model = _prompt_model()
+    pricing = get_model_pricing(selected_model)
+    estimated_input_tokens = _prompt_int("  Expected input tokens")
+    estimated_output_tokens = _prompt_int("  Expected output tokens")
+
+    estimated_cost_usd = estimate_openai_cost_usd_from_output_ceiling(
+        input_tokens=estimated_input_tokens,
+        output_tokens=estimated_output_tokens,
+        pricing=pricing,
+        eval_multiplier=3.0,
+    )
+    tao_price_usd = fetch_tao_price_usd_coingecko()
+    estimated_cost_tao = dollars_to_tao(estimated_cost_usd, tao_price_usd)
+
+    click.echo()
+    click.echo(
+        click.style(
+            (
+                f"  Selected model: {selected_model}\n"
+                f"  Estimated evaluation API cost: ${estimated_cost_usd:.6f} "
+                f"({estimated_cost_tao:.6f} TAO)"
+            ),
+            fg="cyan",
+        )
+    )
+    click.echo(
+        click.style(
+            f"  {estimated_cost_usd:.6f} USD ({estimated_cost_tao:.6f} TAO) will be transferred to the evaluation wallet for API cost.",
+            fg="yellow",
+        )
+    )
+
+    payment_info = _request_payment_info(backend_url, hotkey_ss58)
+    fee_target_coldkey = payment_info["fee_target_coldkey"]
+
+    confirm = click.confirm("  Continue with TAO transfer and submission?", default=True)
+    if not confirm:
+        raise click.ClickException("Submission cancelled by user.")
+
+    tx_id = ""
+
+    with click.progressbar(length=1, label="  [4/5] Paying submission fee") as bar:
+        subtensor = bt.Subtensor(network=settings.network)
+        result = subtensor.transfer(
+            wallet=wallet,
+            destination_ss58=fee_target_coldkey,
+            amount=bt.Balance.from_tao(amount=Decimal(str(estimated_cost_tao))),
+        )
+        tx_id = str(result.extrinsic_receipt.extrinsic_hash)
+        block_hash = result.extrinsic_receipt.block_hash
+        bar.update(1)
+
+    if tx_id:
+        click.echo(f"        {click.style('✓', fg='green')} tx {tx_id}")
+    else:
+        click.echo(f"        {click.style('✓', fg='green')} no fee required")
+
+    click.echo("  [5/5] Uploading to backend…")
 
     try:
         with open(agent_file, "rb") as fh:
@@ -156,11 +270,18 @@ def submit(
                     "coldkey": coldkey_ss58,  # stored in users table
                     "nonce": nonce,
                     "signature": signature_hex,
+                    "est_input_tokens": estimated_input_tokens,
+                    "est_output_tokens": estimated_output_tokens,
+                    "submission_fees_tao":estimated_cost_tao,
+                    "submission_fees_usd": estimated_cost_usd,
+                    "model_id": selected_model,
+                    "txn_hash": tx_id,
+                    "block_hash": block_hash,
                 },
                 files={
                     "file": (os.path.basename(agent_file), fh, "text/x-python"),
                 },
-                timeout=60,
+                timeout=120,
             )
     except requests.ConnectionError:
         raise click.ClickException(  # noqa: B904

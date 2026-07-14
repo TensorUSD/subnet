@@ -139,6 +139,12 @@ def add_args(cls, parser):
         help="Notes to add to the wandb run.",
         default="",
     )
+    parser.add_argument(
+        "--mechid",
+        type=int,
+        help="Mechanism ID to run. 0 = Liquidator, 1 = Agent",
+        default=is_required_arg("MECH_ID", True),
+    )
 
 
 def add_miner_args(cls, parser, mech_id: int = 0):
