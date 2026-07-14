@@ -2,7 +2,7 @@
 
 > **Decentralized liquidation auctions and price oracle for TensorUSD stablecoin on Bittensor**
 
-Miners earn TAO by participating in liquidation auctionsand contributing to the price oracle. Validators track on-chain activity and distribute rewards.
+Miners earn TAO by participating in liquidation auctions, contributing to the price oracle, and submitting prediction agents. Validators track on-chain activity and distribute rewards.
 
 📚 **[Documentation](https://docs.tensorusd.com/components/subnet)**
 
@@ -51,10 +51,10 @@ uv run alembic upgrade head
 
 Miners can participate in **two mechanisms** to earn rewards:
 
-- **Mechanism 0**: Liquidation auctions (bid on undercollateralized vaults)
+- **Mechanism 0**: Liquidation auctions and prediction agent (bid on undercollateralized vaults, submit prediction agents)
 - **Mechanism 1**: Price oracle (submit TAO/USD prices)
 
-### Option 1: Liquidation Only (Mechanism 0)
+### Option 1: Liquidation + Prediction Agent (Mechanism 0)
 
 ```bash
 uv run neurons/miner/liquidator.py \
@@ -67,6 +67,13 @@ uv run neurons/miner/liquidator.py \
   --tusdt.address 5GjL2MKErF9ocXZBZZFueoWgf8wAnY1gcgLkDMj2bTsAsg6g \
   --coldkey.password YOUR_COLDKEY_PASSWORD
 ```
+
+Miners can also submit a **prediction agent** - a Python script that generates CSV predictions for vault health and number of tokens minted in a week time. The best agent winner gets a bonus on their liquidation rewards:
+
+```bash
+uv run tensorusd.py submit --agent <agent_location>
+```
+Agent submission console will ask you to provide number of expected input and output tokens necessary to run agent, select a model of choice and pay the evaluation cost.
 
 ### Option 2: Price Oracle Only (Mechanism 1)
 
@@ -112,12 +119,6 @@ PRICE_PROVIDER=coinmarketcap
 
 # only validator env
 DATABASE_URL=sqlite:///tensorusd.db
-
-
-## AGENT ENVs (ignore for now)
-TENSORUSD_SN_BACKEND_URL=
-TENSORUSD_NETUID=113
-BITTENSOR_NETWORK=
 
 ```
 
@@ -175,9 +176,11 @@ uv run neurons/miner.py \
 
 ## 🔍 Running a Validator
 
-Validators monitor on-chain events and distribute rewards for both mechanisms.
+Validators monitor on-chain events, evaluate prediction agents, and distribute rewards for both mechanisms.
 
-### Validator Mechanism 0: Liquidation
+### Validator Mechanism 0: Liquidation + Agent Evaluation
+
+#### Liquidation
 
 ```bash
 uv run neurons/validator/liquidator.py \
@@ -188,6 +191,15 @@ uv run neurons/validator/liquidator.py \
   --logging.info \
   --auction_contract.address 5Djyz3DAsL6HyZGBFKNK7fdaMP2Q21hn5sdPhigpHdcfGZ1a \
   --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
+```
+
+#### Agent Evaluation
+```bash
+uv run neurons/validator/agent.py \
+  --subtensor.network finney \
+  --wallet.name validator_wallet \
+  --wallet.hotkey validator_hotkey \
+  --logging.info \
 ```
 
 ### Validator Mechanism 1: Oracle
@@ -204,7 +216,7 @@ uv run neurons/validator/oracle.py \
 
 ## 🎯 How It Works
 
-### Mechanism 0: Liquidation Auctions
+### Mechanism 0: Liquidation Auctions + Prediction Agent
 
 **Miners:**
 
@@ -213,21 +225,37 @@ uv run neurons/validator/oracle.py \
 3. Submit competitive bids if profit margin meets threshold
 4. Win auctions by having highest bid when auction ends
 
+**Prediction Agent:**
+
+Miners submit Python agents that predict vault health metrics. Agents are:
+1. Downloaded and validated (security, format, plagiarism checks)
+2. Executed in a sandboxed environment with an LLM
+3. Output CSV predictions stored for delayed scoring
+
+The best agent winner receives a bonus on top of their liquidation rewards.
+
 **Validators:**
 
 1. Listen to `AuctionFinalized` events
 2. Extract winner hotkey from bid metadata
 3. Calculate rewards (1.0 base + up to 1.0 bonus for overbidding)
-4. Set weights with `mechid=0`
+4. Optionally add agent bonus (+20% of total rewards) to the best agent winner
+5. Set weights with `mechid=0`
 
 **Reward Formula:**
 
 ```python
 BASE_REWARD = 1.0
 BONUS_THRESHOLD = 0.20  # 20% overpay for max bonus
-bonus_ratio = min((winning_bid - debt_balance) /debt_balance, BONUS_THRESHOLD)
+bonus_ratio = min((winning_bid - debt_balance) / debt_balance, BONUS_THRESHOLD)
 reward = bonus_ratio + BASE_REWARD
-return reward
+
+# Optional agent bonus (enabled via AGENT_BONUS_ENABLED=true)
+if miner is best agent winner and does liquidation:
+    reward += miner_reward * 0.2
+
+if miner is best agent winner but does not participate in liquidation:
+    miner is not eligible for rewards
 ```
 
 ### Mechanism 1: Price Oracle

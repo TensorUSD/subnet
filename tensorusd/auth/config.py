@@ -31,8 +31,8 @@ def _env_bool(key: str, default: bool) -> bool:
 @dataclass(frozen=True)
 class Settings:
     # Bittensor
-    network: str = field(default_factory=lambda: _env("BITTENSOR_NETWORK", "test"))
-    netuid: int = field(default_factory=lambda: _env_int("TENSORUSD_NETUID", 315))
+    network: str = field(default_factory=lambda: _env("BITTENSOR_NETWORK", "finney"))
+    netuid: int = field(default_factory=lambda: _env_int("TENSORUSD_NETUID", 113))
 
     # Backend
     backend_url: str = field(
@@ -185,6 +185,14 @@ class Settings:
     )
     scoring_timeout: int = field(
         default_factory=lambda: _env_int("TENSORUSD_SCORING_TIMEOUT", 60)
+    )
+
+    # Agent bonus for liquidation rewards
+    agent_bonus_enabled: bool = field(
+        default_factory=lambda: _env_bool("AGENT_BONUS_ENABLED", False)
+    )
+    agent_bonus_percent: float = field(
+        default_factory=lambda: _env_float("AGENT_BONUS_PERCENT", 0.2)
     )
 
 

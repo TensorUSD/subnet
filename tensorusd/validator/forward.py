@@ -18,9 +18,11 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+import numpy as np
 import bittensor as bt
 
 from neurons.validator import Validator
+from tensorusd.auth.config import settings
 from tensorusd.utils.subnet import get_dynamic_info, get_synchroized_sleep_time
 from tensorusd.validator.reward import get_auction_rewards_from_db
 
@@ -48,6 +50,32 @@ async def forward(self: "Validator"):
         # TODO: get this from api
         burn_weight_percent=0,
     )
+
+    # Agent bonus: if enabled, add 20% of total auction rewards to the best agent winner
+    # Only applies if the winner also participates in liquidation (already in uids list)
+    if settings.agent_bonus_enabled:
+        try:
+            best_meta = self.client.get_best_submission_meta()
+            if best_meta:
+                winner_hotkey = best_meta.get("miner_hotkey")
+                if winner_hotkey and winner_hotkey in self.metagraph.hotkeys:
+                    winner_uid = self.metagraph.hotkeys.index(winner_hotkey)
+                    if winner_uid in uids:
+                        idx = uids.index(winner_uid)
+                        winner_reward = float(rewards[idx])
+                        bonus = winner_reward * settings.agent_bonus_percent
+                        rewards[idx] += bonus
+                        bt.logging.info(
+                            "Agent bonus (%.4f = %.1f%% of %.4f) added to UID %d (%s)",
+                            bonus,
+                            settings.agent_bonus_percent * 100,
+                            winner_reward,
+                            winner_uid,
+                            winner_hotkey,
+                        )
+        except Exception as exc:
+            bt.logging.warning("Failed to fetch best agent for bonus: %s", exc)
+
     bt.logging.info(f"Rewards: {rewards}, Uids: {uids}, Mechid: 0")
     self.update_scores(rewards, uids, 0)
     await asyncio.sleep(sleep_time)

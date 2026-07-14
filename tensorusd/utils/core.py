@@ -20,7 +20,6 @@ from tensorusd.utils.agent_cache import BestAgentCache, BestAgentWatcher
 from tensorusd.utils.sandbox import SandboxRunner
 from tensorusd.utils.scored_cache import ScoredCache
 from tensorusd.utils.security import validate_agent_file, validate_agent_format
-from tensorusd.utils.weight_setter import WeightSetter
 from tensorusd.validator.delayed_evaluation import (
     AgentOutputRecord,
     BackendCsvOutputStore,
@@ -50,9 +49,6 @@ class ValidatorCore:
         self._cache = BestAgentCache()
         self._watcher = BestAgentWatcher(self._client, self._cache)
         self._sandbox = SandboxRunner()
-        self._weight_setter = WeightSetter(
-            self._wallet, self._subtensor, self._metagraph
-        )
 
         # Phase 2 delayed evaluation
         self._delayed_evaluator = DelayedEvaluator(
@@ -83,7 +79,6 @@ class ValidatorCore:
             self._wallet.hotkey.ss58_address,
         )
         self._watcher.start()
-        self._weight_setter.start_monitor()
         self._gt_collector.start()
 
         try:
@@ -96,7 +91,6 @@ class ValidatorCore:
     def _shutdown(self) -> None:
         self._gt_collector.stop()
         self._watcher.stop()
-        self._weight_setter.stop_monitor()
         self._client.close()
         log.info("Validator stopped.")
 
@@ -151,7 +145,7 @@ class ValidatorCore:
             time.sleep(settings.scoring_poll_interval)
 
     def _evaluation_cycle(self) -> None:
-        """One full pass: poll → validate → sandbox → upload → (maybe) set weights."""
+        """One full pass: poll → validate → sandbox → upload."""
 
         # Poll for next submission
         submission = self._client.get_unevaluated_submission()
@@ -161,7 +155,6 @@ class ValidatorCore:
                 "No unevaluated submissions.  Sleeping %ds.",
                 settings.validator_poll_interval,
             )
-            self._maybe_set_weights()
             time.sleep(settings.validator_poll_interval)
             return False
 
@@ -230,7 +223,6 @@ class ValidatorCore:
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
-            self._maybe_set_weights()
             return True
 
         # Security validation — pure Python, binary check, AST scan, token scan.
@@ -248,7 +240,6 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
             return True
 
         format_reason = validate_agent_format(agent_bytes)
@@ -258,7 +249,6 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
             return True
 
         # Plagiarism check
@@ -279,7 +269,6 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
             return True
 
         # Sandbox evaluation
@@ -303,7 +292,6 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
             return True
 
         output_csv_bytes = sandbox_result.output_csv_bytes
@@ -320,7 +308,6 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
             return True
 
         # Upload the generated CSV to backend storage
@@ -347,7 +334,6 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
             return True
 
         # Record evaluation metadata for future delayed-scoring stage
@@ -374,37 +360,9 @@ class ValidatorCore:
             sub_id,
         )
 
-        # Set weights
-        self._maybe_set_weights(hint_hotkey=miner_hotkey)
         return True
 
     # Helpers
-
-    def _maybe_set_weights(self, hint_hotkey: str | None = None) -> None:
-        """
-        Attempt to set on-chain weights.
-        """
-        best_hotkey: str | None = hint_hotkey
-        log.info("_maybe_set_weights called — hint_hotkey=%s", hint_hotkey or "none")
-
-        if not best_hotkey:
-            best_meta = self._cache.best_meta
-            best_hotkey = best_meta.hotkey if best_meta else None
-            log.info("  → from cache: %s", best_hotkey or "none")
-
-        if not best_hotkey:
-            meta = self._client.get_best_submission_meta()
-            if meta:
-                best_hotkey = meta.get("hotkey") or meta.get("miner_hotkey")
-            log.info("  → from backend: %s", best_hotkey or "none")
-
-        if not best_hotkey:
-            log.info("No best hotkey found — falling back to cold-start burn (UID 0).")
-
-        try:
-            self._weight_setter.maybe_set_weights(best_hotkey)
-        except Exception as exc:
-            log.error("Weight setting failed: %s", exc)
 
     def _validate_csv(self, csv_bytes: bytes) -> bool:
         """
