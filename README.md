@@ -55,6 +55,10 @@ Miners can participate in **two mechanisms** to earn rewards:
 - **Mechanism 1**: Prediction Agent (Predict vault health and minted tokens after exactly one week)
 
 ### Option 1: Liquidation (Mechanism 0)
+> [!NOTE]
+> - $${\color{yellow}Staking: Miners \space must \space have \space at \space least \space 10 \space alpha \space staked \space to \space their \space own \space hotkey \space to \space participate \space in \space this \space mechanism.}$$
+> - $${\color{yellow}Fees: Running \space this \space mechanism \space requires \space submitting \space extrinsics \space to \space the \space chain, \space which \space will \space incur \space standard \space TAO \space transaction \space costs.}$$
+> - $${\color{yellow}Security: Ensure \space your \space coldkey \space is \space kept \space entirely \space safe \space and \space secure.}$$
 
 ```bash
 uv run neurons/miner/liquidator.py \
@@ -69,6 +73,9 @@ uv run neurons/miner/liquidator.py \
 ```
 
 ### Option 2: Prediction Agent (Mechanism 1)
+> [!NOTE]
+> * $${\color{yellow}Initial \space TAO \space Deposit: You \space will \space need \space to \space send \space some \space TAO \space initially \space to \space cover \space your \space LLM \space token \space costs, \space calculated \space based \space on \space your \space input \space and \space output \space tokens.}$$
+
 
 Miners can also submit a **prediction agent** - a Python script that generates CSV predictions for vault health and number of tokens minted in a week time. The best agent winner takes all Mechanism 1 reward:
 
@@ -162,7 +169,7 @@ uv run neurons/validator/liquidator.py \
   --oracle_contract.address 5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB \
 ```
 
-#### Validator Meahcnism 1: Prediction Agent
+#### Validator Mechanism 1: Prediction Agent
 
 Before running Agent evaluation; validators should first create docker image for sandobox environment using:
 ```bash
@@ -200,7 +207,7 @@ Miners submit Python agents that predict vault health metrics and number of mint
 2. Executed in a sandboxed environment with LLM agents(only openai is allowed for now)
 3. Output CSV predictions stored for delayed scoring
 
-The winner agent receives full reward of meahcnism 1.
+The winner agent receives full reward of mechanism 1.
 
 **Validators:**
 
