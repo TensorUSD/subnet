@@ -40,7 +40,7 @@ class AgentValidator(BaseValidatorNeuron):
     def __init__(self, config=None):
         # BaseValidatorNeuron manages parsing config, creating wallets, subtensor, and metagraphs.
         # mech_id=0 matches standard base requirements
-        super(AgentValidator, self).__init__(config=config, mech_id=0)
+        super(AgentValidator, self).__init__(config=config, mech_id=config.mechid)
 
         # Handle network configuration environment variables if passed via CLI configurations
         if self.config.subtensor and self.config.subtensor.get("network"):
@@ -110,7 +110,7 @@ class AgentValidator(BaseValidatorNeuron):
         # Hand off our pre-initialized wallet instance to your backend tracking layer
         self.core = ValidatorCore(wallet=self.wallet)
 
-    def run(self, mech_id: int = 0):
+    def run(self):
         """
         Overrides BaseValidatorNeuron.run() to block on your custom internal backend
         instead of entering the concurrent loop forward pass routine.
@@ -124,6 +124,7 @@ class AgentValidator(BaseValidatorNeuron):
         try:
             # Execution hooks into your dedicated background tracking loops here
             self.core.start()
+            super().run(mech_id=self.config.mechid)
         except (KeyboardInterrupt, SystemExit):
             log.info("Validator received a kill signal. Stopping context execution.")
 
