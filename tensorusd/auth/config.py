@@ -155,7 +155,7 @@ class Settings:
     )
 
     # Burn
-    burn_mode: bool = field(default_factory=lambda: _env_bool("BURN_MODE", True))
+    burn_mode: bool = field(default_factory=lambda: _env_bool("BURN_MODE", False))
 
     # Scored-submissions persistence
     scored_cache_path: Path = field(

@@ -10,6 +10,7 @@ import time
 from typing import Any
 
 import bittensor as bt
+import numpy as np
 from tenacity import (
     RetryError,
     retry,
@@ -17,7 +18,12 @@ from tenacity import (
     wait_exponential,
 )
 
+from tensorusd import __spec_version__ as spec_version
 from tensorusd.auth.config import settings
+from tensorusd.base.utils.weight_utils import (
+    convert_weights_and_uids_for_emit,
+    process_weights_for_netuid,
+)
 from tensorusd.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -224,7 +230,7 @@ class WeightSetter:
                 settings.weight_interval_blocks - blocks_since,
             )
             return False
-
+        
         log.info("Weight set interval cleared — proceeding to set weights (normal mode).")
         ok = self._safe_call(self._normal_with_retry, best_hotkey, label="normal")
         if ok:
@@ -297,18 +303,17 @@ class WeightSetter:
     def _refresh_substrate(self) -> None:
         """
         Force bittensor to refresh its internal substrate nonce cache.
+
+        Recreates the Subtensor instance to guarantee a clean connection with
+        a fresh nonce — much more reliable than trying to ping the old connection
+        which may silently ignore the refresh in some bittensor versions.
         """
         try:
-            self._subtensor.substrate.connect_websocket()
-            log.debug("Substrate websocket refreshed — nonce cache reset.")
-        except Exception:
-            # connect_websocket not available on all bittensor versions;
-            # fall back to a lightweight RPC ping that also refreshes the nonce.
-            try:
-                self._subtensor.substrate.get_block_number(None)
-                log.debug("Substrate nonce cache refreshed via get_block_number.")
-            except Exception as exc:
-                log.warning("Could not refresh substrate connection: %s — proceeding.", exc)
+            new_subtensor = bt.Subtensor(network=settings.network)
+            self._subtensor = new_subtensor
+            log.debug("Subtensor recreated on %s — nonce cache reset.", settings.network)
+        except Exception as exc:
+            log.warning("Could not recreate subtensor: %s — proceeding with stale connection.", exc)
 
     def _do_set_weights(
         self,
@@ -319,20 +324,49 @@ class WeightSetter:
     ) -> bool:
         """
         Call subtensor.set_weights and interpret possible failure modes.
+
+        Uses the standard weight processing pipeline (process_weights_for_netuid
+        and convert_weights_and_uids_for_emit) to apply subnet constraints and
+        convert to uint16 format — matching the pattern used by the liquidator
+        validator that works reliably on-chain.
         """
+        # Convert to numpy for processing utilities
+        uid_array = np.array(all_uids, dtype=np.int64)
+        weight_array = np.array(weights, dtype=np.float32)
+
+        # Apply subnet constraints (min_allowed_weights, max_weight_limit)
+        processed_uids, processed_weights = process_weights_for_netuid(
+            uids=uid_array,
+            weights=weight_array,
+            netuid=settings.netuid,
+            subtensor=self._subtensor,
+            metagraph=self._metagraph,
+        )
+
+        # Convert to uint16 (chain format)
+        uint_uids, uint_weights = convert_weights_and_uids_for_emit(
+            uids=processed_uids, weights=processed_weights
+        )
+
         log.debug(
             "[%s] Calling set_weights — block=%d  num_uids=%d",
             label,
             current_block,
-            len(all_uids),
+            len(uint_uids),
         )
+
+        if not uint_uids:
+            log.warning("[%s] No non-zero weights to set on chain — skipping.", label)
+            return False
         success, message = self._subtensor.set_weights(
             netuid=settings.netuid,
             wallet=self._wallet,
-            uids=all_uids,
-            weights=weights,
-            wait_for_inclusion=True,
+            uids=uint_uids,
+            weights=uint_weights,
+            wait_for_inclusion=False,
             wait_for_finalization=False,
+            version_key=spec_version,
+            mechid=1,
         )
 
         if success:

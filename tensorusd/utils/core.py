@@ -20,6 +20,7 @@ from tensorusd.utils.agent_cache import BestAgentCache, BestAgentWatcher
 from tensorusd.utils.sandbox import SandboxRunner
 from tensorusd.utils.scored_cache import ScoredCache
 from tensorusd.utils.security import validate_agent_file, validate_agent_format
+from tensorusd.utils.weight_setter import WeightSetter
 from tensorusd.validator.delayed_evaluation import (
     AgentOutputRecord,
     BackendCsvOutputStore,
@@ -28,6 +29,10 @@ from tensorusd.validator.delayed_evaluation import (
 )
 from tensorusd.validator.ground_truth_collector import GroundTruthCollector
 from tensorusd.utils.pricing import get_most_expensive_allowed_model
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from neurons.validator import Validator
 
 log = get_logger(__name__)
 
@@ -37,18 +42,23 @@ class ValidatorCore:
     Orchestrates the full validator evaluation loop.
     """
 
-    def __init__(self, wallet: bt.Wallet) -> None:
+    def __init__(self, wallet: bt.Wallet, validator: "Validator",mechid: int = 1) -> None:
         self._wallet = wallet
+        self._mechid = mechid
+        self._validator = validator
 
         # Bittensor chain connections
         self._subtensor = bt.Subtensor(network=settings.network)
-        self._metagraph = bt.Metagraph(netuid=settings.netuid, network=settings.network)
+        self._metagraph = bt.Metagraph(netuid=settings.netuid, network=settings.network, mechid=self._mechid)
 
         # Core components
         self._client = BackendClient(wallet)
         self._cache = BestAgentCache()
         self._watcher = BestAgentWatcher(self._client, self._cache)
         self._sandbox = SandboxRunner()
+        self._weight_setter = WeightSetter(
+            self._wallet, self._subtensor, self._metagraph
+        )
 
         # Phase 2 delayed evaluation
         self._delayed_evaluator = DelayedEvaluator(
@@ -79,6 +89,7 @@ class ValidatorCore:
             self._wallet.hotkey.ss58_address,
         )
         self._watcher.start()
+        self._weight_setter.start_monitor()
         self._gt_collector.start()
 
         try:
@@ -91,6 +102,7 @@ class ValidatorCore:
     def _shutdown(self) -> None:
         self._gt_collector.stop()
         self._watcher.stop()
+        self._weight_setter.stop_monitor()
         self._client.close()
         log.info("Validator stopped.")
 
@@ -100,10 +112,13 @@ class ValidatorCore:
         while True:
             try:
                 # Phase 1: Agent execution
-                had_work = self._evaluation_cycle()
+                winner_hk,weight = self._evaluation_cycle()
 
-                if not had_work:
+                if not winner_hk:
+                    self._maybe_set_weights(self._wallet.hotkey.ss58_address)
                     self._run_scoring_cycle()
+                else:
+                    self._maybe_set_weights(winner_hk)
             except requests.HTTPError as exc:
                 if exc.response is not None and exc.response.status_code == 403:
                     log.error(
@@ -145,7 +160,7 @@ class ValidatorCore:
             time.sleep(settings.scoring_poll_interval)
 
     def _evaluation_cycle(self) -> None:
-        """One full pass: poll → validate → sandbox → upload."""
+        """One full pass: poll → validate → sandbox → upload → (maybe) set weights."""
 
         # Poll for next submission
         submission = self._client.get_unevaluated_submission()
@@ -155,8 +170,8 @@ class ValidatorCore:
                 "No unevaluated submissions.  Sleeping %ds.",
                 settings.validator_poll_interval,
             )
-            time.sleep(settings.validator_poll_interval)
-            return False
+
+            return "",1
 
         log.debug("Raw submission response: %s", submission)
         sub_id: str = submission.get("submission_id") or submission.get("id")
@@ -165,7 +180,7 @@ class ValidatorCore:
                 "Submission response missing id field. Keys received: %s",
                 list(submission.keys()),
             )
-            return True
+            return "",1
 
         # Check persistent scored cache — survives restarts
         if sub_id in self._scored:
@@ -173,8 +188,9 @@ class ValidatorCore:
                 "Submission %s already scored by this validator — skipping.",
                 sub_id,
             )
-            time.sleep(settings.validator_poll_interval)
-            return True
+            return "",1
+            # time.sleep(settings.validator_poll_interval) #TODO:: keep it at the end
+            # return True
 
         miner_hotkey: str | None = (
             submission.get("miner_hotkey") or submission.get("hotkey") or None
@@ -223,7 +239,8 @@ class ValidatorCore:
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
-            return True
+            return "",1
+        
 
         # Security validation — pure Python, binary check, AST scan, token scan.
         # This replaces the old regex-based _detect_malware().
@@ -240,7 +257,8 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return True
+            return "",1
+           
 
         format_reason = validate_agent_format(agent_bytes)
         if format_reason:
@@ -249,7 +267,8 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return True
+            return "",1
+           
 
         # Plagiarism check
         #    validate_agent_file guarantees the file is valid Python, so we can
@@ -269,7 +288,8 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return True
+            # self._maybe_set_weights()
+            return "",1
 
         # Sandbox evaluation
         log.info("Running sandbox for submission %s", sub_id)
@@ -292,7 +312,7 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return True
+            return "",1
 
         output_csv_bytes = sandbox_result.output_csv_bytes
 
@@ -308,6 +328,7 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
+            self._maybe_set_weights()
             return True
 
         # Upload the generated CSV to backend storage
@@ -334,7 +355,7 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return True
+            return "",1
 
         # Record evaluation metadata for future delayed-scoring stage
         self._record_evaluation(
@@ -360,9 +381,37 @@ class ValidatorCore:
             sub_id,
         )
 
-        return True
+    
+        return (miner_hotkey,1) 
+    
 
     # Helpers
+
+    def _maybe_set_weights(self, hint_hotkey: str | None = None) -> None:
+        """
+        Attempt to set on-chain weights.
+        """
+        best_hotkey: str | None = hint_hotkey
+        log.info("_maybe_set_weights called — hint_hotkey=%s", hint_hotkey or "none")
+
+        if not best_hotkey:
+            best_meta = self._cache.best_meta
+            best_hotkey = best_meta.hotkey if best_meta else None
+            log.info("  → from cache: %s", best_hotkey or "none")
+
+        if not best_hotkey:
+            meta = self._client.get_best_submission_meta()
+            if meta:
+                best_hotkey = meta.get("hotkey") or meta.get("miner_hotkey")
+            log.info("  → from backend: %s", best_hotkey or "none")
+
+        if not best_hotkey:
+            log.info("No best hotkey found — falling back to cold-start burn (UID 0).")
+
+        try:
+            self._weight_setter.maybe_set_weights(best_hotkey)
+        except Exception as exc:
+            log.error("Weight setting failed: %s", exc)
 
     def _validate_csv(self, csv_bytes: bytes) -> bool:
         """
