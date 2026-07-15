@@ -108,8 +108,6 @@ def generate_ground_truth(eval_date: str) -> bytes:
 
         rows.append({
             "snapshot_hour": int(raw.get("snapshot_hour", 0) or 0),
-            "snapshot_time_utc": raw.get("snapshot_time_utc", ""),
-            "block_number": int(raw.get("block_number", 0) or 0),
             "vault_owner": raw.get("vault_owner", ""),
             "vault_id": int(raw.get("vault_id", 0) or 0),
             "vault_health": round(vault_health, 6),
@@ -117,7 +115,7 @@ def generate_ground_truth(eval_date: str) -> bytes:
         })
 
     # Sort by snapshot_hour, block_number, vault_owner, vault_id for consistency
-    rows.sort(key=lambda r: (r["snapshot_hour"], r["block_number"], r["vault_owner"], r["vault_id"]))
+    rows.sort(key=lambda r: (r["snapshot_hour"], r["vault_owner"], r["vault_id"]))
 
     # Write CSV
     gt_dir.mkdir(parents=True, exist_ok=True)

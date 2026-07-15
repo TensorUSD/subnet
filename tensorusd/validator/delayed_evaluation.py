@@ -158,8 +158,7 @@ class CsvComparisonScorer:
     using column-wise accuracy or similarity metrics.
 
     This runs trusted first-party code only — no Docker sandbox required.
-    """
-
+    """    
     def compute_score(
         self,
         output_csv: bytes,
@@ -189,46 +188,73 @@ class CsvComparisonScorer:
             log.warning("One or both CSVs are empty — scoring as 0.0")
             return 0.0
 
-        # Align by row index (assumes same ordering)
+        # Target columns for scoring
+        target_cols = {"vault_health", "tokens_minted"}
+        
+        # Sorting keys (in priority order)
+        sort_keys = ["snapshot_hour", "vault_owner", "vault_id"]
+
+        def sort_key(row: dict) -> tuple:
+            """Create a stable sort key with proper type handling."""
+            key = []
+            for col in sort_keys:
+                val = row.get(col, "").strip()
+                # Try numeric first for snapshot_hour, then fall back to string
+                try:
+                    key.append(float(val) if col == "snapshot_hour" else val)
+                except (ValueError, TypeError):
+                    key.append(val)
+            return tuple(key)
+
+        # Sort both lists
+        output_rows = sorted(output_rows, key=sort_key)
+        gt_rows = sorted(gt_rows, key=sort_key)
+
+        # Check shared target columns
+        shared_target_cols = (
+            target_cols
+            & set(output_rows[0].keys() if output_rows else {})
+            & set(gt_rows[0].keys() if gt_rows else {})
+        )
+        
+        if not shared_target_cols:
+            log.warning("None of the required columns (vault_health, tokens_minted) found — scoring as 0.0")
+            return 0.0
+
+        # Align by row index after sorting
         n = min(len(output_rows), len(gt_rows))
         if n == 0:
             return 0.0
 
-        # Determine shared columns
-        shared_cols = set(output_rows[0].keys()) & set(gt_rows[0].keys())
-        if not shared_cols:
-            log.warning("No shared columns between output and ground-truth CSV — scoring as 0.0")
-            return 0.0
-
         column_scores: dict[str, float] = {}
 
-        for col in shared_cols:
+        for col in shared_target_cols:
             correct = 0
             for i in range(n):
                 out_val = output_rows[i].get(col, "").strip()
                 gt_val = gt_rows[i].get(col, "").strip()
 
-                # Attempt numeric comparison
+                # Numeric comparison with tolerance
                 try:
                     out_num = float(out_val)
                     gt_num = float(gt_val)
-                    # Allow small tolerance for floating-point
                     if abs(out_num - gt_num) < 1e-6:
                         correct += 1
                 except (ValueError, TypeError):
-                    # Fall back to exact string match
+                    # Exact string match
                     if out_val == gt_val:
                         correct += 1
 
             column_scores[col] = correct / n if n > 0 else 0.0
 
-        # Overall score = mean of column scores
+        # Overall score = average of target columns
         overall = sum(column_scores.values()) / len(column_scores) if column_scores else 0.0
 
         log.debug(
-            "Scored %d rows across %d shared columns — overall=%.4f",
+            "Scored %d aligned rows on %s after sorting by %s — overall=%.4f",
             n,
-            len(shared_cols),
+            list(shared_target_cols),
+            sort_keys,
             overall,
         )
         return min(max(overall, 0.0), 1.0)
