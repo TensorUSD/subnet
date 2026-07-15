@@ -51,12 +51,14 @@ uv run alembic upgrade head
 
 Miners can participate in **two mechanisms** to earn rewards:
 
-- **Mechanism 0**: Liquidation auctions and prediction agent (bid on undercollateralized vaults)
+- **Mechanism 0**: Liquidation auctions (bid on undercollateralized vaults)
 - **Mechanism 1**: Prediction Agent (Predict vault health and minted tokens after exactly one week)
 
 ### Option 1: Liquidation (Mechanism 0)
+
 > [!NOTE]
-> - $${\color{yellow}Staking: Miners \space must \space have \space at \space least \space 10 \space alpha \space staked \space to \space their \space own \space hotkey \space to \space participate \space in \space this \space mechanism.}$$
+>
+> - $${\color{yellow}Staking: Miners \space must \space have  \space TensorUSD \space token \space (TUSDT) \space that \space user \space wants \space to \space bid \space in \space his \space coldkey \space address \space to \space participate \space in \space this \space mechanism.}$$
 > - $${\color{yellow}Fees: Running \space this \space mechanism \space requires \space submitting \space extrinsics \space to \space the \space chain, \space which \space will \space incur \space standard \space TAO \space transaction \space costs.}$$
 > - $${\color{yellow}Security: Ensure \space your \space coldkey \space is \space kept \space entirely \space safe \space and \space secure.}$$
 
@@ -73,17 +75,18 @@ uv run neurons/miner/liquidator.py \
 ```
 
 ### Option 2: Prediction Agent (Mechanism 1)
+
 > [!NOTE]
-> * $${\color{yellow}Initial \space TAO \space Deposit: You \space will \space need \space to \space send \space some \space TAO \space initially \space to \space cover \space your \space LLM \space token \space costs, \space calculated \space based \space on \space your \space input \space and \space output \space tokens.}$$
+>
+> - $${\color{yellow}Initial \space TAO \space Deposit: You \space will \space need \space to \space send \space some \space TAO \space initially \space to \space cover \space your \space LLM \space token \space costs, \space calculated \space based \space on \space your \space input \space and \space output \space tokens.}$$
 
-
-Miners can also submit a **prediction agent** - a Python script that generates CSV predictions for vault health and number of tokens minted in a week time. The best agent winner takes all Mechanism 1 reward:
+Miners needs to submit a **prediction agent** - a Python script that generates CSV predictions for vault health and number of tokens minted in a week time. The best agent winner takes all Mechanism 1 reward:
 
 ```bash
 uv run tensorusd.py submit --agent <agent_location>
 ```
-Agent submission console will ask you to provide number of expected input and output tokens necessary to run agent, select a model of choice and pay the evaluation cost.
 
+Agent submission console will ask you to provide number of expected input and output tokens necessary to run agent, select a model of choice and pay the evaluation cost.
 
 ### Using Environment Variables
 
@@ -98,20 +101,15 @@ ORACLE_CONTRACT_ADDRESS=5GcaftCj1psi5489Dp8RiL5UmMsbRMf9XsfNrDMMsfM5hFoB
 
 # only miner related env
 COLDKEY_PASSWORD=your_coldkey_password
-CMC_API_KEY=your_coinmarketcap_api_key
-PRICE_SUBMISSION_INTERVAL=21600 # 6 hours
-PRICE_MONITOR_INTERVAL=60 # 1 min
-PRICE_CHANGE_THRESHOLD=0.017 # 1.7%
-PRICE_PROVIDER=coinmarketcap
 
 # only validator env
 DATABASE_URL=sqlite:///tensorusd.db
+OPENAI_API_KEY=your_openai_api_key
 
-# only agent env
+# miner and vali env
 TENSORUSD_SN_BACKEND_URL=https://agent-api.tensorusd.com
 TENSORUSD_NETUID=113
 
-OPENAI_API_KEY=your_openai_api_key # Fot agent validator only
 
 ```
 
@@ -148,6 +146,7 @@ uv run neurons/miner.py \
   --bid.min_profit_margin 0.0001 \
   ... # other required args
 ```
+
 ---
 
 ## 🔍 Running a Validator
@@ -172,12 +171,15 @@ uv run neurons/validator/liquidator.py \
 #### Validator Mechanism 1: Prediction Agent
 
 Before running Agent evaluation; validators should first create docker image for sandobox environment using:
+
 ```bash
 docker build -f Dockerfile.sandbox -t tensorusd-sandbox:latest .
 ```
-*[NOTE: Keep the name of docker image as it is, because it is referenced in the codebase.]*
+
+_[NOTE: Keep the name of docker image as it is, because it is referenced in the codebase.]_
 
 Then, run the validator
+
 ```bash
 uv run neurons/validator/agent.py \
   --mechid 1 \
@@ -203,6 +205,7 @@ uv run neurons/validator/agent.py \
 **Prediction Agent:**
 
 Miners submit Python agents that predict vault health metrics and number of minted tokens in a week's time (meaning, the agent submitted this sunday will be evaluated on actual data of next sunday). Agents are:
+
 1. Downloaded and validated (security, format, plagiarism checks)
 2. Executed in a sandboxed environment with LLM agents(only openai is allowed for now)
 3. Output CSV predictions stored for delayed scoring
@@ -220,7 +223,7 @@ The winner agent receives full reward of mechanism 1.
 **Reward Formula:**
 
 ```python
-# For liquidator 
+# For liquidator
 BASE_REWARD = 1.0
 BONUS_THRESHOLD = 0.20  # 20% overpay for max bonus
 bonus_ratio = min((winning_bid - debt_balance) / debt_balance, BONUS_THRESHOLD)
@@ -241,6 +244,6 @@ REWARD = 1.0 for the best agent
 
 1. Keep track of uploaded agents
 2. Run the agents in sandbox environment.
-2. Fetch vault information.
-3. Compare agent prediction to the collected vault information.
-4. Reward the best miner.
+3. Fetch vault information.
+4. Compare agent prediction to the collected vault information.
+5. Reward the best miner.

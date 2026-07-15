@@ -198,7 +198,7 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         type=str,
         help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
         default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
-        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", False, 0, mech_id),
     )
     parser.add_argument(
         "--vault_contract.address",
@@ -265,41 +265,6 @@ def add_miner_args(cls, parser, mech_id: int = 0):
         help="coldkey password",
         default=os.getenv("COLDKEY_PASSWORD", None),
         required=is_required_arg("COLDKEY_PASSWORD", True),
-    )
-    parser.add_argument(
-        "--cmc.api_key",
-        type=str,
-        help="API key for CoinMarketCap. Required for fetching price data for the oracle.",
-        default=os.getenv("CMC_API_KEY", None),
-        required=is_required_arg("CMC_API_KEY", False, 1, mech_id),
-    )
-    parser.add_argument(
-        "--price.submission_interval_seconds",
-        type=int,
-        help="Interval in seconds between price submissions to the oracle.",
-        default=os.getenv("PRICE_SUBMISSION_INTERVAL", 6 * 60 * 60),  # default 6 hours
-        required=is_required_arg("PRICE_SUBMISSION_INTERVAL", False, 1, mech_id),
-    )
-    parser.add_argument(
-        "--price.monitor_interval_seconds",
-        type=int,
-        help="Interval in seconds between price monitors from the api.",
-        default=os.getenv("PRICE_MONITOR_INTERVAL", 5 * 60),  # default 5 minutes
-        required=is_required_arg("PRICE_MONITOR_INTERVAL", False, 1, mech_id),
-    )
-    parser.add_argument(
-        "--price.change_threshold",
-        type=float,
-        help="Change threshold for force price submission",
-        default=os.getenv("PRICE_CHANGE_THRESHOLD", 0.017),  # default 1.7%
-        required=is_required_arg("PRICE_CHANGE_THRESHOLD", False, 1, mech_id),
-    )
-    parser.add_argument(
-        "--price.provider",
-        type=str,
-        help="Price provider",
-        default=os.getenv("PRICE_PROVIDER", None),  # default 1.7%
-        required=is_required_arg("PRICE_PROVIDER", False, 1, mech_id),
     )
 
 
@@ -390,7 +355,7 @@ def add_validator_args(cls, parser, mech_id: int = 0):
         type=str,
         help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
         default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
-        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True, 0, mech_id),
     )
 
 
