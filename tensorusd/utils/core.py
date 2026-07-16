@@ -48,9 +48,8 @@ class ValidatorCore:
         self._validator = validator
 
         # Bittensor chain connections
-        self._subtensor = bt.Subtensor(network=settings.network)
-        self._metagraph = bt.Metagraph(netuid=settings.netuid, network=settings.network, mechid=self._mechid)
-
+        self._subtensor = validator.subtensor
+        self._metagraph = validator.metagraph
         # Core components
         self._client = BackendClient(wallet)
         self._cache = BestAgentCache()
