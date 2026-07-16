@@ -31,7 +31,7 @@ from tensorusd.base.validator import BaseValidatorNeuron
 from tensorusd.utils.config import add_validator_args
 from tensorusd.utils.subnet import get_dynamic_info
 from tensorusd.utils.backend_client import BackendClient
-from tensorusd.validator import forward
+from tensorusd.validator.forward import forward
 
 # Auction tracking components
 from tensorusd.common.contract import (
