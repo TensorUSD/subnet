@@ -9,6 +9,23 @@ from substrateinterface.contracts import (
 
 import bittensor as bt
 
+import scalecodec.base as _scalecodec_base
+
+_orig_update_from_scale_info_types = (
+    _scalecodec_base.RuntimeConfigurationObject.update_from_scale_info_types
+)
+
+
+def _update_from_scale_info_types(self, scale_info_types, *args, **kwargs):
+    return _orig_update_from_scale_info_types(
+        self, list(scale_info_types), *args, **kwargs
+    )
+
+
+_scalecodec_base.RuntimeConfigurationObject.update_from_scale_info_types = (
+    _update_from_scale_info_types
+)
+
 
 @dataclass
 class Vault:
