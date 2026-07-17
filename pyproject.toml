@@ -25,3 +25,12 @@ dependencies = [
 [tool.setuptools.packages.find]
 include = ["tensorusd*", "neurons*"]
 exclude = ["verify*", "contrib*"]
+
+[tool.uv]
+# bittensor>=10.3.0 depends on `cyscale`, which installs its own `scalecodec`
+# module (same import path as py-scale-codec). `substrate-interface` still
+# depends on the real `scalecodec` package by name, and having both installed
+# corrupts/conflicts (async_substrate_interface refuses to import if it sees
+# both). cyscale is a compatible drop-in for scalecodec, so we tell uv to
+# never actually install the real one and let cyscale provide the module.
+override-dependencies = ["scalecodec; sys_platform == 'never'"]

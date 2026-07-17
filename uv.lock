@@ -6,6 +6,9 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[manifest]
+overrides = [{ name = "scalecodec", marker = "sys_platform == 'never'" }]
+
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
@@ -2651,7 +2654,7 @@ dependencies = [
     { name = "pycryptodome" },
     { name = "pynacl" },
     { name = "requests" },
-    { name = "scalecodec" },
+    { name = "scalecodec", marker = "sys_platform == 'never'" },
     { name = "smoldot-light" },
     { name = "websocket-client" },
     { name = "xxhash" },
