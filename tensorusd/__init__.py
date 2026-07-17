@@ -40,6 +40,5 @@ __all__ = [
     "validator",
     "api",
     "liquidator",
-    "oracle",
     "SUBNET_LINKS",
 ]
