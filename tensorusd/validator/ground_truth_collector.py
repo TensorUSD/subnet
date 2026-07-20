@@ -19,6 +19,7 @@ from __future__ import annotations
 import csv
 import math
 import os
+import argparse
 import threading
 import time
 from datetime import datetime, timezone
@@ -33,6 +34,8 @@ from tensorusd.common.contract import (
     create_substrate_interface,
 )
 from tensorusd.auth.config import settings
+from tensorusd.utils.config import add_validator_args
+from tensorusd.base.validator import BaseValidatorNeuron
 from tensorusd.utils.logging import get_logger
 from tensorusd.validator.ground_truth import generate_ground_truth
 
@@ -74,26 +77,11 @@ def _is_ws_url(value: str) -> bool:
 
 def _create_substrate_with_fallback(network: str, preferred_endpoint: str):
     """Create a substrate interface with fallback endpoints."""
-    endpoints = []
-    if preferred_endpoint and _is_ws_url(preferred_endpoint):
-        endpoints.append(preferred_endpoint)
-    endpoints.extend(DEFAULT_RPC_ENDPOINTS.get(network, []))
-
-    seen = set()
-    unique_endpoints = []
-    for ep in endpoints:
-        if ep not in seen:
-            seen.add(ep)
-            unique_endpoints.append(ep)
-
-    last_error = None
-    for ep in unique_endpoints:
-        try:
-            log.info("Connecting to substrate endpoint: %s", ep)
-            return create_substrate_interface(ep)
-        except Exception as exc:
-            last_error = exc
-            log.warning("Failed to connect to %s: %s", ep, exc)
+    try:
+        return create_substrate_interface(preferred_endpoint)
+    except Exception as exc:
+        last_error = exc
+        log.warning("Failed to connect to %s: %s", preferred_endpoint, exc)
 
     raise RuntimeError(
         f"Unable to connect to any substrate endpoint for network '{network}'."
@@ -238,7 +226,7 @@ def _get_current_hour_info(substrate) -> Tuple[str, int, float]:
     return date_str, hour, minutes_into_hour
 
 
-class GroundTruthCollector:
+class GroundTruthCollector():
     """
     Background thread that collects hourly vault snapshots **at the current
     hour**.
@@ -255,26 +243,28 @@ class GroundTruthCollector:
       - When the chain date rolls over, ground-truth.csv is built for the
         previous day from whatever hours were actually collected.
     """
+    @classmethod
+    def add_args(cls, parser: argparse.ArgumentParser):
+        super().add_args(parser)
+        add_validator_args(cls, parser, 1)
 
     def __init__(
         self,
         wallet: bt.Wallet,
-        network: str = "finney",
-        # FIX: use the same contract address as recent_vault_snapshot.py
-        contract_address: str = "5F8ykW4bse6kUHi65XqAzSfrrgKHDXXEBoReUZmUVc7r8q3A",
+        network: str,
+        rpc_endpoint: str,
+        vault_address: str,
+        vault_metadata_path: str,
     ) -> None:
-        """
-        Args:
-            wallet: Bittensor wallet (hotkey used for read-only queries).
-            network: Substrate network name ("testnet" or "finney").
-            contract_address: SS58 address of the vault contract.
-                              Must match the address used by recent_vault_snapshot.py
-                              so that the same ABI decodes correctly.
-        """
+        
         self._wallet = wallet
-        self._network = network
-        self._contract_address = contract_address
+        self._network = "finney"
+        self._contract_address = vault_address
+        self.rpc_endpoint = rpc_endpoint
+        self.vault_metadata_path = vault_metadata_path
         self._stop = threading.Event()
+        
+        print(f"PRINT INFORMATION: CONTRACT ADDRESS: {self._contract_address}")
 
         # Separate SubstrateInterface — not the validator's bt.Subtensor
         self._substrate = None
@@ -306,8 +296,8 @@ class GroundTruthCollector:
         """
         try:
             substrate = _create_substrate_with_fallback(
-                self._network,
-                DEFAULT_RPC_ENDPOINTS.get(self._network, [None])[0],
+                "finney",
+                self.rpc_endpoint
             )
         except RuntimeError as e:
             log.warning("Failed to create substrate interface: %s", e)
@@ -384,7 +374,7 @@ class GroundTruthCollector:
         """
         Background poll loop — runs once per minute.
         """
-        log.info("Ground-truth poll loop started (current-hour capture mode).")
+        # log.info("Ground-truth poll loop started (current-hour capture mode).")
         while not self._stop.is_set():
             try:
                 if not self._ensure_connection():
@@ -424,11 +414,10 @@ class GroundTruthCollector:
                 if minutes_into_hour > CAPTURE_WINDOW_MIN:
                     log.warning(
                         "Missed hour %d for %s — %.1f min into the hour, "
-                        "past the %d-min capture window. Not backfilling.",
+                        "Waiting for next hour.",
                         current_hour,
                         date_str,
                         minutes_into_hour,
-                        CAPTURE_WINDOW_MIN,
                     )
                     time.sleep(POLL_INTERVAL)
                     continue

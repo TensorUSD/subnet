@@ -7,20 +7,17 @@ from __future__ import annotations
 import ast
 import io
 import csv
-import time
-from pathlib import Path
+import threading
 
 import bittensor as bt
 import requests
 
-from tensorusd.auth.config import settings
 from tensorusd.utils.logging import get_logger
 from tensorusd.utils.backend_client import BackendClient
 from tensorusd.utils.agent_cache import BestAgentCache, BestAgentWatcher
 from tensorusd.utils.sandbox import SandboxRunner
 from tensorusd.utils.scored_cache import ScoredCache
 from tensorusd.utils.security import validate_agent_file, validate_agent_format
-from tensorusd.utils.weight_setter import WeightSetter
 from tensorusd.validator.delayed_evaluation import (
     AgentOutputRecord,
     BackendCsvOutputStore,
@@ -29,35 +26,54 @@ from tensorusd.validator.delayed_evaluation import (
 )
 from tensorusd.validator.ground_truth_collector import GroundTruthCollector
 from tensorusd.utils.pricing import get_most_expensive_allowed_model
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from neurons.validator import Validator
 
 log = get_logger(__name__)
 
 
 class ValidatorCore:
     """
-    Orchestrates the full validator evaluation loop.
+    Orchestrates the agent-evaluation pipeline (Phase 1 sandbox execution +
+    Phase 2 delayed scoring).
+
+      - poll the backend for submissions
+      - sandbox / validate / score them
+      - keep BestAgentCache up to date (via the background BestAgentWatcher)
+
+    Weight-setting now lives entirely in forward_mech1.
     """
 
-    def __init__(self, wallet: bt.Wallet, validator: "Validator",mechid: int = 1) -> None:
-        self._wallet = wallet
-        self._mechid = mechid
-        self._validator = validator
+    def __init__(
+        self,
+        wallet: bt.Wallet,
+        netuid: int,
+        network: str,
+        rpc_endpoint: str,
+        scored_cache_path: str,
+        scored_cache_max_size: int,
+        validator_poll_interval: int,
+        scoring_poll_interval: int,
+        plagiarism_threshold: int,
+        vault_address: str,
+        vault_metadata_path: str,
+    ) -> None:
 
-        # Bittensor chain connections
-        self._subtensor = validator.subtensor
-        self._metagraph = validator.metagraph
-        # Core components
+        self.wallet = wallet
+        self.netuid = netuid
+        self.network = network
+        self.rpc_endpoint = rpc_endpoint
+        self.scored_cache_path = scored_cache_path
+        self.scored_cache_max_size = scored_cache_max_size
+        self.validator_poll_interval = validator_poll_interval
+        self.scoring_poll_interval = scoring_poll_interval
+        self.plagiarism_threshold = plagiarism_threshold
+
+        self.vault_address = vault_address
+        self.vault_metadata_path = vault_metadata_path
         self._client = BackendClient(wallet)
         self._cache = BestAgentCache()
         self._watcher = BestAgentWatcher(self._client, self._cache)
         self._sandbox = SandboxRunner()
-        self._weight_setter = WeightSetter(
-            self._wallet, self._subtensor, self._metagraph
-        )
 
         # Phase 2 delayed evaluation
         self._delayed_evaluator = DelayedEvaluator(
@@ -66,75 +82,113 @@ class ValidatorCore:
             scorer=CsvComparisonScorer(),
         )
 
-        # Persistent, bounded cache of already-scored submission IDs.
         # Survives validator restarts; auto-evicts oldest entries at max_size.
         self._scored = ScoredCache(
-            path=settings.scored_cache_path,
-            max_size=settings.scored_cache_max_size,
+            path=self.scored_cache_path,
+            max_size=self.scored_cache_max_size,
         )
 
-        # Ground-truth collector (background daemon — collects 24 hourly
-        # snapshots after 23:00 UTC each day for the next day's scoring).
-        self._gt_collector = GroundTruthCollector(self._wallet)
+        # Ground-truth collector (background daemon — collects every hour)
+        self._gt_collector = GroundTruthCollector(
+            self.wallet,
+            self.network,
+            self.rpc_endpoint,
+            self.vault_address,
+            self.vault_metadata_path,
+        )
+
+        self._eval_thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
 
     # Lifecycle
 
-    def start(self) -> None:
-        """Start the background watcher and run the evaluation loop forever."""
+    def start_background(self) -> None:
+        """
+        Start all background daemons (watcher, ground-truth collector, and the
+        evaluation loop itself) and return immediately. Call this from
+        `AgentValidator.setup()`. Does NOT block — `forward()` / the base
+        neuron's own `run()` loop owns blocking + weight-setting.
+        """
         log.info(
-            "Validator starting — network=%s  netuid=%d  hotkey=%s",
-            settings.network,
-            settings.netuid,
-            self._wallet.hotkey.ss58_address,
+            "ValidatorCore starting background services:\n"
+            "%s  Network : %s\n"
+            "%s  NetUID  : %d\n"
+            "%s  Hotkey  : %s",
+            "\t" * 6,
+            self.network,
+            "\t" * 6,
+            self.netuid,
+            "\t" * 6,
+            self.wallet.hotkey.ss58_address,
         )
         self._watcher.start()
-        self._weight_setter.start_monitor()
         self._gt_collector.start()
 
-        try:
-            self._run_loop()
-        except KeyboardInterrupt:
-            log.info("Received keyboard interrupt, shutting down.")
-        finally:
-            self._shutdown()
+        self._stop_event.clear()
+        self._eval_thread = threading.Thread(
+            target=self._run_loop,
+            name="validator-core-eval-loop",
+            daemon=True,
+        )
+        self._eval_thread.start()
 
-    def _shutdown(self) -> None:
+    def stop(self) -> None:
+        """Signal the background evaluation loop to stop and tear down daemons."""
+        self._stop_event.set()
+        if self._eval_thread is not None:
+            self._eval_thread.join(timeout=10)
         self._gt_collector.stop()
         self._watcher.stop()
-        self._weight_setter.stop_monitor()
         self._client.close()
-        log.info("Validator stopped.")
+        log.info("ValidatorCore stopped.")
 
-    # Main loop
+    # Public accessors (read by forward_mech1)
+
+    def get_best_hotkey(self) -> str | None:
+        """
+        Return the current best-known miner hotkey, preferring the local
+        cache (kept warm by `BestAgentWatcher`) and falling back to a direct
+        backend call if the cache is empty.
+        """
+        best_meta = self._cache.best_meta
+        if best_meta and best_meta.hotkey:
+            return best_meta.hotkey
+
+        try:
+            meta = self._client.get_best_submission_meta()
+        except Exception as exc:
+            log.error("get_best_submission_meta failed: %s", exc)
+            return None
+
+        if meta:
+            return meta.get("hotkey") or meta.get("miner_hotkey")
+        return None
+
+    # Main loop (background thread only — no weight-setting here)
 
     def _run_loop(self) -> None:
-        while True:
+        while not self._stop_event.is_set():
             try:
-                # Phase 1: Agent execution
-                winner_hk,weight = self._evaluation_cycle()
-
+                winner_hk, _ = self._evaluation_cycle()
                 if not winner_hk:
-                    self._maybe_set_weights(self._wallet.hotkey.ss58_address)
                     self._run_scoring_cycle()
-                else:
-                    self._maybe_set_weights(winner_hk)
             except requests.HTTPError as exc:
                 if exc.response is not None and exc.response.status_code == 403:
                     log.error(
                         "Received 403 from backend — this hotkey has no validator permit.\n"
-                        "  Shutting down. Run with a registered validator hotkey."
+                        "  Shutting down eval loop. Run with a registered validator hotkey."
                     )
-                    raise SystemExit(1)  # noqa: B904
+                    return
                 log.error(
                     "Unexpected HTTP error in evaluation cycle: %s", exc, exc_info=True
                 )
-                time.sleep(settings.validator_poll_interval)
+                self._stop_event.wait(self.validator_poll_interval)
             except Exception as exc:
                 # Log but never crash — always keep running
                 log.error(
                     "Unexpected error in evaluation cycle: %s", exc, exc_info=True
                 )
-                time.sleep(settings.validator_poll_interval)
+                self._stop_event.wait(self.validator_poll_interval)
 
     def _run_scoring_cycle(self) -> None:
         """
@@ -151,15 +205,15 @@ class ValidatorCore:
             else:
                 log.debug(
                     "No unscored submissions ready yet — sleeping %ds.",
-                    settings.scoring_poll_interval,
+                    self.scoring_poll_interval,
                 )
-                time.sleep(settings.scoring_poll_interval)
+                self._stop_event.wait(self.scoring_poll_interval)
         except Exception as exc:
             log.error("Scoring cycle failed: %s", exc, exc_info=True)
-            time.sleep(settings.scoring_poll_interval)
+            self._stop_event.wait(self.scoring_poll_interval)
 
-    def _evaluation_cycle(self) -> None:
-        """One full pass: poll → validate → sandbox → upload → (maybe) set weights."""
+    def _evaluation_cycle(self):
+        """One full pass: poll → validate → sandbox → upload. No weight-setting."""
 
         # Poll for next submission
         submission = self._client.get_unevaluated_submission()
@@ -167,10 +221,10 @@ class ValidatorCore:
         if submission is None:
             log.info(
                 "No unevaluated submissions.  Sleeping %ds.",
-                settings.validator_poll_interval,
+                self.validator_poll_interval,
             )
-
-            return "",1
+            self._stop_event.wait(self.validator_poll_interval)
+            return "", 1
 
         log.debug("Raw submission response: %s", submission)
         sub_id: str = submission.get("submission_id") or submission.get("id")
@@ -179,7 +233,7 @@ class ValidatorCore:
                 "Submission response missing id field. Keys received: %s",
                 list(submission.keys()),
             )
-            return "",1
+            return "", 1
 
         # Check persistent scored cache — survives restarts
         if sub_id in self._scored:
@@ -187,9 +241,7 @@ class ValidatorCore:
                 "Submission %s already scored by this validator — skipping.",
                 sub_id,
             )
-            return "",1
-            # time.sleep(settings.validator_poll_interval) #TODO:: keep it at the end
-            # return True
+            return "", 1
 
         miner_hotkey: str | None = (
             submission.get("miner_hotkey") or submission.get("hotkey") or None
@@ -198,7 +250,7 @@ class ValidatorCore:
         est_input_tokens: int = int(submission.get("est_input_tokens") or 0)
         est_output_tokens: int = int(submission.get("est_output_tokens") or 0)
         budget_usd: float = float(submission.get("budget_usd") or 0.0)
-        run_budget_usd: float = budget_usd / 2.0 if budget_usd > 0 else 0.0
+        run_budget_usd: float = budget_usd / 3.0 if budget_usd > 0 else 0.0
         log.info(
             "Evaluating submission %s from %s (model=%s, est_tokens=%d/%d, budget_usd=%.6f, run_budget_usd=%.6f)",
             sub_id,
@@ -215,7 +267,10 @@ class ValidatorCore:
             try:
                 pricing = get_most_expensive_allowed_model(self._sandbox.allowed_models)
                 token_budget = int(
-                    ((run_budget_usd * 1_000_000.0) / max(pricing.output_usd_per_million_tokens, 1e-9))
+                    (
+                        (run_budget_usd * 1_000_000.0)
+                        / max(pricing.output_usd_per_million_tokens, 1e-9)
+                    )
                 )
             except Exception as exc:
                 log.warning("Could not derive token budget for %s: %s", sub_id, exc)
@@ -234,15 +289,12 @@ class ValidatorCore:
             agent_bytes = self._client.download_submission_file(sub_id)
         except Exception as exc:
             log.error("Failed to download submission %s: %s", sub_id, exc)
-
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
-            return "",1
-        
+            return "", 1
 
         # Security validation — pure Python, binary check, AST scan, token scan.
-        # This replaces the old regex-based _detect_malware().
         security_reason = validate_agent_file(agent_bytes)
         if security_reason:
             log.warning("Security check failed for %s: %s", sub_id, security_reason)
@@ -256,8 +308,7 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return "",1
-           
+            return "", 1
 
         format_reason = validate_agent_format(agent_bytes)
         if format_reason:
@@ -266,12 +317,9 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return "",1
-           
+            return "", 1
 
         # Plagiarism check
-        #    validate_agent_file guarantees the file is valid Python, so we can
-        #    safely decode it here.
         agent_source = agent_bytes.decode("utf-8")
         plagiarism_reason = self._check_plagiarism(agent_source)
         if plagiarism_reason:
@@ -282,13 +330,11 @@ class ValidatorCore:
                 )
             except Exception as bl_exc:
                 log.error("Blacklist call failed (continuing): %s", bl_exc)
-            # Upload empty CSV so Phase 2 can still score after 7 days
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            # self._maybe_set_weights()
-            return "",1
+            return "", 1
 
         # Sandbox evaluation
         log.info("Running sandbox for submission %s", sub_id)
@@ -311,24 +357,21 @@ class ValidatorCore:
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return "",1
+            return "", 1
 
         output_csv_bytes = sandbox_result.output_csv_bytes
 
         # Validate the output CSV is non-empty and parseable.
-        # Even if invalid, we upload it as-is so Phase 2 can evaluate.
         if not self._validate_csv(output_csv_bytes):
             log.warning(
                 "Invalid or empty CSV output for %s — uploading as-is for delayed scoring.",
                 sub_id,
             )
-            # Upload as-is (even if empty/invalid) — Phase 2 will score it
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            self._maybe_set_weights()
-            return True
+            return "", 1
 
         # Upload the generated CSV to backend storage
         try:
@@ -349,12 +392,11 @@ class ValidatorCore:
                 sub_id,
                 exc,
             )
-            # Upload empty CSV on upload failure so Phase 2 can still score
             self._upload_fallback_empty_csv_and_record(
                 sub_id, agent_filename, miner_hotkey
             )
             self._scored.add(sub_id)
-            return "",1
+            return "", 1
 
         # Record evaluation metadata for future delayed-scoring stage
         self._record_evaluation(
@@ -365,52 +407,20 @@ class ValidatorCore:
         )
 
         # Phase 1 complete — tell the backend the submission is evaluated
-        # so Phase 2 can pick it up after the maturation window.
         try:
             self._client.mark_submission_evaluated(sub_id)
         except Exception as exc:
             log.error("Failed to mark submission %s as evaluated: %s", sub_id, exc)
             # Non-fatal — backend will retry via polling or timeout recovery
 
-        # Phase 1 complete — submission is now evaluated; no score is posted.
-        # The real score will be computed later in Phase 2 (delayed evaluation)
-        # once ground truth is available and the maturation window has passed.
         log.info(
             "Phase 1 complete for submission %s — output CSV uploaded, awaiting delayed scoring.",
             sub_id,
         )
 
-    
-        return (miner_hotkey,1) 
-    
+        return (miner_hotkey, 1)
 
     # Helpers
-
-    def _maybe_set_weights(self, hint_hotkey: str | None = None) -> None:
-        """
-        Attempt to set on-chain weights.
-        """
-        best_hotkey: str | None = hint_hotkey
-        log.info("_maybe_set_weights called — hint_hotkey=%s", hint_hotkey or "none")
-
-        if not best_hotkey:
-            best_meta = self._cache.best_meta
-            best_hotkey = best_meta.hotkey if best_meta else None
-            log.info("  → from cache: %s", best_hotkey or "none")
-
-        if not best_hotkey:
-            meta = self._client.get_best_submission_meta()
-            if meta:
-                best_hotkey = meta.get("hotkey") or meta.get("miner_hotkey")
-            log.info("  → from backend: %s", best_hotkey or "none")
-
-        if not best_hotkey:
-            log.info("No best hotkey found — falling back to cold-start burn (UID 0).")
-
-        try:
-            self._weight_setter.maybe_set_weights(best_hotkey)
-        except Exception as exc:
-            log.error("Weight setting failed: %s", exc)
 
     def _validate_csv(self, csv_bytes: bytes) -> bool:
         """
@@ -460,14 +470,6 @@ class ValidatorCore:
     ) -> None:
         """
         Persist an AgentOutputRecord for the future delayed-evaluation stage.
-
-        Currently this logs the record and constructs an AgentOutputRecord.
-        In the future, this record could be written to a local store (SQLite,
-        JSON lines file, etc.) that the DelayedEvaluator reads to discover
-        matured outputs.
-
-        The *upload_metadata* dict returned from the backend contains at least:
-            file_id, file_path, filename, eval_date
         """
         eval_date = upload_metadata.get("eval_date")
 
@@ -487,20 +489,6 @@ class ValidatorCore:
             record.eval_date or "?",
             record.upload_metadata.get("file_id", "?"),
         )
-
-        # Future: persist `record` to a local store that the DelayedEvaluator
-        # can query. For example, append to a JSON-lines file:
-        #
-        #   import json
-        #   store_path = Path(".TENSORUSD_cache/evaluations.jsonl")
-        #   with open(store_path, "a") as f:
-        #       f.write(json.dumps({
-        #           "submission_id": record.submission_id,
-        #           "agent_filename": record.agent_filename,
-        #           "eval_date": record.eval_date,
-        #           "upload_metadata": record.upload_metadata,
-        #       }) + "\n")
-        #
 
     def _upload_fallback_empty_csv_and_record(
         self,
@@ -532,7 +520,6 @@ class ValidatorCore:
                 csv_bytes=empty_csv,
                 upload_metadata=upload_meta,
             )
-            # Mark evaluated so Phase 2 can pick it up
             try:
                 self._client.mark_submission_evaluated(submission_id)
             except Exception as mark_exc:
@@ -570,8 +557,8 @@ class ValidatorCore:
             log.warning("Plagiarism check error: %s", exc)
             return None
 
-        if similarity >= settings.plagiarism_threshold:
-            return f"AST similarity {similarity:.2%} ≥ threshold {settings.plagiarism_threshold:.2%}"
+        if similarity >= self.plagiarism_threshold:
+            return f"AST similarity {similarity:.2%} ≥ threshold {self.plagiarism_threshold:.2%}"
 
         return None
 
