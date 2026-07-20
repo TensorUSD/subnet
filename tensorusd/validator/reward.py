@@ -20,9 +20,9 @@ import numpy as np
 from typing import List, Dict, Tuple, Optional
 import bittensor as bt
 
-from tensorusd.common.contract import PriceSubmission
 from tensorusd.validator.db import SessionFactory
 from tensorusd.validator.db.models import AuctionWin
+from tensorusd.utils.backend_client import BackendClient
 
 # Reward calculation constants
 BASE_REWARD = 1.0  # Base reward for paying exactly debt amount
@@ -159,3 +159,28 @@ def get_auction_rewards_from_db(
 
     finally:
         session.close()
+
+
+def calculate_rewards_for_mech1(
+    sub: bt.Subtensor,
+    netuid: int,
+    client: BackendClient,
+    burn_uid: Optional[int] = 0,
+    burn_weight_percent: float = 0.0,
+):
+    try:
+        best_miner_meta = client.get_best_submission_meta()
+        if best_miner_meta:
+            best_hotkey = best_miner_meta.get("miner_hotkey")
+            bt.logging.info("  → from backend: %s", best_hotkey or "none")
+            uid = sub.get_uid_for_hotkey_on_subnet(best_hotkey, netuid)
+            reward = 1 - burn_weight_percent
+            rewards = [(burn_uid, burn_weight_percent), (uid, reward)]
+        else:
+            rewards = [(0, 1)]
+
+        return rewards
+
+    except Exception as e:
+        bt.logging.error(f"Error calculating mech1 rewards: {e}")
+        return [1.0], [burn_uid if burn_uid is not None else 0]
