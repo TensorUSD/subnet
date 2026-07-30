@@ -5,8 +5,10 @@ that needs to authenticate against the TensorUSD backend.
 
 from __future__ import annotations
 
-import os
 import logging
+import os
+from pathlib import Path
+
 import bittensor as bt
 import requests
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
@@ -14,14 +16,19 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponen
 from tensorusd.auth.config import settings
 from tensorusd.utils.logging import setup_events_logger
 
-# Retrieve the event logger
 event_logger = logging.getLogger("event")
+
+# Retrieve the event logger
+DEFAULT_LOG_DIR = settings.log_dir
+DEFAULT_LOGFILE_MAX_BYTES = settings.logfile_max_bytes
+DEFAULT_BACKEND_URL = settings.backend_url
+
 
 # Automatically initialize event logger if not already configured in this process
 if not event_logger.handlers:
     try:
-        os.makedirs(settings.log_dir, exist_ok=True)
-        setup_events_logger(str(settings.log_dir), settings.logfile_max_bytes)
+        os.makedirs(DEFAULT_LOG_DIR, exist_ok=True)
+        setup_events_logger(str(DEFAULT_LOG_DIR), DEFAULT_LOGFILE_MAX_BYTES)
     except Exception as e:
         bt.logging.warning(f"Could not initialize event logger using logging.py: {e}")
 
@@ -57,13 +64,13 @@ def fetch_validator_nonce(hotkey_ss58: str) -> dict:
     """
     Call GET /v1/validator/nonce and return the full data payload.
     """
-    url = f"{settings.backend_url}/v1/validator/nonce"
+    url = f"{DEFAULT_BACKEND_URL}/v1/validator/nonce"
 
     try:
         r = requests.get(
             url,
             params={"hotkey": hotkey_ss58},
-            timeout=settings.http_timeout,
+            timeout=60,
         )
 
         if r.status_code == 403:

@@ -1,17 +1,15 @@
 import argparse
-import time
 import sys
+import time
 
 import bittensor as bt
 
-from tensorusd.utils.core import ValidatorCore
 from tensorusd.base.validator import BaseValidatorNeuron
-
-from tensorusd.utils.config import add_validator_args
-from tensorusd.validator.forward_mech1 import forward_mech1
-from tensorusd.utils.logging import get_logger
-
 from tensorusd.common.contract import create_substrate_interface
+from tensorusd.utils.config import add_validator_args
+from tensorusd.utils.core import ValidatorCore
+from tensorusd.utils.logging import get_logger
+from tensorusd.validator.forward_mech1 import forward_mech1
 
 log = get_logger(__name__)
 
@@ -80,6 +78,16 @@ class AgentValidator(BaseValidatorNeuron):
             netuid=self.config.netuid,
             network=self.config.subtensor.network,
             rpc_endpoint=self.config.subtensor.chain_endpoint,
+            backend_url=self.config.agent.backend_url,
+            allowed_hosts=self.config.agent.allowed_hosts,
+            allowed_models=self.config.agent.sandbox_allowed_models,
+            sandbox_image = self.config.agent.sandbox_image,
+            memory_limit = self.config.agent.memory_limit,
+            cpu_limit = self.config.agent.cpu_limit,
+            ground_truth_dir=self.config.agent.ground_truth_dir,
+            sandbox_log_dir=self.config.agent.sandbox_log_dir,
+            sandbox_workdir = self.config.agent.sandbox_workdir,
+            sandbox_timeout=self.config.agent.sandbox_timeout,
             scored_cache_path = self.config.agent.scored_cache_path,
             scored_cache_max_size = self.config.agent.scored_cache_max_size,
             validator_poll_interval = self.config.agent.validator_poll_interval,

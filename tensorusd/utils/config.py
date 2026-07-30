@@ -22,6 +22,7 @@ import argparse
 import bittensor as bt
 from .logging import setup_events_logger
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -82,7 +83,7 @@ def add_args(cls, parser):
     Adds relevant arguments to the parser for operation.
     """
 
-    parser.add_argument("--netuid", type=int, help="Subnet netuid", default=1)
+    parser.add_argument("--netuid", type=int, help="Subnet netuid", default=315)
 
     parser.add_argument(
         "--neuron.device",
@@ -450,6 +451,12 @@ def add_validator_args(cls, parser, mech_id: int = 0):
         default="gpt-5.6-terra,gpt-5.6-luna,gpt-5.4,gpt-5.4-mini,gpt-5.4-nano,gpt-5-mini,gpt-5-nano,gpt-4.1,gpt-4.1-mini,gpt-4o-mini",
     )
     parser.add_argument(
+        "--agent.allowed_hosts",
+        type=str,
+        help="Allowed external hosts inside sandbox",
+        default="api.openai.com,*.openai.com,openai.com",
+    )
+    parser.add_argument(
         "--agent.logfile_max_bytes",
         type=int,
         help="Max size of the logfile before making a new logfile to store logs",
@@ -465,13 +472,13 @@ def add_validator_args(cls, parser, mech_id: int = 0):
         "--agent.sandbox_timeout",
         type=int,
         help="Maximum amount of time (in seconds) for sandbox to run an agent.",
-        default=10 * 1024 * 1024,
+        default= 15 * 60,
     )
     parser.add_argument(
         "--agent.memory_limit",
         type=str,
         help="Max numbers of logfile to save.",
-        default=7,
+        default="8g",
     )
     parser.add_argument(
         "--agent.cpu_limit",
@@ -486,7 +493,7 @@ def add_validator_args(cls, parser, mech_id: int = 0):
         default=900,
     )
     parser.add_argument(
-        "--agent.plagiarism",
+        "--agent.plagiarism_threshold",
         type=float,
         help="How same can a new agent be in comparison to current best",
         default=0.95,

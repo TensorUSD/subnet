@@ -16,7 +16,6 @@ from tenacity import (
 )
 
 from tensorusd.auth.auth import fetch_validator_nonce, sign_message
-from tensorusd.auth.config import settings
 from tensorusd.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -28,6 +27,8 @@ _RETRY = {
     "wait": wait_exponential(multiplier=1, min=2, max=30),
     "reraise": True,
 }
+
+HTTP_TIMEOUT = 60
 
 
 def _log_http_error(exc: requests.HTTPError, context: str) -> None:
@@ -45,9 +46,10 @@ class BackendClient:
     Thin HTTP client for the TensorUSD backend.
     """
 
-    def __init__(self, wallet: bt.Wallet) -> None:
+    def __init__(self, wallet: bt.Wallet, netuid: int, backend_url: str) -> None:
         self._wallet = wallet
-        self._base = settings.backend_url
+        self._base = backend_url
+        self._netuid = netuid
         self._session = requests.Session()
         self._session.headers["User-Agent"] = "tensorusd-validator/0.1"
 
@@ -81,7 +83,7 @@ class BackendClient:
     def _get(self, path: str, **kwargs: Any) -> requests.Response:
         r = self._session.get(
             f"{self._base}{path}",
-            timeout=settings.http_timeout,
+            timeout=HTTP_TIMEOUT,
             **kwargs,
         )
         r.raise_for_status()
@@ -91,7 +93,7 @@ class BackendClient:
     def _post(self, path: str, **kwargs: Any) -> requests.Response:
         r = self._session.post(
             f"{self._base}{path}",
-            timeout=settings.http_timeout,
+            timeout=HTTP_TIMEOUT,
             **kwargs,
         )
         r.raise_for_status()
@@ -118,7 +120,7 @@ class BackendClient:
                 log.error(
                     "Validator hotkey has no permit — cannot authenticate with backend.\n"
                     "  This hotkey is not recognised as a validator on netuid %d.",
-                    settings.netuid,
+                    self._netuid,
                 )
                 raise
             _log_http_error(exc, "get_unevaluated_submission")
@@ -195,7 +197,7 @@ class BackendClient:
                 f"{self._base}/v1/validator/agent-output",
                 files=files,
                 data=data,
-                timeout=settings.http_timeout,
+                timeout=HTTP_TIMEOUT,
             )
             r.raise_for_status()
             body = r.json()

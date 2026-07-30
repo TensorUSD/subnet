@@ -16,15 +16,15 @@ Usage (internal — called by ValidatorCore):
 
 from __future__ import annotations
 
+import argparse
 import csv
 import math
 import os
-import argparse
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional, Dict, List, Tuple
 from urllib.parse import urlparse
 
 import bittensor as bt
@@ -33,9 +33,7 @@ from tensorusd.common.contract import (
     TensorUSDVaultContract,
     create_substrate_interface,
 )
-from tensorusd.auth.config import settings
 from tensorusd.utils.config import add_validator_args
-from tensorusd.base.validator import BaseValidatorNeuron
 from tensorusd.utils.logging import get_logger
 from tensorusd.validator.ground_truth import generate_ground_truth
 
@@ -52,11 +50,11 @@ DEFAULT_RPC_ENDPOINTS = {
 }
 
 # Ground-truth directory (same default as tensorusd/auth/config.py)
-GROUND_TRUTH_DIR = Path(os.environ.get("TENSORUSD_GROUND_TRUTH_DIR", "ground-truth"))
+GROUND_TRUTH_DIR = Path("ground-truth")
 
 # How often to check if it's time to collect (seconds)
-POLL_INTERVAL = 60
-CAPTURE_WINDOW_MIN = 15
+POLL_INTERVAL = 600
+CAPTURE_WINDOW_MIN = 30
 
 FIELDNAMES = [
     "snapshot_hour",
@@ -100,11 +98,11 @@ def _unwrap_ok(value: Any) -> Any:
     """
     seen = 0
     while seen < 6:
-        if isinstance(value, tuple) and len(value) == 2 and value[0] in ("Ok", "Err"):
+        if isinstance(value, Tuple) and len(value) == 2 and value[0] in ("Ok", "Err"):
             if value[0] == "Err":
                 raise RuntimeError(f"Contract call returned Err: {value[1]!r}")
             value = value[1]
-        elif isinstance(value, dict) and "Ok" in value and len(value) == 1:
+        elif isinstance(value, Dict) and "Ok" in value and len(value) == 1:
             value = value["Ok"]
         elif hasattr(value, "value_object") and value.value_object is not None:
             value = value.value_object
@@ -153,7 +151,7 @@ def _get_all_vaults_page(
         log.warning("get_all_vaults(page=%d) failed: %s", page, e)
         return [], False
 
-    if not isinstance(page_vaults, list):
+    if not isinstance(page_vaults, List):
         log.warning(
             "get_all_vaults(page=%d) returned unexpected shape: %r",
             page,
@@ -264,7 +262,6 @@ class GroundTruthCollector():
         self.vault_metadata_path = vault_metadata_path
         self._stop = threading.Event()
         
-        print(f"PRINT INFORMATION: CONTRACT ADDRESS: {self._contract_address}")
 
         # Separate SubstrateInterface — not the validator's bt.Subtensor
         self._substrate = None
@@ -369,11 +366,47 @@ class GroundTruthCollector():
         )
 
         generate_ground_truth(date_str)
+        
+    def _finalize_previous_day_if_needed(self, current_date_str: str) -> None:
+        """
+        Check whether yesterday (relative to `current_date_str`) has a
+        data.csv that was never finalized into ground-truth.csv, and finalize
+        it if so. Handles the case where the collector was restarted (or
+        started fresh) after a day boundary already passed, so
+        `_finalize_day` never got triggered by the normal rollover check.
+        """
+        try:
+            current_date = datetime.strptime(current_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            log.warning("Could not parse current date %s — skipping backfill check.", current_date_str)
+            return
+
+        prev_date_str = (current_date - timedelta(days=1)).strftime("%Y-%m-%d")
+        prev_dir = GROUND_TRUTH_DIR / prev_date_str
+        prev_data_csv = prev_dir / "data.csv"
+        prev_ground_truth_csv = prev_dir / "ground-truth.csv"
+
+        if prev_data_csv.exists() and not prev_ground_truth_csv.exists():
+            log.info(
+                "Found unfinalized data.csv for %s on startup — finalizing before "
+                "resuming today's collection.",
+                prev_date_str,
+            )
+            self._finalize_day(prev_date_str)
 
     def _poll_loop(self) -> None:
         """
         Background poll loop — runs once per minute.
         """
+        try:
+            if not self._ensure_connection():
+                time.sleep(POLL_INTERVAL)
+            else:
+                date_str, _, _ = _get_current_hour_info(self._substrate)
+                self._finalize_previous_day_if_needed(date_str)
+                self._last_seen_date = date_str
+        except Exception as exc:
+            log.error("Startup backfill check failed: %s", exc, exc_info=True)
         # log.info("Ground-truth poll loop started (current-hour capture mode).")
         while not self._stop.is_set():
             try:

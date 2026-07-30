@@ -5,16 +5,17 @@ Main validator evaluation loop.
 from __future__ import annotations
 
 import ast
-import io
 import csv
+import io
 import threading
 
 import bittensor as bt
 import requests
 
-from tensorusd.utils.logging import get_logger
-from tensorusd.utils.backend_client import BackendClient
 from tensorusd.utils.agent_cache import BestAgentCache, BestAgentWatcher
+from tensorusd.utils.backend_client import BackendClient
+from tensorusd.utils.logging import get_logger
+from tensorusd.utils.pricing import get_most_expensive_allowed_model
 from tensorusd.utils.sandbox import SandboxRunner
 from tensorusd.utils.scored_cache import ScoredCache
 from tensorusd.utils.security import validate_agent_file, validate_agent_format
@@ -25,8 +26,6 @@ from tensorusd.validator.delayed_evaluation import (
     DelayedEvaluator,
 )
 from tensorusd.validator.ground_truth_collector import GroundTruthCollector
-from tensorusd.utils.pricing import get_most_expensive_allowed_model
-
 
 log = get_logger(__name__)
 
@@ -49,6 +48,16 @@ class ValidatorCore:
         netuid: int,
         network: str,
         rpc_endpoint: str,
+        backend_url: str,
+        allowed_hosts: str,
+        allowed_models: str,
+        sandbox_image: str,
+        memory_limit: str,
+        cpu_limit: int,
+        ground_truth_dir: str,
+        sandbox_log_dir: str,
+        sandbox_workdir: str,
+        sandbox_timeout: int,
         scored_cache_path: str,
         scored_cache_max_size: int,
         validator_poll_interval: int,
@@ -62,6 +71,16 @@ class ValidatorCore:
         self.netuid = netuid
         self.network = network
         self.rpc_endpoint = rpc_endpoint
+        self.backend_url = backend_url
+        self.allowed_hosts = tuple(h.strip() for h in allowed_hosts.split(",") if h.strip())
+        self.allowed_models = tuple(h.strip() for h in allowed_models.split(",") if h.strip())
+        self.sandbox_image = sandbox_image
+        self.memory_limit = memory_limit
+        self.cpu_limit = cpu_limit
+        self.ground_truth_dir = ground_truth_dir
+        self.sandbox_log_dir = sandbox_log_dir
+        self.sandbox_workdir = sandbox_workdir
+        self.sandbox_timeout = sandbox_timeout
         self.scored_cache_path = scored_cache_path
         self.scored_cache_max_size = scored_cache_max_size
         self.validator_poll_interval = validator_poll_interval
@@ -70,10 +89,20 @@ class ValidatorCore:
 
         self.vault_address = vault_address
         self.vault_metadata_path = vault_metadata_path
-        self._client = BackendClient(wallet)
+        self._client = BackendClient(wallet, self.netuid, self.backend_url)
         self._cache = BestAgentCache()
         self._watcher = BestAgentWatcher(self._client, self._cache)
-        self._sandbox = SandboxRunner()
+        self._sandbox = SandboxRunner(
+           allowed_hosts=self.allowed_hosts,
+           allowed_models=self.allowed_models,
+           sandbox_image=self.sandbox_image,
+           memory_limit = self.memory_limit,
+           cpu_limit = self.cpu_limit,
+           ground_truth_dir = self.ground_truth_dir,
+           sandbox_workdir = self.sandbox_workdir,
+           sandbox_timeout=self.sandbox_timeout,
+           sandbox_log_dir = self.sandbox_log_dir
+        )
 
         # Phase 2 delayed evaluation
         self._delayed_evaluator = DelayedEvaluator(
@@ -220,10 +249,10 @@ class ValidatorCore:
 
         if submission is None:
             log.info(
-                "No unevaluated submissions.  Sleeping %ds.",
-                self.validator_poll_interval,
+                "No unevaluated submissions.  Sleeping... "
             )
-            self._stop_event.wait(self.validator_poll_interval)
+            # self._stop_event.wait(self.validator_poll_interval)
+            self._stop_event.wait(60)
             return "", 1
 
         log.debug("Raw submission response: %s", submission)
@@ -267,10 +296,8 @@ class ValidatorCore:
             try:
                 pricing = get_most_expensive_allowed_model(self._sandbox.allowed_models)
                 token_budget = int(
-                    (
                         (run_budget_usd * 1_000_000.0)
                         / max(pricing.output_usd_per_million_tokens, 1e-9)
-                    )
                 )
             except Exception as exc:
                 log.warning("Could not derive token budget for %s: %s", sub_id, exc)

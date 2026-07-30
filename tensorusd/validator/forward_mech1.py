@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from neurons.validator import AgentValidator
 
 SLEEP_TIME = 1500
+MAX_RETRIES = 3
 
 
 async def forward_mech1(self: "AgentValidator"):
@@ -20,8 +21,9 @@ async def forward_mech1(self: "AgentValidator"):
         all_uids = self.metagraph.uids
         all_weights = [0] * n_uids
 
-        rewards = calculate_rewards_for_mech1(self.subtensor, self.config.netuid, self.agent_vali._client)
-        
+        rewards = calculate_rewards_for_mech1(
+            self.subtensor, self.config.netuid, self.agent_vali._client
+        )
 
         for uid, reward in rewards:
             all_weights[uid] = reward
@@ -34,21 +36,33 @@ async def forward_mech1(self: "AgentValidator"):
 
         self.update_scores(weights, uids, 1)
 
-        result, msg = self.subtensor.set_weights(
-            wallet=self.wallet,
-            netuid=self.config.netuid,
-            uids=uids,
-            weights=weights,
-            mechid=self.config.mechid,
-            version_key=self.spec_version,
-            wait_for_finalization=False,
-            wait_for_inclusion=False,
-        )
+        set_weights_success = False
 
-        if result is True:
-            _log_event("set_weights on chain successfully!")
-        else:
-            _log_event("set_weights failed", msg)
+        for attempt in range(MAX_RETRIES):
+            try:
+                result, msg = self.subtensor.set_weights(
+                    wallet=self.wallet,
+                    netuid=self.config.netuid,
+                    uids=uids,
+                    weights=weights,
+                    mechid=self.config.mechid,
+                    version_key=self.spec_version,
+                    wait_for_finalization=False,
+                    wait_for_inclusion=False,
+                )
+
+                if result is True:
+                    _log_event("set_weights on chain successfully!")
+                    set_weights_success = True
+                    break
+                else:
+                    _log_event(f"set_weights attempt {attempt + 1} failed: {msg}")
+            except Exception as w_err:
+                _log_event("set_weights failed", w_err)
+                await asyncio.sleep(5)
+        if not set_weights_success:
+            _log_event("Failed to set weights after maximum retries.")
+
     except Exception as e:
         _log_event(f"Error in forward pass: {e}")
         _log_event(traceback.format_exc())

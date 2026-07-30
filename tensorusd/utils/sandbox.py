@@ -4,23 +4,24 @@ Orchestrates the single-phase Docker sandbox evaluation of a miner agent.
 
 from __future__ import annotations
 
+import os
 import shutil
 import uuid
 from dataclasses import dataclass
-from pathlib import Path  # noqa: TC003
-import os
+from datetime import date, timedelta
+from pathlib import Path
 
 import docker
 import docker.errors
 import docker.types
-from docker.models.containers import Container  # noqa: TC002
-from docker.models.networks import Network  # noqa: TC002
+from docker.models.containers import Container
+from docker.models.networks import Network
 
 from tensorusd.auth.config import settings
 from tensorusd.utils.logging import get_logger
 
 log = get_logger(__name__)
-
+SANDBOX_TOKEN_BUDGET = settings.sandbox_token_budget
 
 @dataclass
 class SandboxResult:
@@ -40,14 +41,51 @@ class SandboxRunner:
     The agent runs in a single Docker container on an isolated bridge network.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self, 
+        allowed_hosts: list, 
+        allowed_models: list,
+        sandbox_image: str,
+        memory_limit: str,
+        cpu_limit:int,
+        ground_truth_dir: str,
+        sandbox_workdir: str,
+        sandbox_timeout: int, 
+        sandbox_log_dir: str
+        ) -> None:
         self._client = docker.from_env()
-        self.allowed_hosts = settings.sandbox_allowed_hosts
-        self.allowed_models = settings.sandbox_allowed_models
-        self.token_budget = settings.sandbox_token_budget
-        self.cost_budget_usd = settings.sandbox_cost_budget_usd
-        self.log_dir = settings.sandbox_log_dir
+        self.allowed_hosts = allowed_hosts
+        self.allowed_models = allowed_models
+        self.sandbox_image = sandbox_image
+        self.sandbox_workdir = sandbox_workdir
+        self.sandbox_timeout = sandbox_timeout
+        self.memory_limit = memory_limit
+        self.cpu_limit = cpu_limit
+        self.ground_truth_dir = ground_truth_dir
+        self.token_budget = SANDBOX_TOKEN_BUDGET
+        self.cost_budget_usd = None
+        self.log_dir = sandbox_log_dir
         self.log_dir.mkdir(parents=True, exist_ok=True)
+        
+    def _ground_truth_volumes(self, as_of: date, days: int = 7) -> dict[str, dict[str, str]]:
+        """
+        Build read-only bind mounts for the last `days` days of ground-truth data
+        (inclusive of as_of), for whichever date directories actually exist.
+        """
+        gt_root = self.ground_truth_dir.resolve()  # ensure absolute path
+        volumes: dict[str, dict[str, str]] = {}
+
+        for i in range(days):
+            d = as_of - timedelta(days=i)
+            day_str = d.isoformat()
+            host_dir = gt_root / day_str
+            if host_dir.is_dir():
+                volumes[str(host_dir)] = {
+                    "bind": f"/data/ground-truth/{day_str}",
+                    "mode": "ro",
+                }
+        return volumes
+
 
     def run(
         self,
@@ -61,7 +99,7 @@ class SandboxRunner:
         Execute the sandbox evaluation for the given agent source code.
         """
         run_id = uuid.uuid4().hex[:12]
-        work_dir = settings.sandbox_workdir / run_id
+        work_dir = self.sandbox_workdir / run_id
         work_dir.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -100,7 +138,7 @@ class SandboxRunner:
 
         # Create the sandbox network (bridge, internet access via NAT)
         # NOTE: General internet access should be constrained by the host-level
-        # egress policy or proxy layer using settings.sandbox_allowed_hosts.
+        # egress policy or proxy layer using sandbox_allowed_hosts.
         network = self._create_sandbox_network(run_id)
 
         container: Container | None = None
@@ -119,13 +157,13 @@ class SandboxRunner:
 
             # Block until done or timeout
             try:
-                result = container.wait(timeout=settings.sandbox_timeout)
+                result = container.wait(timeout=self.sandbox_timeout)
                 exit_code: int = result.get("StatusCode", -1)
             except Exception:
                 last_logs = container.logs(tail=200).decode(errors="replace")
                 log_path = self._write_run_log(run_id, last_logs)
                 log.warning(
-                    "[%s] Container timed out after %ds", run_id, settings.sandbox_timeout
+                    "[%s] Container timed out after %ds", run_id, self.sandbox_timeout
                 )
                 log.warning("Container logs saved to %s", log_path)
                 try:  # noqa: SIM105
@@ -203,8 +241,8 @@ class SandboxRunner:
             log.error(
                 "Sandbox image '%s' not found.  Build it first: "
                 "docker build -f Dockerfile.sandbox -t %s .",
-                settings.sandbox_image,
-                settings.sandbox_image,
+                self.sandbox_image,
+                self.sandbox_image,
             )
             return SandboxResult(
                 success=False,
@@ -341,6 +379,8 @@ class SandboxRunner:
                 "mode": "rw",
             },
         }
+        
+        volumes.update(self._ground_truth_volumes(date.today()))
 
         container_name = f"tensorusd-sandbox-{run_id}"
 
@@ -353,16 +393,16 @@ class SandboxRunner:
         except Exception:
             pass
 
-        nano_cpus = int(settings.cpu_limit * 1_000_000_000)
+        nano_cpus = int(self.cpu_limit * 1_000_000_000)
 
         container: Container = self._client.containers.run(
-            image=settings.sandbox_image,
+            image=self.sandbox_image,
             command="python /agent/agent.py --infer",
             name=container_name,
             detach=True,
             remove=False,
             network=network,
-            mem_limit=settings.memory_limit,
+            mem_limit=self.memory_limit,
             nano_cpus=nano_cpus,
             device_requests=device_requests,
             volumes=volumes,

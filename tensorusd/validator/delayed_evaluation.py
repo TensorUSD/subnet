@@ -4,12 +4,11 @@ Abstractions for the delayed-evaluation (Phase 2) pipeline.
 
 from __future__ import annotations
 
-import io
 import csv
+import io
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from tensorusd.auth.config import settings
 from tensorusd.utils.backend_client import BackendClient
 from tensorusd.utils.logging import get_logger
 from tensorusd.validator import ground_truth as gt
