@@ -147,7 +147,7 @@ class Settings:
         default_factory=lambda: _env_int("TENSORUSD_SANDBOX_TIMEOUT", 2100)
     )
 
-    memory_limit: str = field(default_factory=lambda: _env("MEMORY_LIMIT", "16g"))
+    memory_limit: str = field(default_factory=lambda: _env("MEMORY_LIMIT", "4g"))
 
     # Docker CPU cap — prevents runaway agents from pinning validator CPUs
     cpu_limit: float = field(
