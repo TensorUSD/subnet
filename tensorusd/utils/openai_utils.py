@@ -23,12 +23,6 @@ class OpenAIUsage:
     def total_tokens(self) -> int:
         return self.prompt_tokens + self.completion_tokens
 
-@dataclass(slots=True)
-class OpenAICallResult:
-    response: Any
-    call_usage: OpenAIUsage
-    call_cost_usd: float
-
 
 class OpenAIBudgetExceeded(RuntimeError):
     """Raised when a tracked OpenAI request would exceed the token budget."""
