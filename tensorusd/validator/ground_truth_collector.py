@@ -4,9 +4,8 @@ Ground-truth collector — runs in a background thread inside the validator.
 Collects 24 hourly vault snapshots incrementally — one snapshot per hour
 as each hour passes, then builds ``ground-truth.csv`` at the end of the day.
 
-The collector polls once per minute and uses **chain timestamps** to find the
-block closest to each hour's ``:00`` mark (e.g. 14:00 UTC), rather than
-snapshotting the current block.
+The collector polls every 5 minute and uses **chain timestamps** to find the
+block closest to each hour's ``:00`` mark (e.g. 14:00 UTC)
 
 Usage (internal — called by ValidatorCore):
     collector = GroundTruthCollector(wallet)
@@ -18,21 +17,19 @@ from __future__ import annotations
 
 import csv
 import math
-import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from typing import Any
 
 import bittensor as bt
 
+from tensorusd.auth.config import settings
 from tensorusd.common.contract import (
     TensorUSDVaultContract,
     create_substrate_interface,
 )
-from tensorusd.auth.config import settings
 from tensorusd.utils.logging import get_logger
 from tensorusd.validator.ground_truth import generate_ground_truth
 
@@ -40,20 +37,10 @@ log = get_logger(__name__)
 
 # Constants
 PAGE_SIZE = 10
-
-DEFAULT_RPC_ENDPOINTS = {
-    "finney": [
-        "wss://entrypoint-finney.opentensor.ai:443",
-    ],
-    "testnet": ["wss://test.finney.opentensor.ai:443"],
-}
-
-# Ground-truth directory (same default as tensorusd/auth/config.py)
-GROUND_TRUTH_DIR = Path(os.environ.get("TENSORUSD_GROUND_TRUTH_DIR", "ground-truth"))
-
-# How often to check if it's time to collect (seconds)
-POLL_INTERVAL = 60
-CAPTURE_WINDOW_MIN = 15
+DEFAULT_RPC_ENDPOINT = settings.gt_rpc_endpoint
+GROUND_TRUTH_DIR = settings.ground_truth_dir
+POLL_INTERVAL = 60 * 5
+CAPTURE_WINDOW_MIN = 30
 
 FIELDNAMES = [
     "snapshot_hour",
@@ -68,47 +55,41 @@ FIELDNAMES = [
 ]
 
 
-def _is_ws_url(value: str) -> bool:
-    return urlparse(value).scheme in {"ws", "wss"}
+def _create_substrate_with_fallback(endpoint: str):
+    """Attempt to create a SubstrateInterface for the given endpoint.
 
+    Tries to connect via ``create_substrate_interface``. On success, returns
+    the connected interface. On any exception, logs a warning and returns
+    ``None`` so callers can attempt fallback endpoints.
 
-def _create_substrate_with_fallback(network: str, preferred_endpoint: str):
-    """Create a substrate interface with fallback endpoints."""
-    endpoints = []
-    if preferred_endpoint and _is_ws_url(preferred_endpoint):
-        endpoints.append(preferred_endpoint)
-    endpoints.extend(DEFAULT_RPC_ENDPOINTS.get(network, []))
+    Args:
+        endpoint: WebSocket or HTTP URL of the Substrate node to connect to.
 
-    seen = set()
-    unique_endpoints = []
-    for ep in endpoints:
-        if ep not in seen:
-            seen.add(ep)
-            unique_endpoints.append(ep)
-
-    last_error = None
-    for ep in unique_endpoints:
-        try:
-            log.info("Connecting to substrate endpoint: %s", ep)
-            return create_substrate_interface(ep)
-        except Exception as exc:
-            last_error = exc
-            log.warning("Failed to connect to %s: %s", ep, exc)
-
-    raise RuntimeError(
-        f"Unable to connect to any substrate endpoint for network '{network}'."
-    ) from last_error
+    Returns:
+        A connected ``SubstrateInterface`` instance, or ``None`` if the
+        connection failed.
+    """
+    try:
+        log.info("Connecting to substrate endpoint: %s", endpoint)
+        return create_substrate_interface(endpoint)
+    except Exception as exc:
+        log.warning("Failed to connect to %s: %s", endpoint, exc)
 
 
 def _unwrap_ok(value: Any) -> Any:
-    """
-    Peel off nested Result::Ok wrappers / ScaleObj layers to a plain value.
+    """Unwrap nested Substrate Result and ScaleObj layers to a plain Python value.
 
-    The substrateinterface contract SDK decodes a `Result<T, E>` as a
-    2-element tuple ("Ok", <ScaleObj>) / ("Err", <ScaleObj>), and each
-    ScaleObj needs `.value` (or `.value_object` for structs) to reach the
-    real Python value. This handles arbitrarily nested Result wrappers
-    (e.g. an outer call-level Result wrapping an inner method-level Result).
+
+    The substrateinterface SDK decodes contract return values with multiple
+    encoding wrappers that must be stripped before use. This function
+    iteratively peels those layers.
+
+    Args:
+        value: A raw decoded contract return value, potentially wrapped in
+            one or more Result/ScaleObj layers.
+
+    Returns:
+        The fully unwrapped plain Python value (e.g., int, str, dict, list).
     """
     seen = 0
     while seen < 6:
@@ -129,8 +110,24 @@ def _unwrap_ok(value: Any) -> Any:
 
 
 def _get_total_vaults_count(
-    contract: TensorUSDVaultContract, block_hash: Optional[bytes] = None
+    contract: TensorUSDVaultContract, block_hash: bytes | None = None
 ) -> int:
+    """Read the total number of vaults from the on-chain contract.
+
+    Calls the ``get_total_vaults_count`` method and unwraps the nested
+    Result/ScaleObj encoding via :func:`_unwrap_ok`. If the call fails for
+    any reason (network error, contract revert, decoding issue), logs a
+    warning and returns ``0`` as a safe default.
+
+    Args:
+        contract: Initialized vault contract instance providing wallet and
+            RPC access.
+        block_hash: Optional block hash to query at a specific historical
+            state. Defaults to the chain tip when ``None``.
+
+    Returns:
+        The total vault count as a non-negative integer.
+    """
     try:
         result = contract.contract.read(
             keypair=contract.wallet.hotkey,
@@ -148,10 +145,20 @@ def _get_total_vaults_count(
 def _get_all_vaults_page(
     contract: TensorUSDVaultContract,
     page: int,
-    block_hash: Optional[bytes] = None,
-) -> Tuple[List[Dict[str, Any]], bool]:
-    """
-    Call get_all_vaults(page) and return (vault_dicts, success).
+    block_hash: bytes | None = None,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Fetch a single page of vault data from the on-chain contract.
+
+    Calls the ``get_all_vaults`` read method and safely unwraps the result.
+
+    Args:
+        contract: Initialized vault contract wrapper used for the RPC call.
+        page: Zero-indexed page number to retrieve.
+        block_hash: Optional block hash to pin the read to a specific state.
+            Defaults to ``None``.
+
+    Returns:
+        A tuple of ``(vault_dicts, success)``
     """
     try:
         result = contract.contract.read(
@@ -178,21 +185,29 @@ def _get_all_vaults_page(
 
 def discover_all_vaults(
     contract: TensorUSDVaultContract,
-    block_hash: Optional[bytes] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Fetch every vault by paginating through get_all_vaults, using
-    get_total_vaults_count() as an upper bound on page count.
+    block_hash: bytes | None = None,
+) -> list[dict[str, Any]]:
+    """Discover all vaults by paginating through the on-chain registry.
 
-    Stops early on decode failure rather than spamming errors for every
-    remaining page.
+    Uses :func:`_get_total_vaults_count` to determine the upper bound of
+    pages, then iterates via :func:`_get_all_vaults_page`.
+
+    Args:
+        contract: Initialized vault contract wrapper used for all RPC calls.
+        block_hash: Optional block hash to pin every read (count + pages)
+            to the same chain state.
+
+    Returns:
+        A de-duplicated list of raw vault dictionaries. Returns an empty
+        list when the total vault count is zero or when the very first
+        page fails to decode.
     """
     total = _get_total_vaults_count(contract, block_hash=block_hash)
     if total == 0:
         return []
 
     total_pages = math.ceil(total / PAGE_SIZE)
-    all_vaults: List[Dict[str, Any]] = []
+    all_vaults: list[dict[str, Any]] = []
 
     for page in range(total_pages):
         page_vaults, ok = _get_all_vaults_page(contract, page, block_hash=block_hash)
@@ -209,7 +224,7 @@ def discover_all_vaults(
 
     # De-dupe on (owner, id) just in case of overlapping pages.
     seen = set()
-    unique: List[Dict[str, Any]] = []
+    unique: list[dict[str, Any]] = []
     for v in all_vaults:
         key = (v.get("owner"), v.get("id"))
         if key not in seen:
@@ -218,13 +233,17 @@ def discover_all_vaults(
     return unique
 
 
-def _get_current_hour_info(substrate) -> Tuple[str, int, float]:
+def _get_current_hour_info(substrate) -> tuple[str, int, float]:
     """
     Determine the CURRENT hour bucket using the chain timestamp — no
     rounding down to the *previous* completed hour, and no estimation.
 
+    Args:
+        substrate: Connected Substrate interface used to query the
+            ``Timestamp`` pallet.
+
     Returns:
-        (date_str, hour, minutes_into_hour)
+        A tuple of (date_str, hour, minutes_into_hour).
     """
     current_ts = substrate.query("Timestamp", "Now").value  # ms
     if not current_ts:
@@ -282,7 +301,7 @@ class GroundTruthCollector:
         self._metadata_path = "tensorusd/common/abis/tusdt_vault.json"
 
         # Tracks the last chain-date we saw, to detect day rollover.
-        self._last_seen_date: Optional[str] = None
+        self._last_seen_date: str | None = None
 
     def start(self) -> None:
         """Launch the background collector thread."""
@@ -301,14 +320,16 @@ class GroundTruthCollector:
 
     def _ensure_connection(self) -> bool:
         """
-        Ensure we have a working substrate connection and contract instance.
-        Returns True if ready, False if retry needed.
+        Ensure a working Substrate connection and contract instance exist.
+
+        Returns:
+        True if the connection was established successfully and the
+        instance is ready for use, ``False`` if creation failed and the
+        caller should retry later.
+
         """
         try:
-            substrate = _create_substrate_with_fallback(
-                self._network,
-                DEFAULT_RPC_ENDPOINTS.get(self._network, [None])[0],
-            )
+            substrate = _create_substrate_with_fallback(DEFAULT_RPC_ENDPOINT)
         except RuntimeError as e:
             log.warning("Failed to create substrate interface: %s", e)
             return False
@@ -330,11 +351,13 @@ class GroundTruthCollector:
 
         return True
 
-    def _get_current_block(self) -> Optional[int]:
+    def _get_current_block(self) -> int | None:
         """
-        Fetch the current block number via bt.SubtensorApi (a direct RPC
-        call), falling back to substrate.get_block_number(None) only if
-        SubtensorApi is unavailable.
+        Fetch the current block number.
+
+        Returns:
+            The current block number as an integer, or ``None`` if the block
+            could not be determined through either method.
         """
         if self._substrate is not None:
             try:
@@ -348,6 +371,17 @@ class GroundTruthCollector:
 
     @staticmethod
     def _read_collected_hours(data_csv_path: Path) -> set[int]:
+        """Read previously collected snapshot hours from a CSV file.
+
+        Args:
+            data_csv_path: Path to the CSV file
+
+        Returns:
+            A set of integer hour values successfully parsed from the file.
+            Returns an empty set when the file does not exist or contains no
+            valid ``snapshot_hour`` entries.
+        """
+
         collected: set[int] = set()
         if data_csv_path.exists():
             with open(data_csv_path, newline="") as f:
@@ -360,7 +394,12 @@ class GroundTruthCollector:
         return collected
 
     def _finalize_day(self, date_str: str) -> None:
-        """Build ground-truth.csv for `date_str` from whatever was collected."""
+        """Build ground-truth.csv for `date_str` from whatever was collected.
+
+        Args:
+            date_str: Date identifier in ``YYYY-MM-DD`` format, corresponding
+            to a subdirectory under :data:`GROUND_TRUTH_DIR`.
+        """
         data_dir = GROUND_TRUTH_DIR / date_str
         data_csv_path = data_dir / "data.csv"
         ground_truth_csv = data_dir / "ground-truth.csv"
@@ -380,10 +419,52 @@ class GroundTruthCollector:
 
         generate_ground_truth(date_str)
 
+    def _finalize_previous_day_if_needed(self, current_date_str: str) -> None:
+        """Backfill ground-truth generation for yesterday if it was missed.
+
+        Args:
+            current_date_str: The current date in ``YYYY-MM-DD`` format.
+                Yesterday is derived by subtracting one calendar day.
+        """
+        try:
+            current_date = datetime.strptime(current_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            log.warning(
+                "Could not parse current date %s — skipping backfill check.",
+                current_date_str,
+            )
+            return
+
+        prev_date_str = (current_date - timedelta(days=1)).strftime("%Y-%m-%d")
+        prev_dir = GROUND_TRUTH_DIR / prev_date_str
+        prev_data_csv = prev_dir / "data.csv"
+        prev_ground_truth_csv = prev_dir / "ground-truth.csv"
+
+        if prev_data_csv.exists() and not prev_ground_truth_csv.exists():
+            log.info(
+                "Found unfinalized data.csv for %s on startup — finalizing before "
+                "resuming today's collection.",
+                prev_date_str,
+            )
+            self._finalize_day(prev_date_str)
+
     def _poll_loop(self) -> None:
         """
-        Background poll loop — runs once per minute.
+        Background polling loop for hourly vault snapshot collection.
+
+        Runs continuously until ``self._stop`` is set, executing one poll cycle
+        per 5 minutes.
         """
+        try:
+            if not self._ensure_connection():
+                time.sleep(POLL_INTERVAL)
+            else:
+                date_str, _, _ = _get_current_hour_info(self._substrate)
+                self._finalize_previous_day_if_needed(date_str)
+                self._last_seen_date = date_str
+        except Exception as exc:
+            log.error("Startup backfill check failed: %s", exc, exc_info=True)
+
         log.info("Ground-truth poll loop started (current-hour capture mode).")
         while not self._stop.is_set():
             try:
@@ -485,7 +566,7 @@ class GroundTruthCollector:
                 )
                 snapshot_time_utc = now_dt.strftime("%Y-%m-%d %H:%M:%S")
 
-                new_rows: List[Dict[str, Any]] = []
+                new_rows: list[dict[str, Any]] = []
                 for v in vaults:
                     new_rows.append(
                         {

@@ -33,6 +33,8 @@ class Settings:
     # Bittensor
     network: str = field(default_factory=lambda: _env("BITTENSOR_NETWORK", "finney"))
     netuid: int = field(default_factory=lambda: _env_int("TENSORUSD_NETUID", 113))
+    
+    gt_rpc_endpoint: str = field(default_factory=lambda: _env("DEFAULT_RPC_ENDPOINTS", "wss://entrypoint-finney.opentensor.ai:443"))
 
     # Backend
     backend_url: str = field(
