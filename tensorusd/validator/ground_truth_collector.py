@@ -279,7 +279,6 @@ class GroundTruthCollector:
         self,
         wallet: bt.Wallet,
         network: str = "finney",
-        # FIX: use the same contract address as recent_vault_snapshot.py
         contract_address: str = "5F8ykW4bse6kUHi65XqAzSfrrgKHDXXEBoReUZmUVc7r8q3A",
     ) -> None:
         """
@@ -287,8 +286,6 @@ class GroundTruthCollector:
             wallet: Bittensor wallet (hotkey used for read-only queries).
             network: Substrate network name ("testnet" or "finney").
             contract_address: SS58 address of the vault contract.
-                              Must match the address used by recent_vault_snapshot.py
-                              so that the same ABI decodes correctly.
         """
         self._wallet = wallet
         self._network = network
