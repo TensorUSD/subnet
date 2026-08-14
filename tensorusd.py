@@ -111,19 +111,17 @@ def _request_payment_info(backend_url: str, hotkey: str) -> dict:
 def _prompt_int(label: str, default: int | None = None, min_value: int = 1) -> int:
     """Prompt for integer with custom minimum value."""
     while True:
-        value = click.prompt(
-            click.style(label, fg="yellow"), 
-            default=default, 
-            type=int
-        )
+        value = click.prompt(click.style(label, fg="yellow"), default=default, type=int)
         if value < min_value:
-            click.echo(
-                click.style(
-                    f"❌ {label} must be >= {min_value}", 
-                    fg="red"
-                )
-            )
+            click.echo(click.style(f"❌ {label} must be >= {min_value}", fg="red"))
             continue
+        return value
+
+
+def _prompt_str(label: str) -> int:
+    """Prompt for agent with custom minimum value."""
+    while True:
+        value = click.prompt(click.style(label, fg="yellow"), default=None, type=str)
         return value
 
 
@@ -133,11 +131,11 @@ def _prompt_model() -> str:
         message="TensorUSD Agent model selection",
         options=[(model, model) for model in available_models],
         default="salad",
-            style=Style.from_dict(
-                {
-                    "selected-option": "bold green",
-                }
-            ),
+        style=Style.from_dict(
+            {
+                "selected-option": "bold green",
+            }
+        ),
     )
     if not selected:
         raise click.ClickException("No model selected.")
@@ -171,6 +169,8 @@ def submit(
     click.echo(click.style("  TensorUSD — Agent Submission", fg="cyan", bold=True))
     click.echo(click.style("  " + "─" * 40, fg="cyan"))
     click.echo()
+
+    agent_name = _prompt_str("  Enter the name of your agent")
 
     if not wallet_name:
         wallet_name = click.prompt(
@@ -249,7 +249,9 @@ def submit(
     payment_info = _request_payment_info(backend_url, hotkey_ss58)
     fee_target_coldkey = payment_info["fee_target_coldkey"]
 
-    confirm = click.confirm("  Continue with TAO transfer and submission?", default=True)
+    confirm = click.confirm(
+        "  Continue with TAO transfer and submission?", default=True
+    )
     if not confirm:
         raise click.ClickException("Submission cancelled by user.")
 
@@ -278,13 +280,14 @@ def submit(
             response = requests.post(
                 f"{backend_url}/v1/submissions/submit",
                 data={
+                    "agent_name": agent_name,
                     "hotkey": hotkey_ss58,
                     "coldkey": coldkey_ss58,  # stored in users table
                     "nonce": nonce,
                     "signature": signature_hex,
                     "est_input_tokens": estimated_input_tokens,
                     "est_output_tokens": estimated_output_tokens,
-                    "submission_fees_tao":estimated_cost_tao,
+                    "submission_fees_tao": estimated_cost_tao,
                     "submission_fees_usd": estimated_cost_usd,
                     "model_id": selected_model,
                     "txn_hash": tx_id,
