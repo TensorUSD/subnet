@@ -63,6 +63,9 @@ _FORBIDDEN_IMPORTS: frozenset[str] = frozenset(
         "importlib.util",  # importlib itself is ok; .util lets you load arbitrary paths
         "zipimport",
         "pkgutil",
+        #connecting to other urls
+        "urllib.request",
+        "requests"
     }
 )
 

@@ -33,12 +33,12 @@ class BestAgentCache:
     Thread-safe, lazily populated cache for the current best agent file.
     """
 
-    def __init__(self, best_agent_dir: Path | None = None) -> None:
+    def __init__(self) -> None:
         self._lock: threading.Lock = threading.Lock()
         self._agent_path: Path | None = None
         self._best_meta: BestAgentMeta | None = None
 
-        self._best_agent_dir = best_agent_dir
+        self._best_agent_dir = Path(".TENSORUSD_cache/best_agent")
 
     @property
     def agent_path(self) -> Path | None:

@@ -1,12 +1,12 @@
 import asyncio
 import traceback
-import numpy as np
-import bittensor as bt
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from tensorusd.auth.auth import _log_event
-from tensorusd.validator.reward import calculate_rewards_for_mech1
 from tensorusd.base.utils.weight_utils import convert_weights_and_uids_for_emit
+from tensorusd.validator.reward import calculate_rewards_for_mech1
 
 if TYPE_CHECKING:
     from neurons.validator import AgentValidator
