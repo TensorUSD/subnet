@@ -22,6 +22,7 @@ import argparse
 import bittensor as bt
 from .logging import setup_events_logger
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -82,7 +83,7 @@ def add_args(cls, parser):
     Adds relevant arguments to the parser for operation.
     """
 
-    parser.add_argument("--netuid", type=int, help="Subnet netuid", default=1)
+    parser.add_argument("--netuid", type=int, help="Subnet netuid", default=315)
 
     parser.add_argument(
         "--neuron.device",
@@ -356,6 +357,146 @@ def add_validator_args(cls, parser, mech_id: int = 0):
         help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
         default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
         required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True, 0, mech_id),
+    )
+    parser.add_argument(
+        "--vault_contract.address",
+        type=str,
+        help="TensorUSD Vault contract address (SS58). Required for collateral price.",
+        default=os.getenv("VAULT_CONTRACT_ADDRESS", None),
+        required=is_required_arg("VAULT_CONTRACT_ADDRESS", False, 1, mech_id),
+    )
+    parser.add_argument(
+        "--agent.backend_url",
+        type=str,
+        help="Backend URL for TensorUSD Agent. Required for running agent validator.",
+        default=os.getenv("TENSORUSD_SN_BACKEND_URL", None),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True, 1, mech_id),
+    )
+    parser.add_argument(
+        "--agent.http_timeout",
+        type=int,
+        help="HTTP timeout for backend url connection",
+        default=30,
+    )
+    parser.add_argument(
+        "--agent.validator_poll_interval",
+        type=int,
+        help="Interval (in seconds) for agent validator to check backend for scoring or evaluation.",
+        default=30,
+    )
+    parser.add_argument(
+        "--agent.weight_interval_blocks",
+        type=int,
+        help="Interval (in blocks) to set weight for winner agent",
+        default=300,
+    )
+    parser.add_argument(
+        "--agent.weight_monitor_interval",
+        type=int,
+        help="Interval in seconds, to log on-chain weights.",
+        default=900,
+    )
+    parser.add_argument(
+        "--agent.ground_truth_dir",
+        type=Path,
+        help="Path where validator saves ground truth.",
+        default="ground-truth",
+    )
+    parser.add_argument(
+        "--agent.best_agent_dir",
+        type=Path,
+        help="Path to store the best agent for comparison",
+        default=".TENSORUSD_cache/best_agent",
+    )
+    parser.add_argument(
+        "--agent.scored_cache_path",
+        type=Path,
+        help="Path to store the best agent for comparison",
+        default=".TENSORUSD_cache/scored_submissions.json",
+    )
+    parser.add_argument(
+        "--agent.scored_cache_max_size",
+        type=int,
+        help="Max info stored as cache",
+        default=100,
+    )
+    parser.add_argument(
+        "--agent.best_agent_poll_interval",
+        type=int,
+        help="Interval to look for best available agent in backend server.",
+        default=600,
+    )
+    parser.add_argument(
+        "--agent.sandbox_image",
+        type=str,
+        help="Sandbox image agent validator use to run the agent files.",
+        default="tensorusd-sandbox:latest",
+    )
+    parser.add_argument(
+        "--agent.sandbox_workdir",
+        type=Path,
+        help="Working directory for sandbox",
+        default="/tmp/TENSORUSD_sandbox",
+    )
+    parser.add_argument(
+        "--agent.sandbox_log_dir",
+        type=Path,
+        help="Directory for logging the agent run",
+        default="logs/sandbox",
+    )
+    parser.add_argument(
+        "--agent.sandbox_allowed_models",
+        type=str,
+        help="Comma-separated list of allowed OpenAI models in the sandbox.",
+        default="gpt-5.6-terra,gpt-5.6-luna,gpt-5.4,gpt-5.4-mini,gpt-5.4-nano,gpt-5-mini,gpt-5-nano,gpt-4.1,gpt-4.1-mini,gpt-4o-mini",
+    )
+    parser.add_argument(
+        "--agent.allowed_hosts",
+        type=str,
+        help="Allowed external hosts inside sandbox",
+        default="api.openai.com,*.openai.com,openai.com",
+    )
+    parser.add_argument(
+        "--agent.logfile_max_bytes",
+        type=int,
+        help="Max size of the logfile before making a new logfile to store logs",
+        default=10 * 1024 * 1024,
+    )
+    parser.add_argument(
+        "--agent.logs_backup_count",
+        type=int,
+        help="Max numbers of logfile to save.",
+        default=7,
+    )
+    parser.add_argument(
+        "--agent.sandbox_timeout",
+        type=int,
+        help="Maximum amount of time (in seconds) for sandbox to run an agent.",
+        default= 15 * 60,
+    )
+    parser.add_argument(
+        "--agent.memory_limit",
+        type=str,
+        help="Max numbers of logfile to save.",
+        default="8g",
+    )
+    parser.add_argument(
+        "--agent.cpu_limit",
+        type=int,
+        help="Maximum amount of vcpu to run an agent.",
+        default=4,
+    )
+    parser.add_argument(
+        "--agent.scoring_poll_interval",
+        type=int,
+        help="Interval (in seconds) to check unscored predictions.",
+        default=900,
+    )
+    parser.add_argument(
+        "--agent.plagiarism_threshold",
+        type=float,
+        help="How same can a new agent be in comparison to current best",
+        default=0.95,
     )
 
 

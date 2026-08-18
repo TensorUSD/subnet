@@ -1,11 +1,9 @@
 from __future__ import annotations
-import os
+
 import logging
-from logging.handlers import RotatingFileHandler
-
-
 import logging.handlers
-import sys
+import os
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from rich.logging import RichHandler
@@ -41,7 +39,7 @@ def setup_events_logger(full_path, events_retention_size):
     file_handler = RotatingFileHandler(
         os.path.join(full_path, "events.log"),
         maxBytes=events_retention_size,
-        backupCount=DEFAULT_LOG_BACKUP_COUNT,
+        backupCount=settings.logs_backup_count,
     )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(EVENTS_LEVEL_NUM)
@@ -52,9 +50,9 @@ def setup_events_logger(full_path, events_retention_size):
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Return a logger
+    Return a configured logger.
     """
-    global _configured  # noqa: PLW0603
+    global _configured
 
     root = logging.getLogger("tensorusd")
 
@@ -70,6 +68,7 @@ def get_logger(name: str) -> logging.Logger:
         console_handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
 
         root.setLevel(level)
+        root.propagate = False
         root.addHandler(console_handler)
 
         if settings.log_file_enabled:
@@ -89,6 +88,7 @@ def get_logger(name: str) -> logging.Logger:
                     logging.Formatter(_FILE_FORMAT, datefmt=_FILE_DATE_FORMAT)
                 )
                 root.addHandler(file_handler)
+
                 root.debug("File logging enabled → %s", log_path)
 
             except Exception as exc:  # noqa: BLE001

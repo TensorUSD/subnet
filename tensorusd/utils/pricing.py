@@ -7,7 +7,6 @@ from typing import Iterable
 
 import requests
 
-
 COINGECKO_TAO_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price"
 
 

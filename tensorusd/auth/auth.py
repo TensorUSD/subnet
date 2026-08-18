@@ -5,8 +5,10 @@ that needs to authenticate against the TensorUSD backend.
 
 from __future__ import annotations
 
-import os
 import logging
+import os
+from pathlib import Path
+
 import bittensor as bt
 import requests
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
@@ -14,14 +16,19 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponen
 from tensorusd.auth.config import settings
 from tensorusd.utils.logging import setup_events_logger
 
-# Retrieve the event logger
 event_logger = logging.getLogger("event")
+
+# Retrieve the event logger
+DEFAULT_LOG_DIR = settings.log_dir
+DEFAULT_LOGFILE_MAX_BYTES = settings.logfile_max_bytes
+DEFAULT_BACKEND_URL = settings.backend_url
+
 
 # Automatically initialize event logger if not already configured in this process
 if not event_logger.handlers:
     try:
-        os.makedirs(settings.log_dir, exist_ok=True)
-        setup_events_logger(str(settings.log_dir), settings.logfile_max_bytes)
+        os.makedirs(DEFAULT_LOG_DIR, exist_ok=True)
+        setup_events_logger(str(DEFAULT_LOG_DIR), DEFAULT_LOGFILE_MAX_BYTES)
     except Exception as e:
         bt.logging.warning(f"Could not initialize event logger using logging.py: {e}")
 
@@ -57,14 +64,13 @@ def fetch_validator_nonce(hotkey_ss58: str) -> dict:
     """
     Call GET /v1/validator/nonce and return the full data payload.
     """
-    url = f"{settings.backend_url}/v1/validator/nonce"
-    _log_event(f"Fetching validator nonce for hotkey {hotkey_ss58}")
+    url = f"{DEFAULT_BACKEND_URL}/v1/validator/nonce"
 
     try:
         r = requests.get(
             url,
             params={"hotkey": hotkey_ss58},
-            timeout=settings.http_timeout,
+            timeout=60,
         )
 
         if r.status_code == 403:
@@ -76,7 +82,6 @@ def fetch_validator_nonce(hotkey_ss58: str) -> dict:
 
         r.raise_for_status()
         data = r.json()["data"]
-        _log_event(f"Successfully fetched validator nonce for hotkey {hotkey_ss58} (expires at {data.get('expires_at')})")
         return data
     except Exception as exc:
         _log_event(f"Error fetching validator nonce for hotkey {hotkey_ss58}: {exc}")
@@ -85,8 +90,6 @@ def fetch_validator_nonce(hotkey_ss58: str) -> dict:
 
 def sign_message(wallet: bt.Wallet, message: str) -> str:
     """Sign *message* with the wallet's hotkey, return hex-encoded signature."""
-    _log_event(f"Signing message for hotkey {wallet.hotkey.ss58_address}")
     sig: bytes = wallet.hotkey.sign(message.encode())
     sig_hex = sig.hex()
-    _log_event(f"Message signed successfully by hotkey {wallet.hotkey.ss58_address} (sig: {sig_hex[:16]}...)")
     return sig_hex

@@ -6,11 +6,10 @@ from __future__ import annotations
 
 import threading
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from tensorusd.auth.config import settings
 from tensorusd.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -34,9 +33,12 @@ class BestAgentCache:
     Thread-safe, lazily populated cache for the current best agent file.
     """
 
-    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
-    _agent_path: Path | None = field(default=None, init=False)
-    _best_meta: BestAgentMeta | None = field(default=None, init=False)
+    def __init__(self) -> None:
+        self._lock: threading.Lock = threading.Lock()
+        self._agent_path: Path | None = None
+        self._best_meta: BestAgentMeta | None = None
+
+        self._best_agent_dir = Path(".TENSORUSD_cache/best_agent")
 
     @property
     def agent_path(self) -> Path | None:
@@ -52,7 +54,7 @@ class BestAgentCache:
         """
         Atomically replace the cached file and metadata.
         """
-        cache_dir = settings.best_agent_dir
+        cache_dir = self._best_agent_dir
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         tmp_path = cache_dir / f"_tmp_{uuid.uuid4().hex}.py"
@@ -94,12 +96,11 @@ class BestAgentWatcher(threading.Thread):
         self,
         client: BackendClient,
         cache: BestAgentCache,
-        poll_interval: int | None = None,
     ) -> None:
         super().__init__(name="BestAgentWatcher")
         self._client = client
         self._cache = cache
-        self._interval = poll_interval or settings.best_agent_poll_interval
+        self._interval = 3600
         self._stop_event = threading.Event()
 
     def stop(self) -> None:
@@ -134,24 +135,33 @@ class BestAgentWatcher(threading.Thread):
         log.debug("Best agent meta: %s", meta_raw)
 
         # Handle flexible field names from backend
-        new_submission_id: str = meta_raw.get("submission_id") or meta_raw.get("id") or ""
+        new_submission_id: str = (
+            meta_raw.get("submission_id") or meta_raw.get("id") or ""
+        )
         if not new_submission_id:
             log.warning(
-                "Best agent response missing submission_id. Keys: %s", list(meta_raw.keys())
+                "Best agent response missing submission_id. Keys: %s",
+                list(meta_raw.keys()),
             )
             return
 
         best_hotkey: str = meta_raw.get("hotkey") or meta_raw.get("miner_hotkey") or ""
         if not best_hotkey:
-            log.warning("Best agent response missing hotkey. Keys: %s", list(meta_raw.keys()))
+            log.warning(
+                "Best agent response missing hotkey. Keys: %s", list(meta_raw.keys())
+            )
             return
 
-        final_score: float = float(meta_raw.get("final_score") or meta_raw.get("score") or 0.0)
+        final_score: float = float(
+            meta_raw.get("final_score") or meta_raw.get("score") or 0.0
+        )
 
         current = self._cache.best_meta
 
         if current is not None and current.submission_id == new_submission_id:
-            log.debug("Best agent unchanged (%s), skipping download.", new_submission_id)
+            log.debug(
+                "Best agent unchanged (%s), skipping download.", new_submission_id
+            )
             return
 
         # New best detected —> download it

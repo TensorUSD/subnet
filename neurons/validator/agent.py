@@ -1,70 +1,47 @@
-# The MIT License (MIT)
-# Copyright © 2026 Your Name
-
 import argparse
 import sys
-import os
-
-from pathlib import Path
-
-# Fix potential import resolution paths before bringing in local modules
-root_path = str(Path(__file__).resolve().parents[2])
-if root_path not in sys.path:
-    sys.path.insert(0, root_path)
+import time
 
 import bittensor as bt
 
-# Base validator framework
 from tensorusd.base.validator import BaseValidatorNeuron
-
-# Settings and Core Agent Components
-from tensorusd.auth.config import settings
-from tensorusd.utils.logging import get_logger
+from tensorusd.common.contract import create_substrate_interface
+from tensorusd.utils.config import add_validator_args
 from tensorusd.utils.core import ValidatorCore
+from tensorusd.utils.logging import get_logger
+from tensorusd.validator.forward_mech1 import forward_mech1
 
 log = get_logger(__name__)
 
 
 class AgentValidator(BaseValidatorNeuron):
-    """
-    Agent validator neuron class. Formatted to follow the BaseValidatorNeuron template
-    while adapting the runtime layer to match the external ValidatorCore backend engine.
-    """
-
     @classmethod
     def add_args(cls, parser: argparse.ArgumentParser):
-        """Register custom CLI arguments required for this validator."""
         super().add_args(parser)
-        # Standard Bittensor arguments are handled automatically by BaseValidatorNeuron
+        add_validator_args(cls, parser, 1)
 
     def __init__(self, config=None):
-        # BaseValidatorNeuron manages parsing config, creating wallets, subtensor, and metagraphs.
-        # mech_id=1 mfor agent validation
         super(AgentValidator, self).__init__(config=config, mech_id=1)
 
-        # Handle network configuration environment variables if passed via CLI configurations
-        if self.config.subtensor and self.config.subtensor.get("network"):
-            os.environ["BITTENSOR_NETWORK"] = self.config.subtensor.network
-
-        # Run registration and permit verification steps
-        self.verify_validator_permit()
-
-        # Initialize internal Agent components
         self.setup()
+        self.is_first_run = True
+        self.verify_validator_permit()
 
     def verify_validator_permit(self):
         """Verifies if the loaded validator hotkey holds registration and network validation permit."""
-        log.info("Checking validator permit on netuid %d ...", settings.netuid)
+        bt.logging.info(
+            "Checking validator permit on netuid %d ...", self.config.netuid
+        )
         try:
             hotkey_ss58 = self.wallet.hotkey.ss58_address
 
             if hotkey_ss58 not in self.metagraph.hotkeys:
-                log.error(
+                bt.logging.error(
                     "  Hotkey %s is not registered on netuid %d.\n"
                     "  Register first:  btcli subnet register --netuid %d",
                     hotkey_ss58,
-                    settings.netuid,
-                    settings.netuid,
+                    self.config.netuid,
+                    self.config.netuid,
                 )
                 sys.exit(1)
 
@@ -72,71 +49,76 @@ class AgentValidator(BaseValidatorNeuron):
             has_permit = bool(self.metagraph.validator_permit[uid])
 
             if not has_permit:
-                log.error(
-                    "  Hotkey %s (uid=%d) does not have a validator permit on netuid %d.\n"
-                    "  Please make sure you are using validator hotkey.\n",
+                bt.logging.error(
+                    "%s  Hotkey %s (uid=%d) does not have a validator permit on netuid %d.\n"
+                    "%s  Please make sure you are using validator hotkey.\n",
                     hotkey_ss58,
                     uid,
-                    settings.netuid,
+                    self.netuid,
                 )
                 sys.exit(1)
 
-            log.info("Validator permit confirmed — uid=%d hotkey=%s", uid, hotkey_ss58)
+            bt.logging.info(
+                "Validator permit confirmed — uid=%d hotkey=%s", uid, hotkey_ss58
+            )
 
-        except SystemExit:
-            raise
         except Exception as exc:
-            # Prevent chain communication hitches from crashing full node starts
-            log.warning(
+            bt.logging.warning(
                 "Could not verify validator permit (chain unreachable?): %s\n"
                 "  Proceeding anyway — backend will reject requests if permit is missing.",
                 exc,
             )
 
     def setup(self):
-        """Pre-configure backend engine environments."""
-        log.info(
-            "Starting TensorUSD Agent validator\n"
-            "  network        : %s\n"
-            "  netuid         : %d\n"
-            "  hotkey         : %s\n"
-            "  backend        : %s\n",
-            settings.network,
-            settings.netuid,
-            self.wallet.hotkey.ss58_address,
-            settings.backend_url,
+
+        self.vault_substrate = create_substrate_interface(self.subtensor.chain_endpoint)
+
+        self.agent_vali = ValidatorCore(
+            wallet=self.wallet,
+            netuid=self.config.netuid,
+            network=self.config.subtensor.network,
+            rpc_endpoint=self.config.subtensor.chain_endpoint,
+            backend_url=self.config.agent.backend_url,
+            allowed_hosts=self.config.agent.allowed_hosts,
+            allowed_models=self.config.agent.sandbox_allowed_models,
+            sandbox_image = self.config.agent.sandbox_image,
+            memory_limit = self.config.agent.memory_limit,
+            cpu_limit = self.config.agent.cpu_limit,
+            ground_truth_dir=self.config.agent.ground_truth_dir,
+            sandbox_log_dir=self.config.agent.sandbox_log_dir,
+            sandbox_workdir = self.config.agent.sandbox_workdir,
+            sandbox_timeout=self.config.agent.sandbox_timeout,
+            scored_cache_path = self.config.agent.scored_cache_path,
+            scored_cache_max_size = self.config.agent.scored_cache_max_size,
+            validator_poll_interval = self.config.agent.validator_poll_interval,
+            scoring_poll_interval = self.config.agent.scoring_poll_interval,
+            plagiarism_threshold = self.config.agent.plagiarism_threshold,
+            vault_address=self.config.vault_contract.address,
+            vault_metadata_path="tensorusd/common/abis/tusdt_vault.json",
         )
 
-        # Hand off our pre-initialized wallet instance to your backend tracking layer
-        self.core = ValidatorCore(wallet=self.wallet, validator=self,mechid=1)
+        self.agent_vali.start_background()
 
     def run(self):
-        """
-        Overrides BaseValidatorNeuron.run() to block on your custom internal backend
-        instead of entering the concurrent loop forward pass routine.
-        """
-        # Ensure underlying system synchronization state updates occur once before launching
-        # self.sync(mechid=mech_id)
+        super().run(mech_id=1)
 
-        log.info(
-            "Validator core successfully linked. Initializing Agent loop execution."
-        )
+    def __exit__(self, exc_type, exc_value, traceback):
         try:
-            # Execution hooks into your dedicated background tracking loops here
-            self.core.start()
-            # super().run(mech_id=1)
-        except (KeyboardInterrupt, SystemExit):
-            log.info("Validator received a kill signal. Stopping context execution.")
+            self.agent_vali.stop()
+        except Exception as e:
+            bt.logging.debug(f"Error stopping agent_vali: {e}")
+        try:
+            self.vault_substrate.close()
+        except Exception as e:
+            bt.logging.debug(f"Error closing vault substrate: {e}")
+        super().__exit__(exc_type, exc_value, traceback)
 
     async def forward(self):
-        """
-        Abstract signature match for BaseValidatorNeuron.
-        Unused since execution blocks inside `self.core.start()`.
-        """
-        pass
+        return await forward_mech1(self)
 
 
-# Main runtime execution routine
 if __name__ == "__main__":
-    validator = AgentValidator()
-    validator.run()
+    with AgentValidator() as validator:
+        while True:
+            log.info(f"Agent Validator running.....{time.time()}")
+            time.sleep(600)

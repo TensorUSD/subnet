@@ -107,6 +107,25 @@ def _request_payment_info(backend_url: str, hotkey: str) -> dict:
             "Is the server running?  Set --backend-url or $TENSORUSD_SN_BACKEND_URL."
         )
 
+def _check_agent_name(backend_url: str, agent_name: str) -> bool:
+    try:
+        r = requests.get(
+            f"{backend_url}/v1/submissions/agent-name/exists",
+            params={"agent_name": agent_name},
+            timeout=15,
+        )
+        r.raise_for_status()
+        return r.json()["data"]
+    except requests.HTTPError as exc:
+        raise click.ClickException( 
+            f"Failed to info: {exc}\n{exc.response.text}"
+        )
+    except requests.ConnectionError:
+        raise click.ClickException( 
+            f"Could not connect to backend at {backend_url}.\n"
+            "Is the server running?  Set --backend-url or $TENSORUSD_SN_BACKEND_URL."
+        )
+    
 
 def _prompt_int(label: str, default: int | None = None, min_value: int = 1) -> int:
     """Prompt for integer with custom minimum value."""
@@ -124,6 +143,13 @@ def _prompt_int(label: str, default: int | None = None, min_value: int = 1) -> i
                 )
             )
             continue
+        return value
+
+
+def _prompt_str(label: str) -> int:
+    """Prompt for agent with custom minimum value."""
+    while True:
+        value = click.prompt(click.style(label, fg="yellow"), default=None, type=str)
         return value
 
 
@@ -172,6 +198,8 @@ def submit(
     click.echo(click.style("  " + "─" * 40, fg="cyan"))
     click.echo()
 
+    agent_name = _prompt_str("  Enter the name of your agent (must be unique)")
+        
     if not wallet_name:
         wallet_name = click.prompt(
             click.style("  Wallet name", fg="yellow"),
@@ -198,6 +226,13 @@ def submit(
 
     click.echo(f"        {click.style('✓', fg='green')} hotkey  {hotkey_ss58}")
     click.echo(f"        {click.style('✓', fg='green')} coldkey {coldkey_ss58}")
+    
+    name_status = _check_agent_name(backend_url, agent_name)
+    
+    if name_status:
+        click.echo(f"   {click.style('❌', fg='red', bold = True)} Agent Name Already taken, Please enter another name!")
+        sys.exit(1)
+    
 
     with click.progressbar(length=1, label="  [2/5] Fetching nonce     ") as bar:
         nonce_data = _request_nonce(backend_url, hotkey_ss58)
@@ -278,6 +313,7 @@ def submit(
             response = requests.post(
                 f"{backend_url}/v1/submissions/submit",
                 data={
+                    "agent_name": agent_name,
                     "hotkey": hotkey_ss58,
                     "coldkey": coldkey_ss58,  # stored in users table
                     "nonce": nonce,
