@@ -356,7 +356,7 @@ def add_validator_args(cls, parser, mech_id: int = 0):
         type=str,
         help="TensorUSD price oracle contract address (SS58). Required for auction bidding.",
         default=os.getenv("ORACLE_CONTRACT_ADDRESS", None),
-        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True, 0, mech_id),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", False, 0, mech_id),
     )
     parser.add_argument(
         "--vault_contract.address",
@@ -370,7 +370,7 @@ def add_validator_args(cls, parser, mech_id: int = 0):
         type=str,
         help="Backend URL for TensorUSD Agent. Required for running agent validator.",
         default=os.getenv("TENSORUSD_SN_BACKEND_URL", None),
-        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", True, 1, mech_id),
+        required=is_required_arg("ORACLE_CONTRACT_ADDRESS", False, 1, mech_id),
     )
     parser.add_argument(
         "--agent.http_timeout",
