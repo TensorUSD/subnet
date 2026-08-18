@@ -42,13 +42,6 @@ log = get_logger(__name__)
 # Constants
 PAGE_SIZE = 10
 
-DEFAULT_RPC_ENDPOINTS = {
-    "finney": [
-        "wss://entrypoint-finney.opentensor.ai:443",
-    ],
-    "testnet": ["wss://test.finney.opentensor.ai:443"],
-}
-
 # Ground-truth directory (same default as tensorusd/auth/config.py)
 GROUND_TRUTH_DIR = Path("ground-truth")
 
@@ -224,7 +217,7 @@ def _get_current_hour_info(substrate) -> Tuple[str, int, float]:
     return date_str, hour, minutes_into_hour
 
 
-class GroundTruthCollector():
+class GroundTruthCollector:
     """
     Background thread that collects hourly vault snapshots **at the current
     hour**.
