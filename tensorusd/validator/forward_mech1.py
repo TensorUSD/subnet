@@ -11,7 +11,7 @@ from tensorusd.validator.reward import calculate_rewards_for_mech1
 if TYPE_CHECKING:
     from neurons.validator import AgentValidator
 
-SLEEP_TIME = 1500
+SLEEP_TIME = 4320
 MAX_RETRIES = 3
 
 
