@@ -107,11 +107,11 @@ def _request_payment_info(backend_url: str, hotkey: str) -> dict:
             "Is the server running?  Set --backend-url or $TENSORUSD_SN_BACKEND_URL."
         )
 
-def _check_agent_name(backend_url: str, hotkey: str, agent_name: str) -> bool:
+def _check_agent_name(backend_url: str, agent_name: str) -> bool:
     try:
         r = requests.get(
             f"{backend_url}/v1/submissions/agent-name/exists",
-            params={"hotkey": hotkey, "agent_name": agent_name},
+            params={"agent_name": agent_name},
             timeout=15,
         )
         r.raise_for_status()
@@ -227,7 +227,7 @@ def submit(
     click.echo(f"        {click.style('✓', fg='green')} hotkey  {hotkey_ss58}")
     click.echo(f"        {click.style('✓', fg='green')} coldkey {coldkey_ss58}")
     
-    name_status = _check_agent_name(backend_url, hotkey_ss58, agent_name)
+    name_status = _check_agent_name(backend_url, agent_name)
     
     if name_status:
         click.echo(f"   {click.style('❌', fg='red', bold = True)} Agent Name Already taken, Please enter another name!")
