@@ -95,8 +95,6 @@ class LiqValidator(BaseValidatorNeuron):
             auction_contract=self.auction_contract,
         )
 
-        # Initialize backend client for agent bonus
-        self.client = BackendClient(self.wallet)
 
         bt.logging.info(
             f"Auction tracking enabled for contract {self.config.auction_contract.address}"
