@@ -1,8 +1,10 @@
 """
 Ground-truth collector — runs in a background thread inside the validator.
 
-Collects 24 hourly vault snapshots incrementally — one snapshot per hour
-as each hour passes, then builds ``ground-truth.csv`` at the end of the day.
+Collects hourly vault snapshots incrementally — one snapshot per hour as each
+hour passes — into ``ground-truth/<date>/data.csv``.  The hourly snapshots are
+the raw record only: when building ground truth, **only the last hour of each
+day (hour 23) is processed** as that day's daily ground-truth value.
 
 The collector polls once per minute and uses **chain timestamps** to find the
 block closest to each hour's ``:00`` mark (e.g. 14:00 UTC), rather than
@@ -24,7 +26,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import bittensor as bt
@@ -35,7 +37,10 @@ from tensorusd.common.contract import (
 )
 from tensorusd.utils.config import add_validator_args
 from tensorusd.utils.logging import get_logger
-from tensorusd.validator.ground_truth import generate_ground_truth
+from tensorusd.validator.ground_truth import (
+    LAST_HOUR_OF_DAY,
+    generate_ground_truth,
+)
 
 log = get_logger(__name__)
 
@@ -232,7 +237,9 @@ class GroundTruthCollector:
         collected, that hour is permanently missed for the day (no
         backfill).
       - When the chain date rolls over, ground-truth.csv is built for the
-        previous day from whatever hours were actually collected.
+        previous day. Only each day's last-hour snapshot (hour 23) counts
+        as that day's ground-truth value; the generated file covers a
+        rolling seven-day window (that day plus the previous six days).
     """
     @classmethod
     def add_args(cls, parser: argparse.ArgumentParser):
@@ -340,7 +347,9 @@ class GroundTruthCollector:
         return collected
 
     def _finalize_day(self, date_str: str) -> None:
-        """Build ground-truth.csv for `date_str` from whatever was collected."""
+        """
+        Build ground-truth.csv for `date_str` from whatever was collected.
+        """
         data_dir = GROUND_TRUTH_DIR / date_str
         data_csv_path = data_dir / "data.csv"
         ground_truth_csv = data_dir / "ground-truth.csv"
@@ -352,10 +361,21 @@ class GroundTruthCollector:
             return
 
         collected_hours = self._read_collected_hours(data_csv_path)
+        if LAST_HOUR_OF_DAY in collected_hours:
+            last_hour_status = f"last hour {LAST_HOUR_OF_DAY} present"
+        elif collected_hours:
+            last_hour_status = (
+                f"last hour {LAST_HOUR_OF_DAY} missing — "
+                f"latest collected hour is {max(collected_hours)}"
+            )
+        else:
+            last_hour_status = "no parsable hours"
         log.info(
-            "Finalizing %s — %d/24 hours collected.",
+            "Finalizing %s — %d hour(s) collected (%s); ground truth will "
+            "use the rolling seven-day window of last-hour values.",
             date_str,
             len(collected_hours),
+            last_hour_status,
         )
 
         generate_ground_truth(date_str)
