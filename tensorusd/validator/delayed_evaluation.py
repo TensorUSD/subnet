@@ -191,13 +191,17 @@ class CsvComparisonScorer:
         target_cols = {"vault_health", "tokens_minted"}
         
         # Sorting keys (in priority order)
-        sort_keys = ["snapshot_hour", "vault_owner", "vault_id"]
+        sort_keys = ["vault_owner", "vault_id"]
+        for col in ("date", "snapshot_time_utc", "snapshot_hour"):
+            if col in output_rows[0] and col in gt_rows[0]:
+                sort_keys.insert(0, col)
+                break
 
         def sort_key(row: dict) -> tuple:
             """Create a stable sort key with proper type handling."""
             key = []
             for col in sort_keys:
-                val = row.get(col, "").strip()
+                val = (row.get(col) or "").strip()
                 # Try numeric first for snapshot_hour, then fall back to string
                 try:
                     key.append(float(val) if col == "snapshot_hour" else val)
