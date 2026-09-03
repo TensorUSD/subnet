@@ -166,10 +166,10 @@ class CsvComparisonScorer:
         """
         Compare output vs ground-truth CSV and return a score in [0.0, 1.0].
 
-        The default implementation computes mean column-wise accuracy:
-          - For numeric columns: 1 - mean_absolute_error / (max - min)
-          - For categorical/text columns: exact match accuracy
-          - Overall score = weighted average across all columns
+        The default implementation computes:
+          - Column accuracy on aligned rows for target columns.
+          - A row-count penalty based on deviation from ground-truth row count.
+          - Overall score = column_accuracy * row_count_penalty.
 
         Subclasses can override this with task-specific scoring logic.
         """
@@ -192,12 +192,16 @@ class CsvComparisonScorer:
         
         # Sorting keys (in priority order)
         sort_keys = ["snapshot_hour", "vault_owner", "vault_id"]
+        for col in ("date", "snapshot_time_utc", "snapshot_hour"):
+            if col in output_rows[0] and col in gt_rows[0]:
+                sort_keys.insert(0, col)
+                break
 
         def sort_key(row: dict) -> tuple:
             """Create a stable sort key with proper type handling."""
             key = []
             for col in sort_keys:
-                val = row.get(col, "").strip()
+                val = (row.get(col) or "").strip()
                 # Try numeric first for snapshot_hour, then fall back to string
                 try:
                     key.append(float(val) if col == "snapshot_hour" else val)
@@ -220,8 +224,11 @@ class CsvComparisonScorer:
             log.warning("None of the required columns (vault_health, tokens_minted) found — scoring as 0.0")
             return 0.0
 
+        output_count = len(output_rows)
+        gt_count = len(gt_rows)
+
         # Align by row index after sorting
-        n = min(len(output_rows), len(gt_rows))
+        n = min(output_count, gt_count)
         if n == 0:
             return 0.0
 
@@ -246,14 +253,27 @@ class CsvComparisonScorer:
 
             column_scores[col] = correct / n if n > 0 else 0.0
 
-        # Overall score = average of target columns
-        overall = sum(column_scores.values()) / len(column_scores) if column_scores else 0.0
+        # Average accuracy across scored target columns.
+        base_accuracy = sum(column_scores.values()) / len(column_scores) if column_scores else 0.0
+
+        # Penalize missing/extra rows relative to ground truth.
+        # diff_ratio = 0.0 when counts match, 0.99 when only 1/100 rows are present, etc.
+        diff_ratio = abs(output_count - gt_count) / gt_count
+        row_count_penalty = max(0.0, 1.0 - diff_ratio)
+        overall = base_accuracy * row_count_penalty
 
         log.debug(
-            "Scored %d aligned rows on %s after sorting by %s — overall=%.4f",
+            (
+                "Scored %d/%d rows (output=%d) on %s after sorting by %s — "
+                "base=%.4f penalty=%.4f overall=%.4f"
+            ),
             n,
-            list(shared_target_cols),
+            gt_count,
+            output_count,
+            sorted(shared_target_cols),
             sort_keys,
+            base_accuracy,
+            row_count_penalty,
             overall,
         )
         return min(max(overall, 0.0), 1.0)
