@@ -16,6 +16,8 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+from datetime import date, datetime, timezone
+
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 import bittensor as bt
@@ -27,6 +29,8 @@ from tensorusd.utils.backend_client import BackendClient
 # Reward calculation constants
 BASE_REWARD = 1.0  # Base reward for paying exactly debt amount
 BONUS_THRESHOLD = 0.20  # 20% overpay for max bonus
+
+DAILY_DECAY_PERCENT = 0.10
 
 
 def calculate_win_reward(winning_bid: int, debt_balance: int) -> float:
@@ -161,6 +165,34 @@ def get_auction_rewards_from_db(
         session.close()
 
 
+def _parse_eval_date(eval_date: str) -> Optional[date]:
+    """
+    Parse an ISO-8601 eval_date into a ``date``.
+    """
+    try:
+        return date.fromisoformat(eval_date)
+    except ValueError:
+        pass
+    try:
+        return datetime.fromisoformat(eval_date.replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
+def burn_weight_from_eval_date(
+    eval_date: str | None, fallback: float = 0.0
+) -> float:
+    """
+    Fraction of total weight to burn based on days elapsed since eval_date.
+    """
+    eval_day = _parse_eval_date(eval_date) if eval_date else None
+    if eval_day is None:
+        return fallback
+
+    days_elapsed = max((datetime.now(timezone.utc).date() - eval_day).days, 0)
+    return min(days_elapsed * DAILY_DECAY_PERCENT, 1.0)
+
+
 def calculate_rewards_for_mech1(
     sub: bt.Subtensor,
     netuid: int,
@@ -173,9 +205,27 @@ def calculate_rewards_for_mech1(
         if best_miner_meta:
             best_hotkey = best_miner_meta.get("miner_hotkey")
             bt.logging.info("  → from backend: %s", best_hotkey or "none")
+
+            # Weight decay based on how many days have passed since eval_date.
+            burn = burn_weight_from_eval_date(
+                best_miner_meta.get("eval_date"), burn_weight_percent
+            )
+            if burn > 0:
+                bt.logging.info(
+                    "Burning %.1f%% of total weight to UID %d "
+                    "(eval_date=%s, decay=%.0f%%/day)",
+                    burn * 100,
+                    burn_uid if burn_uid is not None else 0,
+                    best_miner_meta.get("eval_date") or "?",
+                    DAILY_DECAY_PERCENT * 100,
+                )
+
             uid = sub.get_uid_for_hotkey_on_subnet(best_hotkey, netuid)
-            reward = 1 - burn_weight_percent
-            rewards = [(burn_uid, burn_weight_percent), (uid, reward)]
+            miner_reward = 1 - burn
+            if uid is not None and miner_reward > 0:
+                rewards = [(burn_uid, burn), (uid, miner_reward)]
+            else:
+                rewards = [(burn_uid, 1.0)]
         else:
             rewards = [(0, 1)]
 
