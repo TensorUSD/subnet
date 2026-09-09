@@ -212,12 +212,10 @@ def calculate_rewards_for_mech1(
             )
             if burn > 0:
                 bt.logging.info(
-                    "Burning %.1f%% of total weight to UID %d "
-                    "(eval_date=%s, decay=%.0f%%/day)",
-                    burn * 100,
-                    burn_uid if burn_uid is not None else 0,
-                    best_miner_meta.get("eval_date") or "?",
-                    DAILY_DECAY_PERCENT * 100,
+                    f"Burning {burn * 100:.1f}% of total weight to UID "
+                    f"{burn_uid if burn_uid is not None else 0} "
+                    f"(eval_date={best_miner_meta.get('eval_date') or '?'}, "
+                    f"decay={DAILY_DECAY_PERCENT * 100:.0f}%/day)"
                 )
 
             uid = sub.get_uid_for_hotkey_on_subnet(best_hotkey, netuid)
