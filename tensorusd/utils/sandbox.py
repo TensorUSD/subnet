@@ -69,8 +69,8 @@ class SandboxRunner:
         
     def _ground_truth_volumes(self, as_of: date, days: int = 7) -> dict[str, dict[str, str]]:
         """
-        Build read-only bind mounts for the last `days` days of ground-truth data
-        (inclusive of as_of), for whichever date directories actually exist.
+        Build read-only bind mounts for only data.csv in the last `days` days of
+        ground-truth data (inclusive of as_of).
         """
         gt_root = self.ground_truth_dir.resolve()  # ensure absolute path
         volumes: dict[str, dict[str, str]] = {}
@@ -78,10 +78,10 @@ class SandboxRunner:
         for i in range(days):
             d = as_of - timedelta(days=i)
             day_str = d.isoformat()
-            host_dir = gt_root / day_str
-            if host_dir.is_dir():
-                volumes[str(host_dir)] = {
-                    "bind": f"/data/ground-truth/{day_str}",
+            data_file = gt_root / day_str / "data.csv"
+            if data_file.is_file():
+                volumes[str(data_file)] = {
+                    "bind": f"/data/ground-truth/{day_str}/data.csv",
                     "mode": "ro",
                 }
         return volumes
