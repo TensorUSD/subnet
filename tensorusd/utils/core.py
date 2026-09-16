@@ -124,6 +124,8 @@ class ValidatorCore:
             self.rpc_endpoint,
             self.vault_address,
             self.vault_metadata_path,
+            self.backend_url,
+            self.netuid,
         )
 
         self._eval_thread: threading.Thread | None = None

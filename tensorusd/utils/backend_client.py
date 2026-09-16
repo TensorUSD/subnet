@@ -233,6 +233,41 @@ class BackendClient:
         )
         return r.content
 
+    def submit_ground_truth(self, eval_date: str, csv_bytes: bytes) -> dict:
+        """
+        POST /v1/validator/ground-truth/submit
+
+        Upload the validator's finalized ground-truth CSV for the given
+        evaluation date. The backend stores it under
+        agent-output-{eval_date}/ground-truth/gt_{validator_hotkey}.csv
+        and overwrites any prior file uploaded by the same validator.
+        """
+        auth = self._fresh_auth_post()
+        hotkey = self._wallet.hotkey.ss58_address
+        filename = f"gt_{hotkey}.csv"
+
+        try:
+            r = self._session.post(
+                f"{self._base}/v1/validator/ground-truth/submit",
+                files={"file": (filename, csv_bytes, "text/csv")},
+                data={**auth, "eval_date": eval_date},
+                timeout=HTTP_TIMEOUT,
+            )
+            r.raise_for_status()
+            body = r.json()
+            payload = (
+                body.get("data") if isinstance(body, dict) and "data" in body else body
+            )
+            log.info(
+                "Uploaded ground truth for %s (%d bytes) to backend",
+                eval_date,
+                len(csv_bytes),
+            )
+            return payload
+        except requests.HTTPError as exc:
+            _log_http_error(exc, "submit_ground_truth")
+            raise
+
     # Unscored submissions (Phase 2 scoring)
 
     def get_unscored_submission(self) -> dict | None:
