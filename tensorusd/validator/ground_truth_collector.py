@@ -33,6 +33,7 @@ from tensorusd.common.contract import (
     TensorUSDVaultContract,
     create_substrate_interface,
 )
+from tensorusd.utils.backend_client import BackendClient
 from tensorusd.utils.config import add_validator_args
 from tensorusd.utils.logging import get_logger
 from tensorusd.validator.ground_truth import generate_ground_truth
@@ -246,20 +247,23 @@ class GroundTruthCollector:
         rpc_endpoint: str,
         vault_address: str,
         vault_metadata_path: str,
+        backend_url: str,
+        netuid: int,
     ) -> None:
-        
         self._wallet = wallet
         self._network = "finney"
         self._contract_address = vault_address
         self.rpc_endpoint = rpc_endpoint
         self.vault_metadata_path = vault_metadata_path
+        self._backend_url = backend_url
+        self._netuid = netuid
         self._stop = threading.Event()
-        
 
         # Separate SubstrateInterface — not the validator's bt.Subtensor
         self._substrate = None
         self._contract = None
         self._metadata_path = "tensorusd/common/abis/tusdt_vault.json"
+        self._backend_client = BackendClient(wallet, netuid, backend_url)
 
         # Tracks the last chain-date we saw, to detect day rollover.
         self._last_seen_date: Optional[str] = None
@@ -277,6 +281,10 @@ class GroundTruthCollector:
     def stop(self) -> None:
         """Signal the collector to stop."""
         self._stop.set()
+        try:
+            self._backend_client.close()
+        except Exception:
+            pass
         log.info("Ground-truth collector stop signaled.")
 
     def _ensure_connection(self) -> bool:
@@ -339,6 +347,22 @@ class GroundTruthCollector:
                         pass
         return collected
 
+    def _upload_ground_truth_if_available(self, date_str: str) -> None:
+        """Upload the finalized ground-truth CSV for *date_str* if it exists."""
+        gt_path = GROUND_TRUTH_DIR / date_str / "ground-truth.csv"
+        if not gt_path.exists():
+            return
+
+        try:
+            self._backend_client.submit_ground_truth(date_str, gt_path.read_bytes())
+            log.info("Uploaded ground-truth for %s via backend endpoint.", date_str)
+        except Exception as exc:
+            log.warning(
+                "Ground-truth upload for %s failed — will retry next poll: %s",
+                date_str,
+                exc,
+            )
+
     def _finalize_day(self, date_str: str) -> None:
         """Build ground-truth.csv for `date_str` from whatever was collected."""
         data_dir = GROUND_TRUTH_DIR / date_str
@@ -346,6 +370,7 @@ class GroundTruthCollector:
         ground_truth_csv = data_dir / "ground-truth.csv"
 
         if ground_truth_csv.exists():
+            self._upload_ground_truth_if_available(date_str)
             return
         if not data_csv_path.exists():
             log.info("No data collected for %s — nothing to finalize.", date_str)
@@ -359,7 +384,8 @@ class GroundTruthCollector:
         )
 
         generate_ground_truth(date_str)
-        
+        self._upload_ground_truth_if_available(date_str)
+
     def _finalize_previous_day_if_needed(self, current_date_str: str) -> None:
         """
         Check whether yesterday (relative to `current_date_str`) has a
@@ -386,6 +412,8 @@ class GroundTruthCollector:
                 prev_date_str,
             )
             self._finalize_day(prev_date_str)
+        elif prev_ground_truth_csv.exists():
+            self._upload_ground_truth_if_available(prev_date_str)
 
     def _poll_loop(self) -> None:
         """
@@ -427,6 +455,7 @@ class GroundTruthCollector:
 
                 if ground_truth_csv.exists():
                     # Already finalized for today somehow — nothing to do.
+                    self._upload_ground_truth_if_available(date_str)
                     time.sleep(POLL_INTERVAL)
                     continue
 
